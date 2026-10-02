@@ -72,7 +72,12 @@ router.get("/", async (req, res) => {
     }
 
     // Append performance stats dynamically
-    const tutorsWithStats = await Promise.all(tutors.map(appendStatsToTutor));
+    const statsMap = await getTutorStatsMap(tutors);
+
+    const tutorsWithStats = tutors.map((tutor) => ({
+      ...tutor.toObject(),
+      performanceStats: statsMap.get(String(tutor._id))
+    }));
     res.json(tutorsWithStats);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -489,6 +494,85 @@ router.delete("/:id", verifyToken(["admin"]), async (req, res) => {
   }
 });
 
+async function getTutorStatsMap(tutors) {
+  if (!tutors.length) {
+    return new Map();
+  }
+
+  const tutorIds = tutors.map((tutor) => tutor._id);
+  const tutorNames = tutors.map((tutor) => tutor.name).filter(Boolean);
+
+  const assignedLeads = await ParentEnquiry.find({
+    $or: [
+      { assignedTutorId: { $in: tutorIds } },
+      { assignedTutor: { $in: tutorNames } }
+    ]
+  }).lean();
+
+  const statsMap = new Map();
+
+  for (const tutor of tutors) {
+    statsMap.set(String(tutor._id), {
+      totalAssignments: 0,
+      demoScheduled: 0,
+      demoCancelled: 0,
+      rejected: 0,
+      successfullyEnrolled: 0,
+      activeTuitionCount: 0,
+      successPercentage: 0
+    });
+  }
+
+  for (const lead of assignedLeads) {
+    const matchingTutorIds = new Set();
+
+    if (lead.assignedTutorId) {
+      matchingTutorIds.add(String(lead.assignedTutorId));
+    }
+
+    if (lead.assignedTutor) {
+      for (const tutor of tutors) {
+        if (tutor.name === lead.assignedTutor) {
+          matchingTutorIds.add(String(tutor._id));
+        }
+      }
+    }
+
+    for (const tutorId of matchingTutorIds) {
+      const stats = statsMap.get(tutorId);
+      if (!stats) continue;
+
+      stats.totalAssignments += 1;
+
+      if (lead.status === "Demo Scheduled") {
+        stats.demoScheduled += 1;
+      }
+
+      if (lead.status === "Demo Cancelled") {
+        stats.demoCancelled += 1;
+      }
+
+      if (lead.status === "Rejected" || lead.status === "Lost") {
+        stats.rejected += 1;
+      }
+
+      if (lead.status === "Enrolled" || lead.status === "Won") {
+        stats.successfullyEnrolled += 1;
+      }
+    }
+  }
+
+  for (const stats of statsMap.values()) {
+    stats.activeTuitionCount = stats.successfullyEnrolled;
+    stats.successPercentage =
+      stats.totalAssignments > 0
+        ? Math.round(
+            (stats.successfullyEnrolled / stats.totalAssignments) * 100
+          )
+        : 0;
+  }
+
+  return statsMap;
+}
 
 export default router;
-
