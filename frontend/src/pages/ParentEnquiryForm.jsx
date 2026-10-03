@@ -296,6 +296,10 @@ const isClass1to8 = (classGrade) => {
   return ["1 to 5", "6", "7", "8"].includes(String(classGrade || "").trim());
 };
 
+const isClass1to7 = (classGrade) => {
+  return ["1 to 5", "6", "7"].includes(String(classGrade || "").trim());
+};
+
 const getFilteredPricingOptions = (plan, wards = []) => {
   if (!plan) return [];
   const hasClass1to8 = Array.isArray(wards) && wards.some(w => isClass1to8(w.classGrade));
@@ -1024,6 +1028,10 @@ export default function ParentEnquiryForm() {
       if (!form.planType) {
         newErrors.planType = "Preferred Plan selection is required";
       } else {
+        const hasClass1to7 = form.wards.some(w => isClass1to7(w.classGrade));
+        if (form.planType === "foundation" && hasClass1to7) {
+          newErrors.planType = "Foundation Plan is available from Class 8 onward. Please select another plan.";
+        }
         const hasClass1to8 = form.wards.some(w => isClass1to8(w.classGrade));
         if (['foundation', 'advance'].includes(form.planType) && hasClass1to8 && form.hoursPerDay === 1) {
           newErrors.planType = "For classes 1 to 8, 1 Hour session is not allowed on this plan. Please select 1.5 or 2 Hours.";
@@ -1919,6 +1927,10 @@ export default function ParentEnquiryForm() {
 
                       <div className="flex w-full gap-5 overflow-x-auto pb-4 snap-x md:grid md:grid-cols-3 md:overflow-x-visible md:pb-0 scrollbar-thin">
                         {PLANS.map((plan) => {
+                          const hasClass1to7 = form.wards.some((ward) => isClass1to7(ward.classGrade));
+                          if (plan.id === "foundation" && hasClass1to7) {
+                            return null;
+                          }
                           const isSilver = plan.theme === "silver";
                           const isGold = plan.theme === "gold";
 
