@@ -672,9 +672,20 @@ router.get("/admin-alerts", verifyToken(["admin"]), async (req, res) => {
 
     // Condition 2: Payment reminders at >= 90% completion
     const activeLeads = await ParentEnquiry.find({
-      status: { $nin: ["Lost", "Rejected", "Demo Cancelled", "Cancelled"] },
+      status: {
+        $in: [
+          "New Lead",
+          "Fees Finalized",
+          "Demo Scheduled",
+          "Feedback Pending",
+          "Enrolled",
+          "Won",
+        ],
+      },
       totalClasses: { $gt: 0 },
-    });
+    })
+      .select("_id requirementId wards completedClasses totalClasses")
+      .lean();
 
     activeLeads.forEach((lead) => {
       const completed = lead.completedClasses || 0;
