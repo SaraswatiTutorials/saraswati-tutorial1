@@ -64,35 +64,67 @@ async function computeTutorStats(tutor) {
 router.get("/", verifyToken(["admin"]), async (req, res) => {
   try {
     const data = await ParentEnquiry.find().sort({ createdAt: -1 });
-    // Synchronize completedClasses and packageStatus with Attendance single source of truth
+
+    // Synchronize completedClasses and packageStatus with Attendance single source of truth.
+    // Batch attendance counts into one aggregation instead of one count query per lead.
+    const leadsNeedingAttendance = data.filter(
+      (lead) =>
+        lead.status === "Enrolled" ||
+        lead.assignedTutorId ||
+        (lead.totalClasses && lead.totalClasses > 0)
+    );
+
+    const attendanceCounts = new Map();
+
+    if (leadsNeedingAttendance.length > 0) {
+      const leadIds = leadsNeedingAttendance.map((lead) => lead._id);
+
+      const attendanceSummary = await Attendance.aggregate([
+        {
+          $match: {
+            parentEnquiryId: { $in: leadIds },
+            status: "Done",
+          },
+        },
+        {
+          $group: {
+            _id: {
+              parentEnquiryId: "$parentEnquiryId",
+              packageCycle: "$packageCycle",
+            },
+            count: { $sum: 1 },
+          },
+        },
+      ]);
+
+      for (const row of attendanceSummary) {
+        const leadId = String(row._id.parentEnquiryId);
+        const cycle = row._id.packageCycle == null ? 1 : row._id.packageCycle;
+        const key = `${leadId}:${cycle}`;
+        attendanceCounts.set(key, (attendanceCounts.get(key) || 0) + row.count);
+      }
+    }
+
     const synchronizedData = await Promise.all(
       data.map(async (lead) => {
-        if (lead.status === "Enrolled" || lead.assignedTutorId || (lead.totalClasses && lead.totalClasses > 0)) {
+        if (
+          lead.status === "Enrolled" ||
+          lead.assignedTutorId ||
+          (lead.totalClasses && lead.totalClasses > 0)
+        ) {
           const cycle = lead.currentPackageCycle || 1;
           const total = lead.totalClasses || 12;
-          const cycleFilter = cycle === 1
-            ? {
-                parentEnquiryId: lead._id,
-                status: "Done",
-                $or: [
-                  { packageCycle: 1 },
-                  { packageCycle: { $exists: false } },
-                  { packageCycle: null },
-                ],
-              }
-            : {
-                parentEnquiryId: lead._id,
-                packageCycle: cycle,
-                status: "Done",
-              };
-          const completedCount = await Attendance.countDocuments(cycleFilter);
+          const leadId = String(lead._id);
+          const completedCount = attendanceCounts.get(`${leadId}:${cycle}`) || 0;
           const pkgStatus = completedCount >= total && total > 0 ? "completed" : "active";
+
           if (lead.completedClasses !== completedCount || lead.packageStatus !== pkgStatus) {
             lead.completedClasses = completedCount;
             lead.packageStatus = pkgStatus;
             await lead.save({ validateBeforeSave: false }).catch(() => {});
           }
         }
+
         return lead;
       })
     );
@@ -131,7 +163,7 @@ router.get("/broadcast-logs", verifyToken(["admin"]), async (req, res) => {
     if (tutorId) filter.tutorId = tutorId;
     if (status) filter.status = status;
 
-    const logs = await BroadcastLog.find(filter).sort({ time: -1 });
+    const logs = await BroadcastLog.find(filter).sort({ time: -1 }).lean();
     res.json(logs);
   } catch (error) {
     console.error("Fetch broadcast logs error:", error);
@@ -267,7 +299,7 @@ router.post("/", async (req, res) => {
       console.error("Failed to log backend validation success:", logErr.message);
     }
 
-    // ── Step 1: Generate stable IDs before saving (MongoDB count-based) ──────
+    // â”€â”€ Step 1: Generate stable IDs before saving (MongoDB count-based) â”€â”€â”€â”€â”€â”€
     let requirementId = "";
     let websiteStudentId = "";
     try {
@@ -288,7 +320,7 @@ router.post("/", async (req, res) => {
       finalTotalClasses = Number(req.body.daysPerWeek) * 4;
     }
 
-    // ── Step 2: Save to MongoDB FIRST (parent is never blocked by Odoo) ───────
+    // â”€â”€ Step 2: Save to MongoDB FIRST (parent is never blocked by Odoo) â”€â”€â”€â”€â”€â”€â”€
     const enquiry = new ParentEnquiry({
       ...req.body,
       totalClasses: finalTotalClasses,
@@ -322,7 +354,7 @@ router.post("/", async (req, res) => {
       console.error("Failed to log database saved success:", logErr.message);
     }
 
-    // ── Step 3: Clear drafts ─────────────────────────────────────────────────
+    // â”€â”€ Step 3: Clear drafts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try {
       const email = req.body.email;
       const phone = req.body.phone;
@@ -336,12 +368,12 @@ router.post("/", async (req, res) => {
       console.error("Error clearing draft on submit:", draftErr.message);
     }
 
-    // ── Step 4: Trigger auto-broadcast asynchronously ────────────────────────
+    // â”€â”€ Step 4: Trigger auto-broadcast asynchronously â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     autoBroadcastTutorsForLead(saved).catch(err => {
       console.error("[Auto-Broadcast] Trigger failed:", err.message);
     });
 
-    // ── Step 5: Sync to Odoo Community asynchronously (non-blocking) ─────────
+    // â”€â”€ Step 5: Sync to Odoo Community asynchronously (non-blocking) â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Parent gets HTTP 201 immediately. Odoo sync happens in background.
     setImmediate(async () => {
       try {
@@ -357,9 +389,9 @@ router.post("/", async (req, res) => {
           odooLastSyncAt: new Date(),
         });
 
-        console.log(`[Odoo Sync] ✅ Parent enquiry ${requirementId} synced to Odoo Community → Lead #${odooLeadId}`);
+        console.log(`[Odoo Sync] âœ… Parent enquiry ${requirementId} synced to Odoo Community â†’ Lead #${odooLeadId}`);
       } catch (odooErr) {
-        console.error(`[Odoo Sync] ❌ Parent enquiry ${requirementId} failed:`, odooErr.message);
+        console.error(`[Odoo Sync] âŒ Parent enquiry ${requirementId} failed:`, odooErr.message);
         await ParentEnquiry.findByIdAndUpdate(saved._id, {
           odooSyncStatus: "failed",
           odooSyncError: odooErr.message || "Unknown Odoo error",
@@ -995,7 +1027,7 @@ router.post("/broadcast-logs/:logId/retry", verifyToken(["admin"]), async (req, 
       return res.status(400).json({ message: "Only Failed broadcasts can be retried." });
     }
 
-    // Check if this is a permanent failure — should not retry
+    // Check if this is a permanent failure â€” should not retry
     if (log.failureReason && isPermanentFailure(log.failureReason)) {
       return res.status(400).json({
         message: `This failure reason ("${log.failureReason}") is permanent and cannot be retried.`,
@@ -1082,7 +1114,7 @@ router.post("/webhook/whatsapp-reply", async (req, res) => {
     const replyText = String(message).trim().toLowerCase();
     let responseStatus = null;
 
-    // ── Expanded keyword recognition ──────────────────────────────────────────
+    // â”€â”€ Expanded keyword recognition â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Not Interested checked FIRST to prevent "not interested" matching "interested"
     const NOT_INTERESTED_KEYWORDS = [
       "not interested", "nahi", "no", "nope", "reject", "not available",
@@ -1100,7 +1132,7 @@ router.post("/webhook/whatsapp-reply", async (req, res) => {
     }
 
     if (!responseStatus) {
-      // Not a clear YES/NO — log but don't update
+      // Not a clear YES/NO â€” log but don't update
       console.log(`[Webhook] Ambiguous reply from ${phone}: "${message}"`);
       return res.json({ message: "Reply received but not a clear YES/NO.", processed: false });
     }
@@ -1137,14 +1169,14 @@ router.post("/webhook/whatsapp-reply", async (req, res) => {
       whatsappMessageId: messageId || latestLog.whatsappMessageId,
     });
 
-    console.log(`[Webhook] Updated broadcast log ${latestLog._id} — Tutor ${tutor.name} replied: ${responseStatus}`);
+    console.log(`[Webhook] Updated broadcast log ${latestLog._id} â€” Tutor ${tutor.name} replied: ${responseStatus}`);
 
-    // ── Sync response to Odoo chatter ─────────────────────────────────────────
+    // â”€â”€ Sync response to Odoo chatter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Fetch the lead to get odooLeadId
     if (latestLog.leadId) {
       const lead = await ParentEnquiry.findById(latestLog.leadId).select("odooLeadId requirementId");
       if (lead?.odooLeadId) {
-        const emoji = responseStatus === "Interested" ? "✅" : "❌";
+        const emoji = responseStatus === "Interested" ? "âœ…" : "âŒ";
         const chatterMsg =
           `${emoji} Tutor <b>${tutor.name}</b> (${tutor.tutorCode || tutor.phone}) ` +
           `replied: <b>${responseStatus}</b> for requirement <b>${lead.requirementId}</b>`;

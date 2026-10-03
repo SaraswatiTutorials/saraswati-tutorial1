@@ -5,3 +5,7 @@
 dist/
 build/
 .next/
+
+backend/.env.production-backup
+
+backend/reports/

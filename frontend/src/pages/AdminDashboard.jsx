@@ -478,7 +478,6 @@ export default function AdminDashboard() {
       setTutors(Array.isArray(tData) ? tData : []);
       setDrafts(Array.isArray(dData) ? dData : []);
       setTutorDrafts(Array.isArray(tdData) ? tdData : []);
-      fetchAlerts();
     } catch (err) {
       console.error("Dashboard fetch error:", err);
     } finally {
@@ -682,7 +681,6 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchData();
-    fetchBroadcastLogs();
     fetchAlerts();
   }, []);
 
