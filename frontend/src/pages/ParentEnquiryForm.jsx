@@ -1450,18 +1450,18 @@ export default function ParentEnquiryForm() {
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        className="relative overflow-hidden rounded-[2.2rem] border border-slate-200 bg-white/70 backdrop-blur-md p-5 shadow-sm hover:shadow-xl transition-all duration-300 md:p-7 border-l-4 border-l-blue-600"
+                        className="relative overflow-hidden rounded-[2.2rem] border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md p-5 shadow-sm dark:shadow-none hover:shadow-xl transition-all duration-300 md:p-7 border-l-4 border-l-blue-600"
                       >
-                        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-700">
                           <div className="flex items-center gap-3">
                             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 shadow-inner">
                               <GraduationCap className="h-6 w-6" />
                             </div>
                             <div>
-                              <h3 className="text-xl font-black text-slate-900">
+                              <h3 className="text-xl font-black text-slate-900 dark:text-white">
                                 Student Profile {index + 1}
                               </h3>
-                              <p className="text-xs text-slate-500 font-medium">
+                              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                                 Academic & subject specifications for child {index + 1}
                               </p>
                             </div>
@@ -1573,7 +1573,7 @@ export default function ParentEnquiryForm() {
 
 
 
-                          <div className="md:col-span-2 overflow-hidden rounded-[1.8rem] border border-slate-200 bg-slate-50/50 backdrop-blur-sm">
+                          <div className="md:col-span-2 overflow-hidden rounded-[1.8rem] border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 backdrop-blur-sm">
                             <button
                               type="button"
                               onClick={() => toggleNotes(index)}
@@ -1582,13 +1582,13 @@ export default function ParentEnquiryForm() {
                               <div className="flex items-center gap-3">
                                 <FileText className="h-5 w-5 text-slate-400" />
                                 <div>
-                                  <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+                                  <p className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
                                     Special Learning Needs / Notes
-                                    <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-655">
+                                    <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-600">
                                       Optional
                                     </span>
                                   </p>
-                                  <p className="mt-0.5 text-xs text-slate-455 font-medium">
+                                  <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium">
                                     Add learning goals, concerns, or additional notes.
                                   </p>
                                 </div>
@@ -1600,7 +1600,7 @@ export default function ParentEnquiryForm() {
                             </button>
 
                             {openNotes[index] && (
-                              <div className="animate-slideFade border-t border-slate-200/80 bg-white/70 p-5">
+                              <div className="animate-slideFade border-t border-slate-200/80 dark:border-slate-700 bg-white/70 dark:bg-slate-900/40 p-5">
                                 <TextArea
                                   label="Special Learning Needs / Notes"
                                   name="specialNeeds"
@@ -1641,7 +1641,7 @@ export default function ParentEnquiryForm() {
                 <motion.div variants={itemVariants} className="grid gap-6 md:grid-cols-2">
                   {/* Preferred Mode Select Cards */}
                   <div className="md:col-span-2 space-y-3">
-                    <label className="text-sm font-bold text-slate-700">
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
                       {requiredLabel("Preferred Mode of Tuition")}
                     </label>
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -1673,17 +1673,17 @@ export default function ParentEnquiryForm() {
                             className={`relative overflow-hidden rounded-[2rem] border p-6 flex items-start gap-4 cursor-pointer transition-all duration-300 ${
                               isSelected
                                 ? "border-blue-600 bg-blue-50/15 shadow-md ring-2 ring-blue-500/10"
-                                : "border-slate-200 bg-white/70 hover:border-slate-350 hover:bg-white"
+                                : "border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-white dark:hover:bg-slate-800"
                             }`}
                           >
                             <div className={`p-3 rounded-2xl shrink-0 transition-colors duration-300 ${
-                              isSelected ? "bg-blue-600 text-white shadow-md shadow-blue-500/25" : "bg-slate-100 text-slate-500"
+                              isSelected ? "bg-blue-600 text-white shadow-md shadow-blue-500/25" : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300"
                             }`}>
                               <ModeIcon className="h-6 w-6" />
                             </div>
                             <div>
-                              <h4 className="font-extrabold text-slate-800 text-base">{mode.title}</h4>
-                              <p className="mt-1.5 text-xs text-slate-500 font-medium leading-relaxed">{mode.desc}</p>
+                              <h4 className="font-extrabold text-slate-800 dark:text-slate-100 text-base">{mode.title}</h4>
+                              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{mode.desc}</p>
                             </div>
                             {isSelected && (
                               <div className="absolute right-4 top-4 h-5 w-5 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold shadow-sm">
@@ -1704,10 +1704,10 @@ export default function ParentEnquiryForm() {
 
                   {/* Preferred Gender Selector Sliding Tabs */}
                   <div className="md:col-span-2 space-y-3">
-                    <label className="text-sm font-bold text-slate-700">
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
                       {requiredLabel("Preferred Gender of Tutor")}
                     </label>
-                    <div className="relative flex rounded-2xl bg-slate-100 p-1.5 border border-slate-200/50">
+                    <div className="relative flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1.5 border border-slate-200/50 dark:border-slate-700">
                       {[
                         { id: "Male", label: "Male Tutor", icon: User },
                         { id: "Female", label: "Female Tutor", icon: User },
@@ -1724,7 +1724,7 @@ export default function ParentEnquiryForm() {
                               setErrors(prev => ({ ...prev, preferredGender: "" }));
                             }}
                             className={`relative flex flex-1 items-center justify-center gap-2 py-3 px-3 text-xs font-extrabold rounded-xl transition-all duration-300 cursor-pointer z-10 ${
-                              isSelected ? "text-white" : "text-slate-600 hover:text-slate-900"
+                              isSelected ? "text-white" : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                             }`}
                           >
                             {isSelected && (
@@ -1753,11 +1753,11 @@ export default function ParentEnquiryForm() {
                 <motion.div variants={itemVariants} className="mt-8">
                   {form.planType ? (
                     <div className="flex flex-col gap-6">
-                      <div className="rounded-3xl border border-slate-200 bg-white/90 backdrop-blur-md p-6 shadow-xl">
+                      <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 backdrop-blur-md p-6 shadow-xl dark:shadow-none">
                         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                           <div className="flex items-center gap-4">
                             <div className={`p-4 rounded-2xl ${
-                              form.planType === 'foundation' ? 'bg-slate-100 text-slate-700' :
+                              form.planType === 'foundation' ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200' :
                               form.planType === 'advance' ? 'bg-amber-100 text-amber-700' :
                               'bg-slate-900 text-white'
                             }`}>
@@ -1765,50 +1765,50 @@ export default function ParentEnquiryForm() {
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <h4 className="text-xl font-black text-slate-900">
+                                <h4 className="text-xl font-black text-slate-900 dark:text-white">
                                   {PLANS.find(p => p.id === form.planType)?.title || form.planType}
                                 </h4>
                                 <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-black text-emerald-700 border border-emerald-200">
                                   Selected
                                 </span>
                               </div>
-                              <p className="mt-1 text-sm text-slate-500 font-medium">
+                              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 font-medium">
                                 {form.daysPerWeek} Days/Week • {form.hoursPerDay} Hr/Day
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-slate-100 pt-4 md:pt-0">
+                          <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-slate-100 dark:border-slate-700 pt-4 md:pt-0">
                             <div className="text-left md:text-right">
                               {form.wards.length > 1 ? (
-                                <div className="text-right text-xs space-y-1 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 min-w-[220px]">
-                                  <div className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1.5 pb-1 border-b border-slate-200">
+                                <div className="text-right text-xs space-y-1 bg-slate-50 dark:bg-slate-800 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 min-w-[220px]">
+                                  <div className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-1.5 pb-1 border-b border-slate-200 dark:border-slate-700">
                                     Multiple Student Breakdown
                                   </div>
                                   {form.wards.map((ward, sIdx) => {
                                     const fee = form.studentFees?.[sIdx] || 0;
                                     const name = ward.studentName || `Student ${sIdx + 1}`;
                                     return (
-                                      <div key={sIdx} className="flex justify-between gap-4 font-semibold text-slate-655">
+                                      <div key={sIdx} className="flex justify-between gap-4 font-semibold text-slate-600">
                                         <span>{name}:</span>
-                                        <span className="font-extrabold text-slate-900">₹{fee.toLocaleString('en-IN')}</span>
+                                        <span className="font-extrabold text-slate-900 dark:text-white">?{fee.toLocaleString('en-IN')}</span>
                                       </div>
                                     );
                                   })}
                                   {form.siblingDiscount > 0 && (
                                     <>
-                                      <div className="flex justify-between gap-4 font-semibold text-slate-500 pt-1 border-t border-slate-200/50">
+                                      <div className="flex justify-between gap-4 font-semibold text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-slate-700">
                                         <span>Total Base Fee:</span>
-                                        <span>₹{form.totalBaseFee?.toLocaleString('en-IN')}</span>
+                                        <span>?{form.totalBaseFee?.toLocaleString('en-IN')}</span>
                                       </div>
                                       <div className="flex justify-between gap-4 font-bold text-emerald-700">
                                         <span>Sibling Concession ({form.siblingConcessionPercent}%):</span>
-                                        <span>-₹{form.siblingDiscount?.toLocaleString('en-IN')}</span>
+                                        <span>-?{form.siblingDiscount?.toLocaleString('en-IN')}</span>
                                       </div>
                                     </>
                                   )}
-                                  <div className="flex justify-between gap-4 pt-1.5 border-t border-slate-200 font-black text-slate-955 text-sm">
+                                  <div className="flex justify-between gap-4 pt-1.5 border-t border-slate-200 dark:border-slate-700 font-black text-slate-900 dark:text-white text-sm">
                                     <span>Final Monthly Price:</span>
-                                    <span className="text-base">₹{form.monthlyFees?.toLocaleString('en-IN')}</span>
+                                    <span className="text-base">?{form.monthlyFees?.toLocaleString('en-IN')}</span>
                                   </div>
                                 </div>
                               ) : (
@@ -1820,18 +1820,18 @@ export default function ParentEnquiryForm() {
                                       const hrRate = calculateEliteHourlyPrice(firstWardClass, firstWardBoard);
                                       return (
                                         <div className="flex flex-col">
-                                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Hourly Rate</p>
-                                          <p className="text-2xl font-black text-slate-900">₹{hrRate.toLocaleString('en-IN')}/hour</p>
-                                          <span className="text-[11px] font-bold text-slate-500 mt-0.5 block">
-                                            Est: ₹{form.monthlyFees?.toLocaleString('en-IN')}/month
+                                          <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Hourly Rate</p>
+                                          <p className="text-2xl font-black text-slate-900 dark:text-white">?{hrRate.toLocaleString('en-IN')}/hour</p>
+                                          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 block">
+                                            Est: ?{form.monthlyFees?.toLocaleString('en-IN')}/month
                                           </span>
                                         </div>
                                       );
                                     })()
                                   ) : (
                                     <>
-                                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Monthly Tuition Fee</p>
-                                      <p className="text-2xl font-black text-slate-900">
+                                      <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Monthly Tuition Fee</p>
+                                      <p className="text-2xl font-black text-slate-900 dark:text-white">
                                         {['foundation', 'advance'].includes(form.planType) ? (
                                           (() => {
                                             const firstWardClass = form.wards[0]?.classGrade || "6";
@@ -1841,22 +1841,22 @@ export default function ParentEnquiryForm() {
                                               <>
                                                 {basePrice !== form.monthlyFees && (
                                                   <span className="line-through text-slate-400 text-lg mr-2 font-black">
-                                                    ₹{basePrice.toLocaleString('en-IN')}
+                                                    ?{basePrice.toLocaleString('en-IN')}
                                                   </span>
                                                 )}
-                                                <span className="text-slate-900">
-                                                  ₹{form.monthlyFees?.toLocaleString('en-IN')}
+                                                <span className="text-slate-900 dark:text-white">
+                                                  ?{form.monthlyFees?.toLocaleString('en-IN')}
                                                 </span>
                                               </>
                                             );
                                           })()
                                         ) : (
-                                          `₹${form.monthlyFees?.toLocaleString('en-IN')}`
+                                          `?${form.monthlyFees?.toLocaleString('en-IN')}`
                                         )}
                                       </p>
                                       {form.planType === 'foundation' && form.discount && (
                                         <span className="text-[10px] font-black text-emerald-600 block mt-0.5">
-                                          Save ₹{form.discount.toLocaleString('en-IN')} (18% applied)
+                                          Save ?{form.discount.toLocaleString('en-IN')} (18% applied)
                                         </span>
                                       )}
                                     </>
@@ -1867,7 +1867,7 @@ export default function ParentEnquiryForm() {
                             <button
                               type="button"
                               onClick={handleChangePlan}
-                              className="rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-5 py-3 text-sm font-bold text-slate-700 transition cursor-pointer"
+                              className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
                             >
                               Change Plan
                             </button>
@@ -1876,16 +1876,16 @@ export default function ParentEnquiryForm() {
                       </div>
 
                       {/* Preferred Days Selector */}
-                      <div className="rounded-3xl border border-slate-200 bg-white/90 backdrop-blur-md p-6 shadow-xl">
+                      <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 backdrop-blur-md p-6 shadow-xl dark:shadow-none">
                         <div className="flex items-center justify-between flex-wrap gap-2">
-                          <h4 className="text-lg font-black text-slate-800">
+                          <h4 className="text-lg font-black text-slate-800 dark:text-slate-100">
                             Select Preferred Days <span className="text-red-500">*</span>
                           </h4>
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-550 border border-slate-200/60">
+                          <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700">
                             Selected {form.preferredDays.length} of {form.daysPerWeek} days
                           </span>
                         </div>
-                        <p className="mt-1.5 text-xs font-medium text-slate-450">
+                        <p className="mt-1.5 text-xs font-medium text-slate-400">
                           Please choose exactly {form.daysPerWeek} days when the child is available for tutoring classes.
                         </p>
                         
@@ -1900,7 +1900,7 @@ export default function ParentEnquiryForm() {
                                 className={`rounded-full px-5 py-3 text-sm font-extrabold transition-all duration-300 cursor-pointer ${
                                   active
                                     ? "bg-slate-900 text-white shadow-lg scale-[1.03]"
-                                    : "bg-slate-50 text-slate-655 border border-slate-150/60 hover:bg-slate-100"
+                                    : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                                 }`}
                               >
                                 {day}
@@ -1943,7 +1943,7 @@ export default function ParentEnquiryForm() {
                             hoverShadowClass = "hover:shadow-[0_0_30px_rgba(203,213,225,0.3)]";
                           } else if (isGold) {
                             cardBgClass = "bg-gradient-to-br from-[#FFD700] to-[#F59E0B] border-[#FFD700]/30 shadow-md";
-                            textClass = "text-slate-955";
+                            textClass = "text-slate-900";
                             hoverShadowClass = "hover:shadow-[0_0_30px_rgba(245,158,11,0.4)]";
                           } else {
                             cardBgClass = "bg-gradient-to-br from-[#111827] to-[#000000] border-white/12 shadow-lg";
@@ -1962,8 +1962,8 @@ export default function ParentEnquiryForm() {
                               {/* Top Info */}
                               <div>
                                 <div className={`inline-block rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-wider border mb-3 ${
-                                  isSilver ? 'bg-slate-900/10 text-slate-855 border-slate-900/20' :
-                                  isGold ? 'bg-black/10 text-slate-955 border-black/20' :
+                                  isSilver ? 'bg-slate-900/10 dark:bg-white/10 text-slate-800 dark:text-slate-100 border-slate-900/20 dark:border-white/10' :
+                                  isGold ? 'bg-black/10 dark:bg-white/10 text-slate-900 dark:text-white border-black/20 dark:border-white/10' :
                                   'bg-white/10 text-white border-white/10'
                                 }`}>
                                   {plan.badge}
@@ -1993,10 +1993,10 @@ export default function ParentEnquiryForm() {
                                         <div className="flex flex-col">
                                           <span className="text-[8px] font-black uppercase tracking-wider opacity-60 block">Hourly Rate</span>
                                           <span className="text-lg font-black tracking-tight text-white">
-                                            ₹{hrRate.toLocaleString('en-IN')}/hour
+                                            ?{hrRate.toLocaleString('en-IN')}/hour
                                           </span>
-                                          <span className="text-[9px] font-semibold text-slate-350 block mt-0.5">
-                                            Est: ₹{estMonthly.toLocaleString('en-IN')}/month
+                                          <span className="text-[9px] font-semibold text-slate-300 block mt-0.5">
+                                            Est: ?{estMonthly.toLocaleString('en-IN')}/month
                                           </span>
                                         </div>
                                       );
@@ -2010,7 +2010,7 @@ export default function ParentEnquiryForm() {
                                           const firstWardBoard = form.wards[0]?.curriculum || "CBSE";
                                           const defaultHours = 1.5;
                                           const cardStartingPrice = calculatePrice(plan.id, firstWardClass, firstWardBoard, 3, defaultHours);
-                                          return `₹${cardStartingPrice.toLocaleString('en-IN')}`;
+                                          return `?${cardStartingPrice.toLocaleString('en-IN')}`;
                                         })()}
                                       </span>
                                     </div>
@@ -2050,7 +2050,7 @@ export default function ParentEnquiryForm() {
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ duration: 0.35 }}
-                            className="relative w-full max-w-3xl md:max-w-4xl lg:max-w-5xl max-h-[90vh] rounded-[1.2rem] sm:rounded-[2rem] bg-white shadow-2xl border border-slate-100 flex flex-col overflow-hidden"
+                            className="relative w-full max-w-3xl md:max-w-4xl lg:max-w-5xl max-h-[90vh] rounded-[1.2rem] sm:rounded-[2rem] bg-white dark:bg-slate-900 shadow-2xl border border-slate-100 dark:border-slate-700 flex flex-col overflow-hidden"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {/* Modal Header */}
@@ -2059,7 +2059,7 @@ export default function ParentEnquiryForm() {
                                 type="button"
                                 onClick={() => setViewingPlanId(null)}
                                 className={`absolute top-4 right-4 p-1.5 rounded-full transition cursor-pointer flex items-center justify-center bg-black/5 hover:bg-black/15 ${
-                                  activePlanData.theme === 'black' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
+                                  activePlanData.theme === 'black' ? 'text-white' : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                               >
                                 <X className="h-4.5 w-4.5" />
@@ -2067,19 +2067,19 @@ export default function ParentEnquiryForm() {
                               
                               <div className="mt-2">
                                 <span className={`inline-block rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider border mb-2 ${
-                                  activePlanData.theme === 'silver' ? 'bg-slate-900/10 text-slate-855 border-slate-900/20' :
-                                  activePlanData.theme === 'gold' ? 'bg-black/10 text-slate-955 border-black/20' :
+                                  activePlanData.theme === 'silver' ? 'bg-slate-900/10 dark:bg-white/10 text-slate-800 dark:text-slate-100 border-slate-400/30' :
+                                  activePlanData.theme === 'gold' ? 'bg-black/10 dark:bg-white/10 text-slate-900 dark:text-white border-black/20 dark:border-white/10' :
                                   'bg-white/15 text-white border-white/10'
                                 }`}>
                                   {activePlanData.badge}
                                 </span>
                                 <h3 className={`text-2xl font-black ${
-                                  activePlanData.theme === 'black' ? 'text-white' : 'text-slate-900'
+                                  activePlanData.theme === 'black' ? 'text-white' : 'text-slate-900 dark:text-white'
                                 }`}>
                                   {activePlanData.title}
                                 </h3>
                                 <p className={`mt-1 text-xs leading-relaxed max-w-2xl ${
-                                  activePlanData.theme === 'black' ? 'text-slate-300' : 'text-slate-600'
+                                  activePlanData.theme === 'black' ? 'text-slate-300' : 'text-slate-600 dark:text-slate-300'
                                 }`}>
                                   {activePlanData.description}
                                 </p>
@@ -2145,11 +2145,11 @@ export default function ParentEnquiryForm() {
                                     {activePlanData.fullDetails.faqs.map((faq, idx) => {
                                       const isOpen = openFaqIndex === idx;
                                       return (
-                                        <div key={idx} className="border-b border-slate-100 pb-1.5">
+                                        <div key={idx} className="border-b border-slate-100 dark:border-slate-700 pb-1.5">
                                           <button
                                             type="button"
                                             onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
-                                            className="w-full flex items-center justify-between text-left py-1 text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors cursor-pointer"
+                                            className="w-full flex items-center justify-between text-left py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                                           >
                                             <span>{faq.q}</span>
                                             <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
@@ -2163,7 +2163,7 @@ export default function ParentEnquiryForm() {
                                                 transition={{ duration: 0.2, ease: "easeInOut" }}
                                                 className="overflow-hidden"
                                               >
-                                                <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5 pb-0.5">{faq.a}</p>
+                                                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mt-0.5 pb-0.5">{faq.a}</p>
                                               </motion.div>
                                             )}
                                           </AnimatePresence>
@@ -2175,7 +2175,7 @@ export default function ParentEnquiryForm() {
                               </div>
 
                               {/* Pricing option matrix selection */}
-                              <div className="flex flex-col justify-start rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-inner self-start w-full order-1 md:order-2">
+                              <div className="flex flex-col justify-start rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-4 shadow-inner self-start w-full order-1 md:order-2">
                                 <div>
                                   <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Select Pricing Option</h4>
                                   <div className="space-y-2">
@@ -2200,29 +2200,29 @@ export default function ParentEnquiryForm() {
                                           className={`p-3 rounded-xl border transition cursor-pointer flex items-center justify-between ${
                                             isSelected 
                                               ? 'border-blue-500 bg-blue-50/50 shadow-sm' 
-                                              : 'border-slate-200 bg-white hover:border-slate-350'
+                                              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'
                                           }`}
                                         >
                                           <div className="flex items-center gap-2.5">
                                             <div className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center shrink-0 ${
-                                              isSelected ? 'border-blue-500 text-blue-500' : 'border-slate-300'
+                                              isSelected ? 'border-blue-500 text-blue-500' : 'border-slate-300 dark:border-slate-600'
                                             }`}>
                                               {isSelected && <div className="h-2 w-2 rounded-full bg-blue-500" />}
                                             </div>
                                             <div>
-                                              <p className="text-[11px] font-black text-slate-800">
+                                              <p className="text-[11px] font-black text-slate-800 dark:text-slate-100">
                                                 {opt.days} Days / Week
                                               </p>
-                                              <p className="text-[9px] font-bold text-slate-500">
+                                              <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400">
                                                 {opt.hours} Hour{opt.hours !== 1 ? 's' : ''} / Day
                                               </p>
                                             </div>
                                           </div>
                                           <div className="text-right">
-                                            <p className="text-[11px] font-black text-slate-900">
-                                              ₹{rowPrice.toLocaleString('en-IN')}
+                                            <p className="text-[11px] font-black text-slate-900 dark:text-white">
+                                              ?{rowPrice.toLocaleString('en-IN')}
                                             </p>
-                                            <p className="text-[8px] font-bold text-slate-400">
+                                            <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500">
                                               / month
                                             </p>
                                           </div>
@@ -2238,8 +2238,8 @@ export default function ParentEnquiryForm() {
                                       if (!calc) return null;
 
                                       return (
-                                        <div className="mt-4 p-4 rounded-xl border space-y-2.5 bg-white border-slate-200 text-xs animate-slideFade">
-                                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-1.5">
+                                        <div className="mt-4 p-4 rounded-xl border space-y-2.5 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-xs animate-slideFade">
+                                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-700 pb-1.5">
                                             Fee Summary
                                           </div>
                                           <div className="space-y-1.5">
@@ -2247,17 +2247,17 @@ export default function ParentEnquiryForm() {
                                               const fee = calc.studentFees[sIdx] || 0;
                                               const name = ward.studentName || `Student ${sIdx + 1}`;
                                               return (
-                                                <div key={sIdx} className="flex justify-between items-center text-slate-650">
+                                                <div key={sIdx} className="flex justify-between items-center text-slate-600 dark:text-slate-300">
                                                   <span className="font-semibold">{name} Fee:</span>
-                                                  <span className="font-extrabold text-slate-900">₹{fee.toLocaleString('en-IN')}</span>
+                                                  <span className="font-extrabold text-slate-900 dark:text-white">?{fee.toLocaleString('en-IN')}</span>
                                                 </div>
                                               );
                                             })}
                                             {calc.concessionPercent > 0 && (
                                               <>
-                                                <div className="pt-1.5 border-t border-slate-100/50 flex justify-between items-center text-slate-500">
+                                                <div className="pt-1.5 border-t border-slate-100/50 dark:border-slate-700 flex justify-between items-center text-slate-500 dark:text-slate-400">
                                                   <span className="font-semibold">Total Base Fee:</span>
-                                                  <span className="font-extrabold text-slate-700">₹{calc.totalBaseFee.toLocaleString('en-IN')}</span>
+                                                  <span className="font-extrabold text-slate-700 dark:text-slate-200">?{calc.totalBaseFee.toLocaleString('en-IN')}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-emerald-700">
                                                   <span className="font-semibold flex items-center gap-1.5">
@@ -2266,14 +2266,14 @@ export default function ParentEnquiryForm() {
                                                       -{calc.concessionPercent}%
                                                     </span>
                                                   </span>
-                                                  <span className="font-black">-₹{calc.siblingDiscount.toLocaleString('en-IN')}</span>
+                                                  <span className="font-black">-?{calc.siblingDiscount.toLocaleString('en-IN')}</span>
                                                 </div>
                                               </>
                                             )}
                                           </div>
-                                          <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-                                            <span className="text-slate-900 font-black text-xs">Final Payable Amount:</span>
-                                            <span className="text-slate-900 font-black text-base">₹{calc.finalPrice.toLocaleString('en-IN')}</span>
+                                          <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                                            <span className="text-slate-900 dark:text-white font-black text-xs">Final Payable Amount:</span>
+                                            <span className="text-slate-900 dark:text-white font-black text-base">?{calc.finalPrice.toLocaleString('en-IN')}</span>
                                           </div>
                                         </div>
                                       );
@@ -2285,27 +2285,27 @@ export default function ParentEnquiryForm() {
 
                                       if (activePlanData.id === 'foundation') {
                                         return (
-                                          <div className="mt-4 p-3 rounded-xl bg-emerald-50/50 border border-emerald-150/60 text-xs space-y-1.5 animate-slideFade">
+                                          <div className="mt-4 p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-800/50 text-xs space-y-1.5 animate-slideFade">
                                             <div className="flex justify-between items-center">
-                                              <span className="text-slate-500 font-semibold">Original Price:</span>
-                                              <span className="text-slate-400 line-through font-extrabold">₹{calc.originalPrice.toLocaleString('en-IN')}</span>
+                                              <span className="text-slate-500 dark:text-slate-400 font-semibold">Original Price:</span>
+                                              <span className="text-slate-400 dark:text-slate-500 line-through font-extrabold">?{calc.originalPrice.toLocaleString('en-IN')}</span>
                                             </div>
                                             <div className="flex justify-between items-center">
                                               <span className="text-slate-500 font-semibold flex items-center gap-1">
                                                 Discount: 
-                                                <span className="bg-emerald-150 text-emerald-800 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">
+                                                <span className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">
                                                   -{calc.discountPercent}%
                                                 </span>
                                               </span>
-                                              <span className="text-emerald-700 font-extrabold">-₹{calc.discount.toLocaleString('en-IN')}</span>
+                                              <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">-?{calc.discount.toLocaleString('en-IN')}</span>
                                             </div>
-                                            <div className="pt-1.5 border-t border-emerald-200/50 flex justify-between items-center">
-                                              <span className="text-slate-900 font-black text-xs">Final Price:</span>
-                                              <span className="text-slate-900 font-black text-base">₹{calc.finalPrice.toLocaleString('en-IN')}</span>
+                                            <div className="pt-1.5 border-t border-emerald-200/50 dark:border-emerald-800/50 flex justify-between items-center">
+                                              <span className="text-slate-900 dark:text-white font-black text-xs">Final Price:</span>
+                                              <span className="text-slate-900 dark:text-white font-black text-base">?{calc.finalPrice.toLocaleString('en-IN')}</span>
                                             </div>
                                             <div className="text-right">
                                               <span className="text-emerald-700 text-[10px] font-black">
-                                                Save ₹{calc.discount.toLocaleString('en-IN')} ({calc.discountPercent}%)
+                                                Save ?{calc.discount.toLocaleString('en-IN')} ({calc.discountPercent}%)
                                               </span>
                                             </div>
                                           </div>
@@ -2314,10 +2314,10 @@ export default function ParentEnquiryForm() {
 
                                       if (activePlanData.id === 'advance') {
                                         return (
-                                          <div className="mt-4 p-3.5 rounded-xl bg-amber-50/40 border border-amber-200/50 text-xs space-y-1.5 animate-slideFade">
+                                          <div className="mt-4 p-3.5 rounded-xl bg-amber-50/40 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/50 text-xs space-y-1.5 animate-slideFade">
                                             <div className="flex justify-between items-center">
-                                              <span className="text-slate-900 font-black text-xs">Total Tuition Investment:</span>
-                                              <span className="text-slate-900 font-black text-base">₹{calc.finalPrice.toLocaleString('en-IN')}</span>
+                                              <span className="text-slate-900 dark:text-white font-black text-xs">Total Tuition Investment:</span>
+                                              <span className="text-slate-900 dark:text-white font-black text-base">?{calc.finalPrice.toLocaleString('en-IN')}</span>
                                             </div>
                                           </div>
                                         );
@@ -2329,19 +2329,19 @@ export default function ParentEnquiryForm() {
                                           <div className="mt-4 p-3 rounded-xl bg-slate-900 text-white text-xs space-y-1.5 animate-slideFade">
                                             <div className="flex justify-between items-center">
                                               <span className="text-slate-300 font-semibold">Hourly Rate:</span>
-                                              <span className="font-black text-base text-amber-400">₹{hrRate.toLocaleString('en-IN')}/hour</span>
+                                              <span className="font-black text-base text-amber-400">?{hrRate.toLocaleString('en-IN')}/hour</span>
                                             </div>
-                                            <div className="flex justify-between items-center text-slate-350">
+                                            <div className="flex justify-between items-center text-slate-300">
                                               <span className="font-semibold">Estimated Monthly Fee:</span>
-                                              <span className="font-extrabold text-white">₹{calc.finalPrice.toLocaleString('en-IN')}/month</span>
+                                              <span className="font-extrabold text-white">?{calc.finalPrice.toLocaleString('en-IN')}/month</span>
                                             </div>
-                                            <div className="flex justify-between items-center text-slate-355">
+                                            <div className="flex justify-between items-center text-slate-300">
                                               <span className="font-semibold">Schedules per Month:</span>
                                               <span className="font-extrabold text-white">{calc.totalClasses} classes</span>
                                             </div>
                                             <div className="pt-1.5 border-t border-slate-800 flex justify-between items-center">
                                               <span className="font-black text-xs">Cost Per Class:</span>
-                                              <span className="font-black text-sm text-slate-300">₹{calc.costPerClass} / Class</span>
+                                              <span className="font-black text-sm text-slate-300">?{calc.costPerClass} / Class</span>
                                             </div>
                                           </div>
                                         );
@@ -2373,12 +2373,12 @@ export default function ParentEnquiryForm() {
 
                 {/* Class Timing Section in Preference Step (Placed after Plan Selection) */}
                 <motion.div variants={itemVariants} className="mt-8 space-y-3">
-                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                  <label className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
                     <Clock className="h-4.5 w-4.5 text-blue-600" />
                     {requiredLabel("Class Timing Preference")}
                   </label>
 
-                  <div className="relative flex rounded-2xl bg-slate-100 p-1.5 border border-slate-200/50">
+                  <div className="relative flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1.5 border border-slate-200/50 dark:border-slate-700">
                     {["Flexible", "Fixed Timing"].map((timingType) => {
                       const isSelected = (form.classTimingType || "Flexible") === timingType;
                       return (
@@ -2387,7 +2387,7 @@ export default function ParentEnquiryForm() {
                           key={timingType}
                           onClick={() => setForm(prev => ({ ...prev, classTimingType: timingType }))}
                           className={`relative flex flex-1 items-center justify-center gap-2 py-3 px-3 text-xs font-extrabold rounded-xl transition-all duration-300 cursor-pointer z-10 ${
-                            isSelected ? "text-white" : "text-slate-600 hover:text-slate-900"
+                            isSelected ? "text-white" : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                           }`}
                         >
                           {isSelected && (
@@ -2405,18 +2405,18 @@ export default function ParentEnquiryForm() {
                   </div>
 
                   {form.classTimingType === "Fixed Timing" ? (
-                    <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm space-y-4">
+                    <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white dark:bg-slate-900 p-5 shadow-sm dark:shadow-none space-y-4">
                       {/* Sub-mode selector: Predefined Slots vs Custom Manual Input */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-150 pb-3">
-                        <span className="text-xs font-extrabold text-slate-700">Choose Timing Option:</span>
-                        <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-700 pb-3">
+                        <span className="text-xs font-extrabold text-slate-700 dark:text-slate-200">Choose Timing Option:</span>
+                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1">
                           <button
                             type="button"
                             onClick={() => setForm(prev => ({ ...prev, classTimingMode: "Predefined" }))}
                             className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
                               (form.classTimingMode || "Predefined") === "Predefined"
                                 ? "bg-blue-600 text-white shadow-sm"
-                                : "text-slate-600 hover:text-slate-900"
+                                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                             }`}
                           >
                             Predefined Slots
@@ -2427,7 +2427,7 @@ export default function ParentEnquiryForm() {
                             className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
                               form.classTimingMode === "Custom"
                                 ? "bg-blue-600 text-white shadow-sm"
-                                : "text-slate-600 hover:text-slate-900"
+                                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                             }`}
                           >
                             + Enter Custom Timing
@@ -2438,7 +2438,7 @@ export default function ParentEnquiryForm() {
                       {(form.classTimingMode || "Predefined") === "Predefined" ? (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-500 block">
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">
                               Predefined Slots ({form.hoursPerDay ? `${form.hoursPerDay} Hr/Class` : 'Default 1.5 Hr'}):
                             </span>
                           </div>
@@ -2453,7 +2453,7 @@ export default function ParentEnquiryForm() {
                                   className={`px-3.5 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
                                     isSlotSelected
                                       ? "bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02]"
-                                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                                      : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                                   }`}
                                 >
                                   {slot}
@@ -2497,7 +2497,7 @@ export default function ParentEnquiryForm() {
                                     classTimingSlot: formattedSlot
                                   }));
                                 }}
-                                className="w-full rounded-xl border border-slate-300 p-2.5 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                className="w-full rounded-xl border border-slate-300 dark:border-slate-600 p-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                               />
                             </div>
                             <div>
@@ -2519,7 +2519,7 @@ export default function ParentEnquiryForm() {
                                     classTimingSlot: formattedSlot
                                   }));
                                 }}
-                                className="w-full rounded-xl border border-slate-300 p-2.5 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                className="w-full rounded-xl border border-slate-300 dark:border-slate-600 p-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                               />
                             </div>
                           </div>
@@ -2543,7 +2543,7 @@ export default function ParentEnquiryForm() {
                 </motion.div>
 
                 {/* Final Pricing Consent Declaration Checkbox at the end of Step 3 (Preference) */}
-                <motion.div variants={itemVariants} className="mt-8 rounded-2xl border border-slate-200 bg-slate-50/80 p-5 shadow-sm">
+                <motion.div variants={itemVariants} className="mt-8 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 p-5 shadow-sm dark:shadow-none">
                   <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
@@ -2582,7 +2582,7 @@ export default function ParentEnquiryForm() {
           {message && (
             <div
               className={`mt-8 rounded-2xl px-5 py-4 text-sm font-bold flex items-center gap-2 ${message.toLowerCase().includes("success")
-                ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-750 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50"
+                ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50"
                 : "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/50"
                 }`}
             >
@@ -2649,7 +2649,7 @@ function StepBox({ number, active, done, title, subtitle, icon: Icon }) {
           ? "border-slate-900 dark:border-blue-700 bg-slate-900 dark:bg-slate-800 text-white shadow-lg shadow-slate-900/10 scale-[1.02]"
           : done
           ? "border-emerald-200 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-850 dark:text-emerald-300"
-          : "border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/60 backdrop-blur-md text-slate-550 dark:text-slate-400 shadow-sm hover:border-slate-300 dark:hover:border-slate-600"
+          : "border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/60 backdrop-blur-md text-slate-500 dark:text-slate-400 shadow-sm hover:border-slate-300 dark:hover:border-slate-600"
       }`}
     >
       {active && (
@@ -2661,7 +2661,7 @@ function StepBox({ number, active, done, title, subtitle, icon: Icon }) {
             ? "bg-blue-600 text-white font-extrabold"
             : done
             ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300"
-            : "bg-slate-50 dark:bg-slate-700 text-slate-450 dark:text-slate-400"
+            : "bg-slate-50 dark:bg-slate-700 text-slate-400 dark:text-slate-400"
         }`}
       >
         {done ? <Check className="h-4.5 w-4.5 sm:h-5 sm:w-5" /> : Icon ? <Icon className="h-4.5 w-4.5 sm:h-5 sm:w-5" /> : <span>{number}</span>}
@@ -2709,7 +2709,7 @@ function ErrorText({ message }) {
 function Input({ label, error, icon: Icon, ...props }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-bold text-slate-705 dark:text-slate-300">
+      <label className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-300">
         {label}
       </label>
       <div className="relative">
@@ -2720,7 +2720,7 @@ function Input({ label, error, icon: Icon, ...props }) {
         )}
         <input
           {...props}
-          className={`h-14 w-full rounded-3xl border bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm text-sm outline-none transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-900 focus:ring-4 focus:bg-white dark:focus:bg-slate-900 text-slate-850 dark:text-slate-100 ${
+          className={`h-14 w-full rounded-3xl border bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm text-sm outline-none transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-900 focus:ring-4 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 ${
             Icon ? "pl-12 pr-5" : "px-5"
           } ${
             error
@@ -2737,7 +2737,7 @@ function Input({ label, error, icon: Icon, ...props }) {
 function TextArea({ label, error, icon: Icon, ...props }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-bold text-slate-705 dark:text-slate-300">
+      <label className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-300">
         {label}
       </label>
       <div className="relative">
@@ -2748,7 +2748,7 @@ function TextArea({ label, error, icon: Icon, ...props }) {
         )}
         <textarea
           {...props}
-          className={`min-h-[120px] w-full rounded-3xl border bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm text-sm outline-none transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-900 focus:ring-4 focus:bg-white dark:focus:bg-slate-900 text-slate-850 dark:text-slate-100 ${
+          className={`min-h-[120px] w-full rounded-3xl border bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm text-sm outline-none transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-900 focus:ring-4 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 ${
             Icon ? "pl-12 pr-5 pt-3.5" : "px-5 py-4"
           } ${
             error
@@ -2775,7 +2775,7 @@ function SearchableInput({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-bold text-slate-705 dark:text-slate-300">
+      <label className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-300">
         {label}
       </label>
       <div className="relative">
@@ -2789,7 +2789,7 @@ function SearchableInput({
           name={name}
           value={value}
           onChange={onChange}
-          className={`h-14 w-full rounded-3xl border bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm text-sm outline-none transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-900 focus:ring-4 focus:bg-white dark:focus:bg-slate-900 text-slate-850 dark:text-slate-100 ${
+          className={`h-14 w-full rounded-3xl border bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm text-sm outline-none transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-900 focus:ring-4 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 ${
             Icon ? "pl-12 pr-5" : "px-5"
           } ${
             error
@@ -2821,7 +2821,7 @@ function SelectBox({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-bold text-slate-705 dark:text-slate-300">
+      <label className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-300">
         {label}
       </label>
       <div className="relative">
@@ -2834,7 +2834,7 @@ function SelectBox({
           name={name}
           value={value}
           onChange={onChange}
-          className={`h-14 w-full rounded-3xl border bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm text-sm outline-none transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-900 appearance-none focus:ring-4 focus:bg-white dark:focus:bg-slate-900 text-slate-850 dark:text-slate-100 ${
+          className={`h-14 w-full rounded-3xl border bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm text-sm outline-none transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-900 appearance-none focus:ring-4 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 ${
             Icon ? "pl-12 pr-10" : "pl-5 pr-10"
           } ${
             error
@@ -2897,7 +2897,7 @@ function SubjectsMultiSelect({
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <label className="mb-2 block text-sm font-bold text-slate-705">
+      <label className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-200">
         {label}
       </label>
       <div className="relative">
@@ -2942,7 +2942,7 @@ function SubjectsMultiSelect({
       </div>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-35 mt-1 max-h-60 overflow-y-auto rounded-3xl bg-white p-3 shadow-2xl ring-1 ring-slate-200 animate-slideFade">
+        <div className="absolute left-0 right-0 top-full z-35 mt-1 max-h-60 overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 p-3 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-700 animate-slideFade">
           {options.map((option) => {
             const checked = selectedValues.includes(option);
             return (

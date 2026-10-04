@@ -127,15 +127,15 @@ function LocationSelector({ activeCity }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 py-1.5 px-2.5 text-xs font-black rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 transition duration-300 cursor-pointer shadow-sm hover:border-slate-350"
+        className="flex items-center gap-1.5 py-1.5 px-2.5 text-xs font-black rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 transition duration-300 cursor-pointer shadow-sm hover:border-slate-300 dark:hover:border-slate-600"
       >
         <MapPin className="h-3.5 w-3.5 text-blue-600 animate-pulse" />
         <span>{displayLabel}</span>
-        <ChevronDown className={`h-3 w-3 text-slate-500 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-3 w-3 text-slate-500 dark:text-slate-400 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 mt-1.5 w-36 rounded-2xl bg-white border border-slate-100 shadow-xl py-1.5 text-slate-700 animate-slideFade">
+        <div className="absolute left-0 mt-1.5 w-36 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 shadow-xl py-1.5 text-slate-700 dark:text-slate-200 animate-slideFade">
           {[
             { id: "Bangalore", label: "Bangalore / BLR" },
             { id: "Mumbai", label: "Mumbai" }
@@ -154,7 +154,7 @@ function LocationSelector({ activeCity }) {
                 className={`flex items-center justify-between w-full text-left px-3.5 py-2 text-xs font-bold transition duration-150 cursor-pointer ${
                   isSelected 
                     ? "text-blue-600 bg-blue-50/50" 
-                    : "hover:bg-slate-50 text-slate-755 hover:text-slate-900"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 <span>{city.label}</span>
@@ -190,11 +190,11 @@ function ResourcesDropdown({ activeSection }) {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-1 py-1.5 transition duration-300 whitespace-nowrap shrink-0 font-bold cursor-pointer relative ${
-          isResourcesActive ? "text-blue-600 font-extrabold" : "text-slate-655 hover:text-slate-950"
+          isResourcesActive ? "text-blue-600 font-extrabold" : "text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white"
         }`}
       >
         <span>Resources</span>
-        <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-300 ${isOpen ? "rotate-180" : ""} ${isResourcesActive ? "text-blue-600" : "text-slate-500"}`} />
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-300 ${isOpen ? "rotate-180" : ""} ${isResourcesActive ? "text-blue-600" : "text-slate-500 dark:text-slate-400"}`} />
         {isResourcesActive && (
           <motion.div
             layoutId="navUnderline"
@@ -205,18 +205,18 @@ function ResourcesDropdown({ activeSection }) {
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 mt-1.5 w-32 rounded-2xl bg-white border border-slate-100 shadow-xl py-1.5 text-slate-700 animate-slideFade">
+        <div className="absolute left-0 mt-1.5 w-32 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 shadow-xl py-1.5 text-slate-700 dark:text-slate-200 animate-slideFade">
           <a
             href="#faqs"
             onClick={() => setIsOpen(false)}
-            className="block w-full text-left px-4 py-2 text-xs font-bold hover:bg-slate-50 text-slate-755 hover:text-slate-900 transition duration-150"
+            className="block w-full text-left px-4 py-2 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition duration-150"
           >
             FAQ
           </a>
           <Link
             to="/blogs"
             onClick={() => setIsOpen(false)}
-            className="block w-full text-left px-4 py-2 text-xs font-bold hover:bg-slate-50 text-slate-755 hover:text-slate-900 transition duration-150"
+            className="block w-full text-left px-4 py-2 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition duration-150"
           >
             Blog
           </Link>
@@ -407,7 +407,7 @@ function TutorCard({ tutor, onViewProfile, onBook, swipeMode = false }) {
 
               {/* Price starts fee container */}
               <div className="flex items-center gap-2.5 bg-[#081a36]/65 border border-white/10 rounded-2xl p-2.5 shadow-inner shrink-0">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#F4D068] to-[#CAA036] flex items-center justify-center text-slate-955 font-extrabold text-sm shadow-md shrink-0 select-none">
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#F4D068] to-[#CAA036] flex items-center justify-center text-slate-950 font-extrabold text-sm shadow-md shrink-0 select-none">
                   ₹
                 </div>
                 <div className="text-right">
@@ -550,14 +550,14 @@ function Modal({ open, onClose, title, children }) {
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 20, scale: 0.97, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 24 }}
-            className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800/80 shadow-2xl"
+            className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 shadow-2xl"
           >
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 px-6 py-5 backdrop-blur">
               <h3 className="text-xl font-black text-slate-950 dark:text-slate-100">{title}</h3>
 
               <button
                 onClick={onClose}
-                className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-600 dark:text-slate-350 transition hover:bg-slate-50 dark:hover:bg-slate-750 cursor-pointer"
+                className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-slate-600 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
                 aria-label="Close modal"
               >
                 <X className="h-4 w-4" />
@@ -588,7 +588,7 @@ function FilterToggle({ checked, onChange, label }) {
         "flex cursor-pointer items-center gap-2 rounded-2xl px-4 py-3 text-xs font-black transition",
         checked
           ? "bg-slate-950 dark:bg-blue-600 text-white"
-          : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-750"
+          : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
       )}
     >
       <input
@@ -608,7 +608,7 @@ function LoadingTutors() {
       {[1, 2, 3, 4].map((item) => (
         <div
           key={item}
-          className="h-80 animate-pulse rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200 dark:ring-slate-850"
+          className="h-80 animate-pulse rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 ring-1 ring-slate-200 dark:ring-slate-800"
         />
       ))}
     </div>
@@ -1038,7 +1038,7 @@ export default function HomePage() {
               <motion.div
                 whileHover={{ scale: 1.08, rotate: [0, -3, 3, 0] }}
                 transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                className="h-[72px] w-[72px] sm:h-[60px] sm:w-[60px] shrink-0 bg-white rounded-2xl border border-slate-200/60 shadow-sm flex items-center justify-center cursor-pointer"
+                className="h-[72px] w-[72px] sm:h-[60px] sm:w-[60px] shrink-0 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex items-center justify-center cursor-pointer"
               >
                 <img
                   src="/logo.png"
@@ -1052,7 +1052,7 @@ export default function HomePage() {
               <div className="hidden sm:block shrink-0 leading-tight">
                 <motion.div 
                   whileHover={{ x: 2 }}
-                  className="text-lg xl:text-xl font-black tracking-tight text-slate-900 transition-all duration-300 group-hover:text-blue-600"
+                  className="text-lg xl:text-xl font-black tracking-tight text-slate-900 dark:text-white transition-all duration-300 group-hover:text-blue-600"
                 >
                   Saraswati Tutorials
                 </motion.div>
@@ -1086,7 +1086,7 @@ export default function HomePage() {
                   key={link.id}
                   href={link.href}
                   className={`relative py-1.5 transition duration-300 whitespace-nowrap shrink-0 ${
-                    isActive ? "text-blue-600 font-extrabold" : "text-slate-600 hover:text-slate-950"
+                    isActive ? "text-blue-600 font-extrabold" : "text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white"
                   }`}
                 >
                   {link.label}
@@ -1121,9 +1121,9 @@ export default function HomePage() {
               whileHover={{ scale: 1.05, translateY: -2, boxShadow: "0 8px 16px rgba(15,23,42,0.06)" }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              className="whitespace-nowrap flex items-center gap-1.5 xl:gap-2 rounded-xl xl:rounded-[14px] border border-slate-200 bg-white px-3.5 xl:px-5 py-2 xl:py-2.5 text-[11px] xl:text-xs font-black text-slate-800 shadow-sm transition-all duration-300 hover:bg-slate-50 hover:border-slate-350 shrink-0"
+              className="whitespace-nowrap flex items-center gap-1.5 xl:gap-2 rounded-xl xl:rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 xl:px-5 py-2 xl:py-2.5 text-[11px] xl:text-xs font-black text-slate-800 dark:text-slate-100 shadow-sm transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 shrink-0"
             >
-              <User className="h-3.5 w-3.5 xl:h-4 xl:w-4 text-slate-500" />
+              <User className="h-3.5 w-3.5 xl:h-4 xl:w-4 text-slate-500 dark:text-slate-400" />
               Become a Tutor
             </MotionLink>
             <ThemeToggle />
@@ -1134,7 +1134,7 @@ export default function HomePage() {
             <motion.button
               onClick={() => setMenuOpen(!menuOpen)}
               whileTap={{ scale: 0.95, backgroundColor: "rgba(15, 23, 42, 0.1)" }}
-              className="rounded-xl border border-slate-200 bg-white p-2 text-slate-800 cursor-pointer"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-slate-800 dark:text-slate-100 cursor-pointer"
               aria-label="Open Navigation Menu"
             >
               {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -1149,9 +1149,9 @@ export default function HomePage() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="border-t border-white/20 bg-white/80 backdrop-blur-lg px-6 py-4 xl:hidden shadow-xl"
+              className="border-t border-white/20 dark:border-slate-800 bg-white/80 dark:bg-slate-900/90 backdrop-blur-lg px-6 py-4 xl:hidden shadow-xl"
             >
-              <div className="flex flex-col gap-4 text-base font-bold text-slate-800">
+              <div className="flex flex-col gap-4 text-base font-bold text-slate-800 dark:text-slate-100">
                 <div className="flex items-center justify-between py-2 border-b border-white/20">
                   <span className="text-xs font-black uppercase text-slate-400">Select City:</span>
                   <LocationSelector activeCity="Bangalore" />
@@ -1168,13 +1168,13 @@ export default function HomePage() {
                   <button 
                     type="button"
                     onClick={() => setMobileResourcesOpen(!mobileResourcesOpen)}
-                    className="flex items-center justify-between py-2 text-left font-bold text-slate-800"
+                    className="flex items-center justify-between py-2 text-left font-bold text-slate-800 dark:text-slate-100"
                   >
                     <span>Resources</span>
                     <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform duration-200 ${mobileResourcesOpen ? "rotate-180" : ""}`} />
                   </button>
                   {mobileResourcesOpen && (
-                    <div className="pl-4 flex flex-col gap-2 border-l border-slate-100 my-1 animate-slideFade">
+                    <div className="pl-4 flex flex-col gap-2 border-l border-slate-100 dark:border-slate-700 my-1 animate-slideFade">
                       <a href="#faqs" onClick={() => { setMenuOpen(false); setMobileResourcesOpen(false); }} className="py-1.5 text-slate-600 font-bold text-sm">FAQ</a>
                       <Link to="/blogs" onClick={() => { setMenuOpen(false); setMobileResourcesOpen(false); }} className="py-1.5 text-slate-600 font-bold text-sm">Blog</Link>
                     </div>
@@ -1195,7 +1195,7 @@ export default function HomePage() {
                   onClick={() => { setMenuOpen(false); trackEvent("become_tutor"); }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="rounded-xl border border-slate-200 bg-white py-3 text-center text-slate-800 font-black transition-all duration-300 shadow-sm"
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-3 text-center text-slate-800 dark:text-slate-100 font-black transition-all duration-300 shadow-sm"
                 >
                   Become a Tutor
                 </MotionLink>
@@ -1449,7 +1449,7 @@ export default function HomePage() {
         </div>
 
         {/* Dynamic Filters Control Panel */}
-        <div className="mb-8 rounded-[1.5rem] sm:rounded-[2.5rem] border border-white/50 bg-white/30 backdrop-blur-xl p-4 sm:p-6 shadow-xl shadow-slate-100/10">
+        <div className="mb-8 rounded-[1.5rem] sm:rounded-[2.5rem] border border-white/50 dark:border-slate-700/60 bg-white/30 dark:bg-slate-900/30 backdrop-blur-xl p-4 sm:p-6 shadow-xl shadow-slate-100/10 dark:shadow-none">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-center">
             {/* Search Input */}
             <div className="relative">
@@ -1457,7 +1457,7 @@ export default function HomePage() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="h-12 w-full rounded-2xl border border-slate-200 pl-12 text-sm focus-visible:ring-slate-900 bg-white"
+                className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 pl-12 text-sm focus-visible:ring-slate-900 dark:focus-visible:ring-slate-400 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                 placeholder="Search subject, tutor, or location..."
               />
             </div>
@@ -1467,7 +1467,7 @@ export default function HomePage() {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none"
+                className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 outline-none"
               >
                 <option>All Categories</option>
                 {categories.map((category) => (
@@ -1496,25 +1496,25 @@ export default function HomePage() {
         {loading ? (
           <LoadingTutors />
         ) : filteredTutors.length === 0 ? (
-          <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white/40 backdrop-blur-sm p-10 text-center">
-            <p className="text-lg font-black text-slate-950">
+          <div className="rounded-[2rem] border border-dashed border-slate-300 dark:border-slate-700 bg-white/40 dark:bg-slate-900/30 backdrop-blur-sm p-10 text-center">
+            <p className="text-lg font-black text-slate-950 dark:text-white">
               No tutors found
             </p>
-            <p className="mt-2 text-slate-500">
+            <p className="mt-2 text-slate-500 dark:text-slate-400">
               Try removing filters or searching another subject/location.
             </p>
           </div>
         ) : (
           <>
             <div className="mb-4 flex justify-between gap-3 lg:hidden">
-              <p className="text-sm font-bold text-slate-500">
+              <p className="text-sm font-bold text-slate-500 dark:text-slate-400">
                 Swipe to explore tutors
               </p>
 
               <div className="flex gap-2">
                 <button
                   onClick={() => scrollTutors("left")}
-                  className="rounded-full border border-slate-300 bg-white p-3 shadow-sm"
+                  className="rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-sm"
                   aria-label="Scroll left"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -1522,7 +1522,7 @@ export default function HomePage() {
 
                 <button
                   onClick={() => scrollTutors("right")}
-                  className="rounded-full border border-slate-300 bg-white p-3 shadow-sm"
+                  className="rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-sm"
                   aria-label="Scroll right"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -1573,14 +1573,14 @@ export default function HomePage() {
 
       {/* SEO Intro Section */}
       <section className="mx-auto max-w-7xl px-6 py-16">
-        <div className="rounded-[1.5rem] sm:rounded-[2.5rem] border border-white/50 bg-white/30 backdrop-blur-xl p-5 sm:p-8 shadow-xl shadow-slate-100/10 md:p-12">
+        <div className="rounded-[1.5rem] sm:rounded-[2.5rem] border border-white/50 dark:border-slate-700/60 bg-white/30 dark:bg-slate-900/30 backdrop-blur-xl p-5 sm:p-8 shadow-xl shadow-slate-100/10 dark:shadow-none md:p-12">
           <div className="max-w-4xl">
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">Overview</h2>
-            <h3 className="mt-2 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">
+            <h3 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white md:text-4xl">
               Home Tuition in Bangalore for Class 6 to 12
             </h3>
 
-            <div className="mt-6 space-y-4 text-base leading-relaxed text-slate-600">
+            <div className="mt-6 space-y-4 text-base leading-relaxed text-slate-600 dark:text-slate-300">
               <p>
                 Saraswati Tutorials provides trusted and result-oriented home tuition in Bangalore for students from Class 6 to 12. We offer experienced private tutors for CBSE, ICSE, IGCSE, IB and Karnataka State Board students across major areas of Bangalore including Whitefield, HSR Layout, Indiranagar, Jayanagar, Koramangala, Electronic City, and more. Our personalized one-to-one teaching approach helps students improve conceptual understanding, confidence, and academic performance.
               </p>
@@ -1597,10 +1597,10 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-6">
           <div className="text-center">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-600">Core Benefits</p>
-            <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 md:text-5xl">
+            <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white md:text-5xl">
               Why Parents Prefer Saraswati Tutorials in Bangalore
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-slate-600">
+            <p className="mx-auto mt-4 max-w-2xl text-slate-600 dark:text-slate-300">
               We stand apart through our student-first philosophy, matching children with vetted subject-matter experts who act as academic mentors.
             </p>
           </div>
@@ -1641,7 +1641,7 @@ export default function HomePage() {
                   whileHover={{ y: -6, scale: 1.02 }}
                   transition={{ duration: 0.25, ease: "easeOut" }}
                   key={idx}
-                  className="group relative overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all duration-300 hover:border-slate-300 hover:shadow-[0_20px_35px_rgba(0,0,0,0.06)]"
+                  className="group relative overflow-hidden rounded-3xl border border-slate-200/90 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)] transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-[0_20px_35px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_20px_35px_rgba(0,0,0,0.35)]"
                 >
                   {/* 3D Transparent Water Glass Badge Container */}
                   <div className={`relative flex h-16 w-16 items-center justify-center rounded-[1.35rem] ${theme.bg} backdrop-blur-xl border ${theme.border} shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.9),0_6px_16px_rgba(0,0,0,0.04)] transition-all duration-300 group-hover:scale-105 group-hover:-rotate-2 ${theme.glow}`}>
@@ -1652,10 +1652,10 @@ export default function HomePage() {
                     <IconComp className={`relative z-10 h-7 w-7 ${theme.icon} filter drop-shadow-[0_2px_3px_rgba(0,0,0,0.08)] stroke-[2.2]`} />
                   </div>
 
-                  <h4 className="mt-5 text-lg font-black text-slate-900 leading-snug">
+                  <h4 className="mt-5 text-lg font-black text-slate-900 dark:text-white leading-snug">
                     {item.title}
                   </h4>
-                  <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-500">
+                  <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-500 dark:text-slate-400">
                     {item.desc}
                   </p>
                 </motion.div>
@@ -1669,10 +1669,10 @@ export default function HomePage() {
       <section id="subjects" className="mx-auto max-w-7xl px-6 py-16 md:py-24">
         <div className="text-center">
           <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-600">Tuition Programs</p>
-          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 md:text-5xl">
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white md:text-5xl">
             Subjects Available for Home Tuition in Bangalore
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-slate-600">
+          <p className="mx-auto mt-4 max-w-2xl text-slate-600 dark:text-slate-300">
             Comprehensive curriculum guidance covering science, mathematics, literature, and accounting.
           </p>
         </div>
@@ -1680,14 +1680,14 @@ export default function HomePage() {
         <div className="mt-12 space-y-12">
           {/* School Subjects */}
           <div>
-            <h3 className="text-xl font-black text-slate-800 border-l-4 border-blue-600 pl-3 mb-6">
+            <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 border-l-4 border-blue-600 pl-3 mb-6">
               School Subjects
             </h3>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {schoolSubjects.map((subj, idx) => (
                 <div
                   key={idx}
-                  className="overflow-hidden group rounded-3xl border border-white/60 bg-white/30 backdrop-blur-md shadow-sm shadow-slate-100/20 transition hover:bg-white/50 hover:shadow-xl hover:scale-[1.03] duration-300"
+                  className="overflow-hidden group rounded-3xl border border-white/60 dark:border-slate-700/60 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md shadow-sm shadow-slate-100/20 dark:shadow-none transition hover:bg-white/50 dark:hover:bg-slate-800/50 hover:shadow-xl hover:scale-[1.03] duration-300"
                 >
                   <div className="h-44 w-full overflow-hidden">
                     <img
@@ -1701,8 +1701,8 @@ export default function HomePage() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 font-black text-blue-600 transition group-hover:bg-blue-100">
                       {idx + 1}
                     </div>
-                    <h4 className="mt-4 text-xl font-black text-slate-950">{subj.title}</h4>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                    <h4 className="mt-4 text-xl font-black text-slate-950 dark:text-white">{subj.title}</h4>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                       {subj.desc}
                     </p>
                   </div>
@@ -1713,14 +1713,14 @@ export default function HomePage() {
 
           {/* Commerce Subjects */}
           <div>
-            <h3 className="text-xl font-black text-slate-800 border-l-4 border-indigo-600 pl-3 mb-6">
+            <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 border-l-4 border-indigo-600 pl-3 mb-6">
               Commerce Subjects
             </h3>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {commerceSubjects.map((subj, idx) => (
                 <div
                   key={idx}
-                  className="overflow-hidden group rounded-3xl border border-white/60 bg-white/30 backdrop-blur-md shadow-sm shadow-slate-100/20 transition hover:bg-white/50 hover:shadow-xl hover:scale-[1.03] duration-300"
+                  className="overflow-hidden group rounded-3xl border border-white/60 dark:border-slate-700/60 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md shadow-sm shadow-slate-100/20 dark:shadow-none transition hover:bg-white/50 dark:hover:bg-slate-800/50 hover:shadow-xl hover:scale-[1.03] duration-300"
                 >
                   <div className="h-44 w-full overflow-hidden">
                     <img
@@ -1734,8 +1734,8 @@ export default function HomePage() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 font-black text-indigo-600 transition group-hover:bg-indigo-100">
                       {idx + 1}
                     </div>
-                    <h4 className="mt-4 text-xl font-black text-slate-950">{subj.title}</h4>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                    <h4 className="mt-4 text-xl font-black text-slate-950 dark:text-white">{subj.title}</h4>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                       {subj.desc}
                     </p>
                   </div>
@@ -1779,10 +1779,10 @@ export default function HomePage() {
       <section className="mx-auto max-w-7xl px-6 py-16 md:py-24">
         <div className="text-center">
           <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-600">Structured Modules</p>
-          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 md:text-5xl">
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white md:text-5xl">
             Tuition Classes Available
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-slate-600">
+          <p className="mx-auto mt-4 max-w-2xl text-slate-600 dark:text-slate-300">
             Tailored grade-wise guidance designed to secure high scores and bolster conceptual foundations.
           </p>
         </div>
@@ -1791,7 +1791,7 @@ export default function HomePage() {
           {classesList.map((cls, idx) => (
             <div
               key={idx}
-              className="overflow-hidden group rounded-3xl border border-white/60 bg-white/30 backdrop-blur-md shadow-sm shadow-slate-100/20 transition hover:bg-white/50 hover:shadow-xl hover:scale-[1.03] duration-300"
+              className="overflow-hidden group rounded-3xl border border-white/60 dark:border-slate-700/60 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md shadow-sm shadow-slate-100/20 dark:shadow-none transition hover:bg-white/50 dark:hover:bg-slate-800/50 hover:shadow-xl hover:scale-[1.03] duration-300"
             >
               <div className="h-32 w-full overflow-hidden">
                 <img
@@ -1802,8 +1802,8 @@ export default function HomePage() {
                 />
               </div>
               <div className="p-6">
-                <h4 className="mt-4 text-lg font-black text-slate-950">{cls.title}</h4>
-                <p className="mt-2 text-xs leading-relaxed text-slate-500">{cls.desc}</p>
+                <h4 className="mt-4 text-lg font-black text-slate-950 dark:text-white">{cls.title}</h4>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{cls.desc}</p>
               </div>
             </div>
           ))}
@@ -1815,10 +1815,10 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-6">
           <div className="text-center">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-600">Locations</p>
-            <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 md:text-5xl">
+            <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white md:text-5xl">
               Home Tuition Available Across Bangalore
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-slate-600">
+            <p className="mx-auto mt-4 max-w-2xl text-slate-600 dark:text-slate-300">
               Our network of verified home tutors reaches all major commercial and residential pockets in Bangalore.
             </p>
           </div>
@@ -1827,15 +1827,15 @@ export default function HomePage() {
             {areas.map((area, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-2 rounded-2xl border border-white/50 bg-white/40 backdrop-blur-sm p-4 transition hover:bg-white/60 hover:scale-[1.02]"
+                className="flex items-center gap-2 rounded-2xl border border-white/50 dark:border-slate-700/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm p-4 transition hover:bg-white/60 dark:hover:bg-slate-800/60 hover:scale-[1.02]"
               >
                 <MapPin className="h-4 w-4 text-blue-600 shrink-0" />
-                <span className="text-sm font-bold text-slate-800">{area}</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{area}</span>
               </div>
             ))}
           </div>
 
-          <div className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed text-slate-500">
+          <div className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed text-slate-500 dark:text-slate-400">
             <p>
               Saraswati Tutorials has a widespread network of home tutors spanning across the entire Bangalore metropolitan region. Whether you live in East Bangalore, South Bangalore, North Bangalore, or neighboring areas, we can match you with an experienced private tutor who can conduct offline classes at your residence. In addition to offline sessions, our tutors are equipped to offer highly engaging and interactive online live classes, providing flexibility for busy student schedules.
             </p>
@@ -1847,22 +1847,22 @@ export default function HomePage() {
       <section className="mx-auto max-w-7xl px-6 py-16 md:py-24">
         <div className="text-center">
           <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-600">Process Flow</p>
-          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 md:text-5xl">
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white md:text-5xl">
             How Our Tutor Matching Process Works
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-slate-600">
+          <p className="mx-auto mt-4 max-w-2xl text-slate-600 dark:text-slate-300">
             Four simple steps to match your child with their perfect private home tutor.
           </p>
         </div>
 
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, idx) => (
-            <div key={idx} className="relative rounded-3xl border border-white/60 bg-white/30 backdrop-blur-md p-6 shadow-sm transition hover:bg-white/50 hover:scale-[1.02]">
+            <div key={idx} className="relative rounded-3xl border border-white/60 dark:border-slate-700/60 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md p-6 shadow-sm dark:shadow-none transition hover:bg-white/50 dark:hover:bg-slate-800/50 hover:scale-[1.02]">
               <div className="absolute -top-4 left-6 flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 font-black text-white shadow">
                 {idx + 1}
               </div>
-              <h4 className="mt-4 text-lg font-black text-slate-950">{step.title}</h4>
-              <p className="mt-2 text-xs leading-relaxed text-slate-500">{step.desc}</p>
+              <h4 className="mt-4 text-lg font-black text-slate-950 dark:text-white">{step.title}</h4>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{step.desc}</p>
             </div>
           ))}
         </div>
@@ -1905,7 +1905,7 @@ export default function HomePage() {
       <section id="faqs" className="mx-auto max-w-4xl px-6 py-16 md:py-24">
         <div className="text-center">
           <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-600">Questions</p>
-          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 md:text-5xl">
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white md:text-5xl">
             Frequently Asked Questions
           </h2>
         </div>
@@ -1916,12 +1916,12 @@ export default function HomePage() {
             return (
               <div
                 key={idx}
-                className="overflow-hidden rounded-2xl border border-white/60 bg-white/30 backdrop-blur-md shadow-sm transition hover:bg-white/40"
+                className="overflow-hidden rounded-2xl border border-white/60 dark:border-slate-700/60 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md shadow-sm dark:shadow-none transition hover:bg-white/40 dark:hover:bg-slate-800/40"
               >
                 <motion.button
                   onClick={() => toggleFaq(idx)}
                   whileTap={{ scale: 0.99, backgroundColor: "rgba(255, 255, 255, 0.4)" }}
-                  className="flex w-full items-center justify-between px-6 py-5 text-left font-black text-slate-950 hover:bg-slate-50/50"
+                  className="flex w-full items-center justify-between px-6 py-5 text-left font-black text-slate-950 dark:text-white hover:bg-slate-50/50 dark:hover:bg-slate-800/50"
                 >
                   <span>{faq.q}</span>
                   {isOpen ? <ChevronUp className="h-5 w-5 text-blue-600" /> : <ChevronDown className="h-5 w-5 text-slate-400" />}
@@ -1935,7 +1935,7 @@ export default function HomePage() {
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <div className="border-t border-white/20 bg-white/20 px-6 py-5 text-sm leading-relaxed text-slate-700">
+                      <div className="border-t border-white/20 dark:border-slate-700/60 bg-white/20 dark:bg-slate-900/20 px-6 py-5 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
                         {faq.a}
                       </div>
                     </motion.div>
@@ -1971,7 +1971,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/20 bg-white/30 backdrop-blur-md py-12 text-slate-600">
+      <footer className="border-t border-white/20 dark:border-slate-800 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md py-12 text-slate-600 dark:text-slate-400">
         <div className="mx-auto max-w-7xl px-6">
           <div className="grid gap-8 md:grid-cols-4">
             <div>
@@ -1984,15 +1984,15 @@ export default function HomePage() {
                     e.target.src = "https://placehold.co/100x100?text=ST";
                   }}
                 />
-                <span className="text-lg font-black text-slate-950">Saraswati Tutorial</span>
+                <span className="text-lg font-black text-slate-950 dark:text-white">Saraswati Tutorial</span>
               </div>
-              <p className="mt-4 text-sm leading-relaxed text-slate-500">
+              <p className="mt-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                 Expert tutoring services mapping local academic boards across Bangalore and Mumbai.
               </p>
             </div>
 
             <div>
-              <h5 className="font-bold text-slate-900 uppercase tracking-wider text-xs">Direct Services</h5>
+              <h5 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-xs">Direct Services</h5>
               <ul className="mt-4 space-y-2 text-sm">
                 <li><Link to="/parent-enquiry" className="hover:text-blue-600">Parent Enquiry</Link></li>
                 <li><Link to="/tutor-register" className="hover:text-blue-600">Become a Tutor</Link></li>
@@ -2002,7 +2002,7 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h5 className="font-bold text-slate-900 uppercase tracking-wider text-xs">Legal Details</h5>
+              <h5 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-xs">Legal Details</h5>
               <ul className="mt-4 space-y-2 text-sm">
                 <li><Link to="/terms-conditions" className="hover:text-blue-600">Terms & Conditions</Link></li>
                 <li><Link to="/privacy-policy" className="hover:text-blue-600">Privacy Policy</Link></li>
@@ -2011,7 +2011,7 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h5 className="font-bold text-slate-900 uppercase tracking-wider text-xs">Support Contact</h5>
+              <h5 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-xs">Support Contact</h5>
               <ul className="mt-4 space-y-2 text-sm">
                 <li className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-blue-600" />
@@ -2025,7 +2025,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="mt-12 border-t border-slate-100 pt-6 text-center text-xs text-slate-400">
+          <div className="mt-12 border-t border-slate-100 dark:border-slate-800 pt-6 text-center text-xs text-slate-400 dark:text-slate-500">
             &copy; {new Date().getFullYear()} Saraswati Tutorials. All rights reserved.
           </div>
         </div>
@@ -2086,7 +2086,7 @@ export default function HomePage() {
                 />
               ) : (
                 <Avatar className="h-20 w-20 rounded-3xl">
-                  <AvatarFallback className="flex h-20 w-20 items-center justify-center rounded-3xl bg-slate-100 text-lg font-black text-slate-800">
+                  <AvatarFallback className="flex h-20 w-20 items-center justify-center rounded-3xl bg-slate-100 dark:bg-slate-800 text-lg font-black text-slate-800 dark:text-slate-100">
                     {getInitials(selectedTutor.name)}
                   </AvatarFallback>
                 </Avatar>
@@ -2094,7 +2094,7 @@ export default function HomePage() {
 
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="text-2xl font-black text-slate-950">
+                  <h4 className="text-2xl font-black text-slate-950 dark:text-white">
                     {selectedTutor.name}
                   </h4>
 
@@ -2156,8 +2156,8 @@ export default function HomePage() {
       >
         {bookingTutor ? (
           <div className="space-y-5">
-            <div className="rounded-3xl bg-slate-50 p-4">
-              <p className="font-black text-slate-950">{bookingTutor.name}</p>
+            <div className="rounded-3xl bg-slate-50 dark:bg-slate-800/60 p-4">
+              <p className="font-black text-slate-950 dark:text-white">{bookingTutor.name}</p>
               <p className="mt-1 text-sm text-slate-600">
                 {bookingTutor.subject} • ₹{bookingTutor.price || 0}/hr
               </p>
@@ -2165,7 +2165,7 @@ export default function HomePage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <Input
-                className="h-12 rounded-2xl border border-slate-200 px-4 bg-white"
+                className="h-12 rounded-2xl border border-slate-200 dark:border-slate-700 px-4 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                 placeholder="Learner name"
                 value={bookingForm.learnerName}
                 onChange={(e) =>
@@ -2177,7 +2177,7 @@ export default function HomePage() {
               />
 
               <Input
-                className="h-12 rounded-2xl border border-slate-200 px-4 bg-white"
+                className="h-12 rounded-2xl border border-slate-200 dark:border-slate-700 px-4 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                 placeholder="Phone number"
                 value={bookingForm.phone}
                 onChange={(e) =>
@@ -2190,7 +2190,7 @@ export default function HomePage() {
 
               <Input
                 type="date"
-                className="h-12 rounded-2xl border border-slate-200 px-4 bg-white"
+                className="h-12 rounded-2xl border border-slate-200 dark:border-slate-700 px-4 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                 value={bookingForm.preferredDate}
                 onChange={(e) =>
                   setBookingForm({
@@ -2201,7 +2201,7 @@ export default function HomePage() {
               />
 
               <Input
-                className="h-12 rounded-2xl border border-slate-200 px-4 bg-white"
+                className="h-12 rounded-2xl border border-slate-200 dark:border-slate-700 px-4 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                 placeholder="Preferred slot"
                 value={bookingForm.preferredSlot}
                 onChange={(e) =>
@@ -2214,7 +2214,7 @@ export default function HomePage() {
             </div>
 
             <textarea
-              className="min-h-[110px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-slate-950 bg-white"
+              className="min-h-[110px] w-full rounded-2xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm outline-none focus:border-slate-950 dark:focus:border-slate-400 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
               placeholder="Message or learning requirement"
               value={bookingForm.message}
               onChange={(e) =>
@@ -2243,7 +2243,7 @@ export default function HomePage() {
               </Button>
 
               <Button
-                className="rounded-2xl border border-slate-300 bg-white px-5 py-3 font-black text-slate-800"
+                className="rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-3 font-black text-slate-800 dark:text-slate-100"
                 onClick={() => setBookingTutor(null)}
                 aria-label="Cancel booking"
               >

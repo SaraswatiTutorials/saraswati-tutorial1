@@ -403,7 +403,7 @@ export default function TermsConditions() {
               {SERVICES.map((s) => {
                 const Icon = s.icon;
                 return (
-                  <div key={s.title} className="bg-slate-50 dark:bg-slate-955 border border-slate-150 dark:border-slate-800/80 rounded-2xl p-4 space-y-1.5">
+                  <div key={s.title} className="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800/80 rounded-2xl p-4 space-y-1.5">
                     <div className="flex items-center gap-2">
                       <div className={`p-1.5 rounded-lg ${s.color}`}>
                         <Icon className="h-4 w-4" />
@@ -480,7 +480,7 @@ export default function TermsConditions() {
                 {FEE_BREAKDOWN.map((item) => {
                   const amount = Math.round((fees.admissionFee * item.pct) / 100);
                   return (
-                    <div key={item.label} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-955 border border-slate-150 dark:border-slate-800 text-xs">
+                    <div key={item.label} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 text-xs">
                       <div className="flex items-center gap-2">
                         <span className="bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-black text-[10px] px-2 py-0.5 rounded-md">
                           {item.pct}%
@@ -510,7 +510,7 @@ export default function TermsConditions() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-slate-50 dark:bg-slate-955 rounded-2xl p-4 border border-slate-150 dark:border-slate-800 space-y-2">
+              <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 space-y-2">
                 <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                   <RefreshCw className="h-4 w-4" />
                   <strong className="text-xs font-black uppercase text-slate-900 dark:text-white">72-Hour Max Replacement</strong>
@@ -523,7 +523,7 @@ export default function TermsConditions() {
                 </p>
               </div>
 
-              <div className="bg-slate-50 dark:bg-slate-955 rounded-2xl p-4 border border-slate-150 dark:border-slate-800 space-y-2">
+              <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 space-y-2">
                 <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                   <BadgeCheck className="h-4 w-4" />
                   <strong className="text-xs font-black uppercase text-slate-900 dark:text-white">Class Compensation</strong>
@@ -611,7 +611,7 @@ export default function TermsConditions() {
                 placeholder="Enter your name exactly as on your ID (e.g. Ramesh Sharma)"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-955 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:font-medium"
+                className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:font-medium"
               />
               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium pl-1">
                 Please enter your name exactly as it appears on your official ID or student documents.
@@ -650,7 +650,7 @@ export default function TermsConditions() {
                 disabled={!fullName.trim() || !agreedToTerms || flow === "submitting"}
                 className={`flex-1 flex items-center justify-center gap-2 rounded-2xl font-black text-xs uppercase tracking-wider py-3.5 transition-all shadow-md ${
                   !fullName.trim() || !agreedToTerms || flow === "submitting"
-                    ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed border border-slate-200 dark:border-slate-750"
+                    ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed border border-slate-200 dark:border-slate-700"
                     : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 cursor-pointer active:scale-[0.99]"
                 }`}
               >
@@ -703,7 +703,7 @@ function PreviewModal({ fees, fullName, onConfirm, onBack, submitting }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
       <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-955 flex items-center justify-between shrink-0">
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between shrink-0">
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Final Onboarding Review</span>
             <h3 className="text-sm font-black text-slate-900 dark:text-white mt-0.5">Confirm Your Acceptance</h3>
@@ -735,7 +735,7 @@ function PreviewModal({ fees, fullName, onConfirm, onBack, submitting }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex gap-3 shrink-0 bg-slate-50 dark:bg-slate-955">
+        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex gap-3 shrink-0 bg-slate-50 dark:bg-slate-950">
           <button
             onClick={onBack}
             disabled={submitting}

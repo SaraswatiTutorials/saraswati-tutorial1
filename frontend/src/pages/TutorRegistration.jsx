@@ -927,14 +927,14 @@ export default function TutorRegistration() {
     <>
       {loading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-[2rem] bg-white p-8 text-center shadow-2xl">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
+          <div className="w-full max-w-sm rounded-[2rem] bg-white dark:bg-slate-900 p-8 text-center shadow-2xl dark:shadow-slate-950/50 border border-transparent dark:border-slate-700">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40">
               <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
             </div>
-            <p className="text-xl font-black text-slate-900">
+            <p className="text-xl font-black text-slate-900 dark:text-white">
               Submitting your profile
             </p>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
               Uploading documents securely. Please do not close this page.
             </p>
           </div>
@@ -1133,12 +1133,12 @@ export default function TutorRegistration() {
                       error={touched.whatsapp ? errors.whatsapp : ""}
                       className={sameAsMobile ? "opacity-60" : ""}
                     />
-                    <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-650">
+                    <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                       <input
                         type="checkbox"
                         checked={sameAsMobile}
                         onChange={(e) => setSameAsMobile(e.target.checked)}
-                        className="rounded border-slate-350 accent-slate-900"
+                        className="rounded border-slate-300 dark:border-slate-600 accent-slate-900"
                       />
                       Same as phone number
                     </label>
@@ -1203,10 +1203,10 @@ export default function TutorRegistration() {
                     />
                   </div>
 
-                  <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+                  <div className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm dark:shadow-none space-y-4">
                     <div className="space-y-2">
-                      <label className="block text-sm font-black text-slate-700">
-                        Grades Can Teach <span className="text-red-550">*</span>
+                      <label className="block text-sm font-black text-slate-700 dark:text-slate-200">
+                        Grades Can Teach <span className="text-red-500">*</span>
                       </label>
                       <div className="flex flex-wrap gap-2">
                         {gradeOptions.map((opt) => {
@@ -1218,11 +1218,11 @@ export default function TutorRegistration() {
                               onClick={() => handleMulti("grades", opt)}
                               className={`rounded-2xl px-4 py-2.5 text-sm font-bold border transition ${
                                 active
-                                  ? "border-blue-300 bg-blue-50 text-blue-700"
-                                  : "border-slate-200 bg-white text-slate-650 hover:bg-slate-50"
+                                  ? "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
+                                  : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                               }`}
                             >
-                              {active ? "✓ " : ""}
+                              {active ? "\u2713 " : ""}
                               {opt}
                             </button>
                           );
@@ -1232,8 +1232,8 @@ export default function TutorRegistration() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="block text-sm font-black text-slate-700">
-                        Boards Can Teach <span className="text-red-550">*</span>
+                      <label className="block text-sm font-black text-slate-700 dark:text-slate-200">
+                        Boards Can Teach <span className="text-red-500">*</span>
                       </label>
                       <div className="flex flex-wrap gap-2">
                         {boardOptions.map((opt) => {
@@ -1245,11 +1245,11 @@ export default function TutorRegistration() {
                               onClick={() => handleMulti("boards", opt)}
                               className={`rounded-2xl px-4 py-2.5 text-sm font-bold border transition ${
                                 active
-                                  ? "border-blue-300 bg-blue-50 text-blue-700"
-                                  : "border-slate-200 bg-white text-slate-655 hover:bg-slate-50"
+                                  ? "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
+                                  : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                               }`}
                             >
-                              {active ? "✓ " : ""}
+                              {active ? "\u2713 " : ""}
                               {opt}
                             </button>
                           );
@@ -1259,8 +1259,8 @@ export default function TutorRegistration() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="block text-sm font-black text-slate-700">
-                        Subjects <span className="text-red-550">*</span>
+                      <label className="block text-sm font-black text-slate-700 dark:text-slate-200">
+                        Subjects <span className="text-red-500">*</span>
                       </label>
                       <div className="flex flex-wrap gap-2">
                         {subjectOptions.map((opt) => {
@@ -1272,22 +1272,22 @@ export default function TutorRegistration() {
                               onClick={() => handleMulti("subjects", opt)}
                               className={`rounded-2xl px-4 py-2.5 text-sm font-bold border transition ${
                                 active
-                                  ? "border-blue-300 bg-blue-50 text-blue-700"
-                                  : "border-slate-200 bg-white text-slate-655 hover:bg-slate-50"
+                                  ? "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
+                                  : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                               }`}
                             >
-                              {active ? "✓ " : ""}
+                              {active ? "\u2713 " : ""}
                               {opt}
                             </button>
                           );
                         })}
                       </div>
-                      {errors.subjects && <p className="text-xs font-bold text-red-650">{errors.subjects}</p>}
+                      {errors.subjects && <p className="text-xs font-bold text-red-600">{errors.subjects}</p>}
                     </div>
                   </div>
 
                   <div className="rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-5">
-                    <p className="mb-3 text-sm font-black text-slate-800 dark:text-slate-200">
+                    <p className="mb-3 text-sm font-black text-slate-800 dark:text-slate-100 dark:text-slate-200">
                       Have you worked or are you working in any school, college,
                       or institute?
                     </p>
@@ -1368,8 +1368,8 @@ export default function TutorRegistration() {
 
                 <div className="space-y-6">
                   {/* Address Section */}
-                  <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-                    <h3 className="text-xl font-black text-slate-900">Address Details</h3>
+                  <div className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm dark:shadow-none space-y-4">
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white">Address Details</h3>
                     <div className="grid gap-5 md:grid-cols-2">
                       <SelectField
                         icon={MapPin}
@@ -1413,18 +1413,18 @@ export default function TutorRegistration() {
                   </div>
 
                   {/* Teaching Locations Picker */}
-                  <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm dark:shadow-none">
                     <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-center">
                       <div>
-                        <h3 className="text-xl font-black text-slate-900">
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white">
                           Select Locations Where You Can Teach
                         </h3>
-                        <p className="mt-1 text-sm text-slate-500">
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                           Choose all preferred areas. Parents will see your preferred locations.
                         </p>
                       </div>
 
-                      <span className="rounded-full bg-blue-50 px-4 py-2 text-xs font-black text-blue-700">
+                      <span className="rounded-full bg-blue-50 dark:bg-blue-950/40 px-4 py-2 text-xs font-black text-blue-700 dark:text-blue-300">
                         {formData.locations.length} selected
                       </span>
                     </div>
@@ -1454,7 +1454,7 @@ export default function TutorRegistration() {
                       <input
                         type="text"
                         placeholder="Search location..."
-                        className="h-13 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-11 py-3 text-sm outline-none transition focus:border-slate-950 dark:focus:border-slate-400 focus:bg-white dark:focus:bg-slate-850 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-900/30 text-slate-800 dark:text-slate-100"
+                        className="h-13 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-11 py-3 text-sm outline-none transition focus:border-slate-950 dark:focus:border-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-900/30 text-slate-800 dark:text-slate-100"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                       />
@@ -1480,7 +1480,7 @@ export default function TutorRegistration() {
                               }
                               className="flex w-full items-center justify-between bg-slate-50 dark:bg-slate-800 px-4 py-3 text-left"
                             >
-                              <span className="font-black text-slate-800 dark:text-slate-200">
+                              <span className="font-black text-slate-800 dark:text-slate-100 dark:text-slate-200">
                                 {group}
                               </span>
                               <span className="rounded-full bg-white dark:bg-slate-950 px-3 py-1 text-sm font-black text-slate-500 shadow-sm">
@@ -1500,11 +1500,11 @@ export default function TutorRegistration() {
                                       onClick={() => handleMulti("locations", area)}
                                       className={`rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${
                                         active
-                                          ? "border-blue-300 bg-blue-50 text-blue-700"
+                                          ? "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
                                           : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                                       }`}
                                     >
-                                      {active ? "✓ " : ""}
+                                      {active ? "\u2713 " : ""}
                                       {area}
                                     </button>
                                   );
@@ -1536,8 +1536,8 @@ export default function TutorRegistration() {
                   {/* Vehicle Availability */}
                   <div className="rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-5">
                     <div className="mb-3 flex items-center gap-2">
-                      <Car className="h-5 w-5 text-slate-700" />
-                      <p className="font-black text-slate-800">
+                      <Car className="h-5 w-5 text-slate-700 dark:text-slate-200" />
+                      <p className="font-black text-slate-800 dark:text-slate-100">
                         Vehicle Available?
                       </p>
                     </div>
@@ -1558,7 +1558,7 @@ export default function TutorRegistration() {
                     />
 
                     {errors.hasVehicle && (
-                      <p className="mt-2 text-sm font-bold text-red-650">
+                      <p className="mt-2 text-sm font-bold text-red-600">
                         {errors.hasVehicle}
                       </p>
                     )}
@@ -1579,8 +1579,8 @@ export default function TutorRegistration() {
                   </div>
 
                   {/* Document Upload Section */}
-                  <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-                    <h3 className="text-xl font-black text-slate-900">Upload Verification Documents</h3>
+                  <div className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm dark:shadow-none space-y-4">
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white">Upload Verification Documents</h3>
                     <div className="grid gap-5 md:grid-cols-2">
                       <FileUploadCard
                         icon={Camera}
@@ -1640,10 +1640,10 @@ export default function TutorRegistration() {
                   <div className="rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
                     <div className="mb-5 flex items-center justify-between">
                       <div>
-                        <h3 className="text-xl font-black text-slate-900">
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white">
                           Select Available Timings
                         </h3>
-                        <p className="mt-1 text-sm text-slate-500">
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                           Choose slots where you are generally available for teaching.
                         </p>
                       </div>
@@ -1653,7 +1653,7 @@ export default function TutorRegistration() {
                     <div className="space-y-5">
                       {Object.entries(timingGroups).map(([group, timings]) => (
                         <div key={group}>
-                          <p className="mb-3 text-sm font-black text-slate-700">
+                          <p className="mb-3 text-sm font-black text-slate-700 dark:text-slate-200">
                             {group}
                           </p>
 
@@ -1668,11 +1668,11 @@ export default function TutorRegistration() {
                                   onClick={() => handleMulti("timings", time)}
                                   className={`rounded-2xl border px-4 py-3 text-sm font-bold transition ${
                                     active
-                                      ? "border-blue-300 bg-blue-50 text-blue-700"
+                                      ? "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
                                       : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800"
                                   }`}
                                 >
-                                  {active ? "✓ " : ""}
+                                  {active ? "\u2713 " : ""}
                                   {time}
                                 </button>
                               );
@@ -1710,7 +1710,7 @@ export default function TutorRegistration() {
                         className="mt-1 h-5 w-5 accent-emerald-600"
                       />
 
-                      <div className="text-sm leading-7 text-slate-700">
+                      <div className="text-sm leading-7 text-slate-700 dark:text-slate-200">
                         I agree to pay a{" "}
                         <span className="font-black text-slate-950">
                           32% Placement, Facilitation & Verification Fee
@@ -1725,7 +1725,7 @@ export default function TutorRegistration() {
                     </label>
 
                     {!formData.agreement && (
-                      <p className="mt-2 text-xs font-bold text-red-650">
+                      <p className="mt-2 text-xs font-bold text-red-600">
                         You must agree before submitting.
                       </p>
                     )}
@@ -1752,7 +1752,7 @@ export default function TutorRegistration() {
                         className="mt-1 h-5 w-5 accent-emerald-600"
                       />
 
-                      <div className="text-sm leading-7 text-slate-700">
+                      <div className="text-sm leading-7 text-slate-700 dark:text-slate-200">
                         I agree to update my attendance after every class using the credentials provided by Saraswati Tutorials. Classes not marked in the portal will not be considered completed and may not be included for payment processing.{" "}
                         <button
                           type="button"
@@ -1783,7 +1783,7 @@ export default function TutorRegistration() {
                     )}
 
                     {!formData.attendanceAgreement && (
-                      <p className="mt-2 text-xs font-bold text-red-650">
+                      <p className="mt-2 text-xs font-bold text-red-600">
                         You must agree before submitting.
                       </p>
                     )}
@@ -1856,7 +1856,7 @@ function InputField({
 }) {
   return (
     <div className={className}>
-      <label className="mb-2 block text-sm font-black text-slate-700 dark:text-slate-300">
+      <label className="mb-2 block text-sm font-black text-slate-700 dark:text-slate-200 dark:text-slate-300">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
 
@@ -1885,7 +1885,7 @@ function InputField({
         )}
       </div>
 
-      {error && <p className="mt-2 text-xs font-bold text-red-650">{error}</p>}
+      {error && <p className="mt-2 text-xs font-bold text-red-600">{error}</p>}
     </div>
   );
 }
@@ -1902,7 +1902,7 @@ function SelectField({
 }) {
   return (
     <div className={className}>
-      <label className="mb-2 block text-sm font-black text-slate-700 dark:text-slate-300">
+      <label className="mb-2 block text-sm font-black text-slate-700 dark:text-slate-200 dark:text-slate-300">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
 
@@ -1943,7 +1943,7 @@ function SegmentedButtons({ value, options, onChange }) {
           className={`rounded-2xl px-5 py-3 text-sm font-black transition cursor-pointer ${
             value === option.value
               ? "bg-slate-950 dark:bg-white text-white dark:text-slate-950 shadow-lg shadow-slate-300 dark:shadow-none"
-              : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-850 hover:bg-slate-50 dark:hover:bg-slate-850"
+              : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
           }`}
         >
           {option.label}
@@ -2010,7 +2010,7 @@ function FileUploadCard({
               <p className="font-black text-slate-900 dark:text-slate-100">
                 {title} {required && <span className="text-red-500">*</span>}
               </p>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 dark:text-slate-400">{subtitle}</p>
             </div>
           </div>
 
@@ -2051,7 +2051,7 @@ function FileUploadCard({
               </a>
             </span>
           ) : hasFile ? (
-            <span className="text-emerald-700 dark:text-emerald-300">✓ {file.name}</span>
+            <span className="text-emerald-700 dark:text-emerald-300">? {file.name}</span>
           ) : required ? (
             <span className="text-red-600 dark:text-red-400">Required — click to upload</span>
           ) : (
@@ -2080,7 +2080,7 @@ function ReviewCard({ title, icon: Icon, children }) {
 function ReviewRow({ label, value }) {
   return (
     <p className="text-sm leading-6">
-      <span className="font-black text-slate-800 dark:text-slate-200">{label}: </span>
+      <span className="font-black text-slate-800 dark:text-slate-100 dark:text-slate-200">{label}: </span>
       <span className="text-slate-600 dark:text-slate-400">{value || "Not provided"}</span>
     </p>
   );

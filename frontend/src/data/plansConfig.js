@@ -275,8 +275,8 @@ export const PLANS = [
     description: "",
     price: "₹9,130",
     gradient: "from-[#FFE082] via-[#F59E0B] to-[#D97706]",
-    textColor: "text-slate-955",
-    textDarkColor: "text-slate-955",
+    textColor: "text-slate-950",
+    textDarkColor: "text-slate-950",
     badgeTheme: "bg-black/10 text-slate-950 border-black/20",
     keyBenefit: "Strategy, Monthly Tests, Guidance, Allocation & Support",
     cardBenefits: [
