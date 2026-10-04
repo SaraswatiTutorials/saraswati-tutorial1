@@ -684,7 +684,7 @@ function PlanCard({ plan, isActive, isSelectedAny, isCenter, position, onClick }
       return "bg-gradient-to-br from-[#F8FAFC] to-[#CBD5E1] dark:from-[#1e293b] dark:to-[#0f172a] border-white/30 dark:border-slate-700/50 text-slate-800 dark:text-slate-100 shadow-[0_15px_30px_-5px_rgba(203,213,225,0.15)] dark:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.5)] premium-shine-card";
     }
     if (isGold) {
-      return "bg-gradient-to-br from-[#FFE082] via-[#F59E0B] to-[#D97706] border-[#FFE082]/30 text-slate-955 shadow-[0_20px_40px_-5px_rgba(245,158,11,0.3)] premium-shine-card";
+      return "bg-gradient-to-br from-[#FFE082] via-[#F59E0B] to-[#D97706] border-[#FFE082]/30 text-slate-950 shadow-[0_20px_40px_-5px_rgba(245,158,11,0.3)] premium-shine-card";
     }
     return "bg-gradient-to-br from-[#111827] to-[#000000] border-white/12 text-white shadow-[0_15px_35px_-5px_rgba(0,0,0,0.6)] premium-shine-card";
   };

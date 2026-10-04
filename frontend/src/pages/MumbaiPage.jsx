@@ -75,7 +75,7 @@ function LocationSelector({ activeCity }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 py-1.5 px-2.5 text-xs font-black rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 transition duration-300 cursor-pointer shadow-sm hover:border-slate-350"
+        className="flex items-center gap-1.5 py-1.5 px-2.5 text-xs font-black rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 transition duration-300 cursor-pointer shadow-sm hover:border-slate-300 dark:hover:border-slate-600"
       >
         <MapPin className="h-3.5 w-3.5 text-blue-600 animate-pulse" />
         <span>{displayLabel}</span>
@@ -83,7 +83,7 @@ function LocationSelector({ activeCity }) {
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 mt-1.5 w-36 rounded-2xl bg-white border border-slate-100 shadow-xl py-1.5 text-slate-700 animate-slideFade">
+        <div className="absolute left-0 mt-1.5 w-36 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 shadow-xl py-1.5 text-slate-700 dark:text-slate-200 animate-slideFade">
           {[
             { id: "Bangalore", label: "Bangalore / BLR" },
             { id: "Mumbai", label: "Mumbai" }
@@ -102,7 +102,7 @@ function LocationSelector({ activeCity }) {
                 className={`flex items-center justify-between w-full text-left px-3.5 py-2 text-xs font-bold transition duration-150 cursor-pointer ${
                   isSelected 
                     ? "text-blue-600 bg-blue-50/50" 
-                    : "hover:bg-slate-50 text-slate-755 hover:text-slate-900"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 <span>{city.label}</span>
@@ -138,7 +138,7 @@ function ResourcesDropdown({ activeSection }) {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-1 py-1.5 transition duration-300 whitespace-nowrap shrink-0 font-bold cursor-pointer relative ${
-          isResourcesActive ? "text-blue-600 font-extrabold" : "text-slate-655 hover:text-slate-950"
+          isResourcesActive ? "text-blue-600 font-extrabold" : "text-slate-600 hover:text-slate-950"
         }`}
       >
         <span>Resources</span>
@@ -153,18 +153,18 @@ function ResourcesDropdown({ activeSection }) {
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 mt-1.5 w-32 rounded-2xl bg-white border border-slate-100 shadow-xl py-1.5 text-slate-700 animate-slideFade">
+        <div className="absolute left-0 mt-1.5 w-32 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 shadow-xl py-1.5 text-slate-700 dark:text-slate-200 animate-slideFade">
           <a
             href="#faqs"
             onClick={() => setIsOpen(false)}
-            className="block w-full text-left px-4 py-2 text-xs font-bold hover:bg-slate-50 text-slate-755 hover:text-slate-900 transition duration-150"
+            className="block w-full text-left px-4 py-2 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition duration-150"
           >
             FAQ
           </a>
           <Link
             to="/blogs"
             onClick={() => setIsOpen(false)}
-            className="block w-full text-left px-4 py-2 text-xs font-bold hover:bg-slate-50 text-slate-755 hover:text-slate-900 transition duration-150"
+            className="block w-full text-left px-4 py-2 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition duration-150"
           >
             Blog
           </Link>
@@ -471,7 +471,7 @@ export default function MumbaiPage() {
               <motion.div
                 whileHover={{ scale: 1.08, rotate: [0, -3, 3, 0] }}
                 transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                className="h-[72px] w-[72px] sm:h-[60px] sm:w-[60px] shrink-0 bg-white rounded-2xl border border-slate-200/60 shadow-sm flex items-center justify-center cursor-pointer"
+                className="h-[72px] w-[72px] sm:h-[60px] sm:w-[60px] shrink-0 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex items-center justify-center cursor-pointer"
               >
                 <img
                   src="/logo.png"
@@ -518,7 +518,7 @@ export default function MumbaiPage() {
                   key={link.id}
                   href={link.href}
                   className={`relative py-1.5 transition duration-300 whitespace-nowrap shrink-0 ${
-                    isActive ? "text-blue-600 dark:text-blue-400 font-extrabold" : "text-slate-600 dark:text-slate-300 hover:text-slate-955 dark:hover:text-white"
+                    isActive ? "text-blue-600 dark:text-blue-400 font-extrabold" : "text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white"
                   }`}
                 >
                   {link.label}
@@ -553,7 +553,7 @@ export default function MumbaiPage() {
               whileHover={{ scale: 1.05, translateY: -2, boxShadow: "0 8px 16px rgba(15,23,42,0.06)" }}
               whileTap={{ scale: 0.97 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              className="whitespace-nowrap flex items-center gap-1.5 xl:gap-2 rounded-xl xl:rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 xl:px-5 py-2 xl:py-2.5 text-[11px] xl:text-xs font-black text-slate-800 dark:text-slate-200 shadow-sm transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-350 shrink-0"
+              className="whitespace-nowrap flex items-center gap-1.5 xl:gap-2 rounded-xl xl:rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 xl:px-5 py-2 xl:py-2.5 text-[11px] xl:text-xs font-black text-slate-800 dark:text-slate-200 shadow-sm transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 shrink-0"
             >
               <User className="h-3.5 w-3.5 xl:h-4 xl:w-4 text-slate-500 dark:text-slate-400" />
               Become a Tutor

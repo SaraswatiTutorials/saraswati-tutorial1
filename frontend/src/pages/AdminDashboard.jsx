@@ -1033,20 +1033,20 @@ export default function AdminDashboard() {
       <div className="mx-auto max-w-7xl">
         {/* Persistent Top System Alerts Banner */}
         {activeAlerts.length > 0 && (
-          <div className="mb-6 rounded-2xl sm:rounded-3xl border border-rose-200 bg-rose-50/95 backdrop-blur-xl p-3.5 sm:p-4 text-slate-900 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-slideFade">
+          <div className="mb-6 rounded-2xl sm:rounded-3xl border border-rose-200 bg-rose-50/95 dark:border-rose-900/50 dark:bg-rose-950/30 backdrop-blur-xl p-3.5 sm:p-4 text-slate-900 dark:text-slate-100 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-slideFade">
             <div className="flex items-start sm:items-center gap-3">
               <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-2xl bg-rose-500 text-white flex items-center justify-center shrink-0 animate-pulse shadow-md shadow-rose-500/20 mt-0.5 sm:mt-0">
                 <Bell className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
               </div>
               <div>
                 <p className="text-[11px] sm:text-xs font-black uppercase text-rose-600 tracking-wider">System Alert ({activeAlerts.length} Pending)</p>
-                <p className="text-xs font-semibold text-slate-800 mt-0.5 leading-snug break-words">{activeAlerts[0]?.message}</p>
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5 leading-snug break-words">{activeAlerts[0]?.message}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0 justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t border-rose-200/60 sm:border-0">
               <button
                 onClick={() => dismissAlert(activeAlerts[0].id)}
-                className="flex-1 sm:flex-none rounded-xl border border-rose-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-rose-100 transition cursor-pointer text-center"
+                className="flex-1 sm:flex-none rounded-xl border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-rose-100 dark:hover:bg-rose-950/40 transition cursor-pointer text-center"
               >
                 Dismiss
               </button>
@@ -1105,11 +1105,11 @@ export default function AdminDashboard() {
                       className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[290] sm:hidden"
                       onClick={() => setShowAlertsDropdown(false)}
                     />
-                    <div className="fixed left-4 right-4 top-20 max-w-md mx-auto sm:absolute sm:left-auto sm:right-0 sm:top-14 sm:w-96 rounded-3xl bg-white text-slate-800 shadow-2xl border border-slate-200 p-4.5 z-[300] animate-slideFade">
-                      <div className="flex justify-between items-center pb-2.5 border-b border-slate-100">
+                    <div className="fixed left-4 right-4 top-20 max-w-md mx-auto sm:absolute sm:left-auto sm:right-0 sm:top-14 sm:w-96 rounded-3xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xl border border-slate-200 dark:border-slate-700 p-4.5 z-[300] animate-slideFade">
+                      <div className="flex justify-between items-center pb-2.5 border-b border-slate-100 dark:border-slate-700">
                         <div className="flex items-center gap-2">
                           <Bell className="h-4 w-4 text-rose-500" />
-                          <span className="text-xs font-black text-slate-800 uppercase tracking-wider">System Alerts ({activeAlerts.length})</span>
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">System Alerts ({activeAlerts.length})</span>
                         </div>
                         <div className="flex items-center gap-2">
                           {activeAlerts.length > 0 && (
@@ -1127,7 +1127,7 @@ export default function AdminDashboard() {
                           )}
                           <button
                             onClick={() => setShowAlertsDropdown(false)}
-                            className="p-1 text-slate-400 hover:text-slate-700 rounded-lg sm:hidden cursor-pointer"
+                            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg sm:hidden cursor-pointer"
                           >
                             <X className="h-4 w-4" />
                           </button>
@@ -1136,7 +1136,7 @@ export default function AdminDashboard() {
                       <div className="mt-3 max-h-72 overflow-y-auto space-y-2 pr-1">
                         {activeAlerts.length === 0 ? (
                           <p className="text-xs font-bold text-slate-500 py-6 text-center">
-                            🎉 No pending attendance alerts!
+                            ?? No pending attendance alerts!
                           </p>
                         ) : (
                           activeAlerts.map(alert => (
@@ -1144,15 +1144,15 @@ export default function AdminDashboard() {
                               key={alert.id}
                               className={`p-3 rounded-2xl border text-xs flex flex-col gap-2 ${
                                 alert.severity === "high"
-                                  ? "bg-rose-50/80 border-rose-200 text-rose-950"
-                                  : "bg-amber-50/80 border-amber-200 text-amber-950"
+                                  ? "bg-rose-50/80 border-rose-200 text-rose-950 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-200"
+                                  : "bg-amber-50/80 border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-900/60 dark:text-amber-200"
                               }`}
                             >
-                              <p className="font-semibold leading-normal text-slate-800">{alert.message}</p>
+                              <p className="font-semibold leading-normal text-slate-800 dark:text-slate-200">{alert.message}</p>
                               <div className="flex justify-end">
                                 <button
                                   onClick={() => dismissAlert(alert.id)}
-                                  className="text-[10px] font-black uppercase tracking-wider bg-white border border-rose-200 text-rose-600 px-3 py-1 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                                  className="text-[10px] font-black uppercase tracking-wider bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 px-3 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
                                 >
                                   Dismiss
                                 </button>
@@ -1398,7 +1398,7 @@ export default function AdminDashboard() {
                   Tutor Registration Drafts
                 </h2>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {tutorDrafts.length} incomplete tutor registration{tutorDrafts.length !== 1 ? "s" : ""} — auto-expire after 30 days.
+                  {tutorDrafts.length} incomplete tutor registration{tutorDrafts.length !== 1 ? "s" : ""} - auto-expire after 30 days.
                 </p>
               </div>
               <button
@@ -1416,7 +1416,7 @@ export default function AdminDashboard() {
                 type="text"
                 value={tutorDraftSearch}
                 onChange={(e) => setTutorDraftSearch(e.target.value)}
-                placeholder="Search by name, phone, city, subjects…"
+                placeholder="Search by name, phone, city, subjects..."
                 className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 pl-10 text-sm font-medium text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 transition"
               />
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -1448,7 +1448,7 @@ export default function AdminDashboard() {
                     const fd = draft.formData || {};
                     const isExpanded = expandedTutorDraftId === draft._id;
                     const stepLabels = ["", "Personal Info", "Teaching Profile", "Location & Docs"];
-                    const stepColors = ["", "bg-blue-100 text-blue-700", "bg-amber-100 text-amber-700", "bg-emerald-100 text-emerald-700"];
+                    const stepColors = ["", "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300", "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300", "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"];
 
                     return (
                       <div
@@ -1468,16 +1468,16 @@ export default function AdminDashboard() {
                               <p className="font-black text-slate-900 dark:text-slate-100 text-base truncate">
                                 {fd.name || <span className="text-slate-400 italic">Name not provided</span>}
                               </p>
-                              <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${stepColors[draft.stepReached] || "bg-slate-100 text-slate-600"}`}>
-                                Step {draft.stepReached} — {stepLabels[draft.stepReached] || "Unknown"}
+                              <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${stepColors[draft.stepReached] || "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>
+                                Step {draft.stepReached} - {stepLabels[draft.stepReached] || "Unknown"}
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-semibold">
-                              {draft.phone && <span>📱 {draft.phone}</span>}
+                              {draft.phone && <span>Phone: {draft.phone}</span>}
                               {fd.city && <span>📍 {fd.city}{fd.area ? `, ${fd.area}` : ""}</span>}
-                              {fd.qualification && <span>🎓 {fd.qualification}</span>}
+                              {fd.qualification && <span>Qualification: {fd.qualification}</span>}
                               {(fd.subjects || []).length > 0 && (
-                                <span>📚 {fd.subjects.slice(0, 3).join(", ")}{fd.subjects.length > 3 ? " +" + (fd.subjects.length - 3) : ""}</span>
+                                <span>Subjects: {fd.subjects.slice(0, 3).join(", ")}{fd.subjects.length > 3 ? " +" + (fd.subjects.length - 3) : ""}</span>
                               )}
                             </div>
                             <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500 font-medium">
@@ -1533,7 +1533,7 @@ export default function AdminDashboard() {
                                 { label: "Date of Birth", value: fd.dob },
                                 { label: "Qualification", value: fd.qualification },
                                 { label: "Experience", value: fd.experience },
-                                { label: "Occupation Status", value: fd.hasOccupation === "yes" ? `Working — ${fd.occupation || ""}` : "Not Working" },
+                                { label: "Occupation Status", value: fd.hasOccupation === "yes" ? `Working - ${fd.occupation || ""}` : "Not Working" },
                                 { label: "City", value: fd.city },
                                 { label: "Area", value: fd.area },
                                 { label: "Full Address", value: fd.fullAddress },
@@ -1654,7 +1654,7 @@ export default function AdminDashboard() {
             value={drafts.length}
             subtitle={`${filteredDrafts.length} filtered`}
             icon={FileText}
-            gradientClass="bg-amber-50 dark:bg-amber-950/40 text-amber-650 dark:text-amber-400"
+            gradientClass="bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400"
           />
 
           <StatCard
@@ -1701,7 +1701,7 @@ export default function AdminDashboard() {
               />
 
               {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-14 z-30 overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-200 animate-slideFade">
+                <div className="absolute left-0 right-0 top-14 z-30 overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-700 animate-slideFade">
                   {suggestions.map((suggestion) => (
                     <button
                       key={suggestion}
@@ -1710,7 +1710,7 @@ export default function AdminDashboard() {
                         setSearch(suggestion);
                         setShowSuggestions(false);
                       }}
-                      className="block w-full px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+                      className="block w-full px-4 py-3 text-left text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
                     >
                       {suggestion}
                     </button>
@@ -1741,7 +1741,7 @@ export default function AdminDashboard() {
               className={`flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition duration-300 cursor-pointer ${
                 showParents
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               }`}
             >
               {showParents ? "Hide Parent Leads" : "Show Parent Leads"}
@@ -1752,7 +1752,7 @@ export default function AdminDashboard() {
               className={`flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition duration-300 cursor-pointer ${
                 showTutors
                   ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20 hover:bg-purple-700"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               }`}
             >
               {showTutors ? "Hide Tutors" : "Show Tutors"}
@@ -1842,7 +1842,7 @@ export default function AdminDashboard() {
                           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="text-xl font-black text-slate-900">
+                                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">
                                   {p.parentName || p.name || "Unnamed Parent"}
                                 </h3>
 
@@ -1877,7 +1877,7 @@ export default function AdminDashboard() {
                                 )}
                               </div>
 
-                              <p className="mt-2 text-xs font-bold text-slate-450">
+                              <p className="mt-2 text-xs font-bold text-slate-400 dark:text-slate-500">
                                 Submitted: {submittedAt}
                               </p>
                             </div>
@@ -1918,7 +1918,7 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="grid gap-5 p-5 lg:grid-cols-3">
-                          <div className="rounded-2xl bg-slate-50/60 border border-slate-100 p-5 transition hover:bg-slate-50">
+                          <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-5 transition hover:bg-slate-50 dark:hover:bg-slate-800">
                             <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                               <User className="h-4 w-4 text-blue-500" />
                               Parent Details
@@ -1947,7 +1947,7 @@ export default function AdminDashboard() {
                             </div>
                           </div>
 
-                          <div className="rounded-2xl bg-slate-50/60 border border-slate-100 p-5 transition hover:bg-slate-50">
+                          <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-5 transition hover:bg-slate-50 dark:hover:bg-slate-800">
                             <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                               <Settings className="h-4 w-4 text-purple-500" />
                               Tutor Preference
@@ -1972,7 +1972,7 @@ export default function AdminDashboard() {
                           </div>
 
                           {p.planType && (
-                            <div className="rounded-2xl bg-blue-50/40 border border-blue-100 p-5 transition hover:bg-blue-50/60">
+                            <div className="rounded-2xl bg-blue-50/40 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 p-5 transition hover:bg-blue-50/60 dark:hover:bg-blue-950/40">
                               <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-blue-500 flex items-center gap-1.5">
                                 <Award className="h-4 w-4 text-blue-500" />
                                 Selected Plan & Pricing
@@ -1981,12 +1981,12 @@ export default function AdminDashboard() {
                                 <InfoRow icon={Award} label="Plan Type" value={p.planType.charAt(0).toUpperCase() + p.planType.slice(1)} />
                                 <InfoRow icon={Calendar} label="Days / Week" value={p.daysPerWeek ? `${p.daysPerWeek} Days` : "Not specified"} />
                                 <InfoRow icon={Clock} label="Hours / Day" value={p.hoursPerDay ? `${p.hoursPerDay} Hr` : "Not specified"} />
-                                <InfoRow icon={CreditCard} label="Monthly Fee" value={p.monthlyFees ? `₹${p.monthlyFees.toLocaleString('en-IN')}` : "Not specified"} />
+                                <InfoRow icon={CreditCard} label="Monthly Fee" value={p.monthlyFees ? `?${p.monthlyFees.toLocaleString('en-IN')}` : "Not specified"} />
                                 {p.totalBaseFee && p.totalBaseFee !== p.monthlyFees && (
-                                  <InfoRow icon={CreditCard} label="Total Base Fee" value={`₹${p.totalBaseFee.toLocaleString('en-IN')}`} />
+                                  <InfoRow icon={CreditCard} label="Total Base Fee" value={`?${p.totalBaseFee.toLocaleString('en-IN')}`} />
                                 )}
                                 {p.siblingDiscount > 0 && (
-                                  <InfoRow icon={CreditCard} label="Sibling Concession" value={`-₹${p.siblingDiscount.toLocaleString('en-IN')} (${p.siblingConcessionPercent}%)`} />
+                                  <InfoRow icon={CreditCard} label="Sibling Concession" value={`-?${p.siblingDiscount.toLocaleString('en-IN')} (${p.siblingConcessionPercent}%)`} />
                                 )}
                               </div>
                             </div>
@@ -2026,7 +2026,7 @@ export default function AdminDashboard() {
                                       <User className="h-4 w-4 text-slate-400" />
                                       Student {index + 1}
                                     </h5>
-                                    <span className="rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs font-bold text-slate-655 dark:text-slate-300">
+                                    <span className="rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">
                                       {ward.classGrade ? `Class ${ward.classGrade}` : "Class NA"}
                                     </span>
                                   </div>
@@ -2059,7 +2059,7 @@ export default function AdminDashboard() {
                                 </span>
                               )}
                               {p.assignedTutor && (
-                                <span className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-150 dark:border-emerald-800 px-3 py-1.5 text-xs font-black text-emerald-700 dark:text-emerald-300">
+                                <span className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-3 py-1.5 text-xs font-black text-emerald-700 dark:text-emerald-300">
                                   Assigned Tutor: {p.assignedTutor}
                                 </span>
                               )}
@@ -2160,7 +2160,7 @@ export default function AdminDashboard() {
                                         )}
                                         <button
                                           onClick={() => setSelectedTutorIds([])}
-                                          className="rounded-xl bg-slate-200 dark:bg-slate-700 px-3 py-2 text-xs font-black text-slate-755 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition cursor-pointer"
+                                          className="rounded-xl bg-slate-200 dark:bg-slate-700 px-3 py-2 text-xs font-black text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition cursor-pointer"
                                         >
                                           Clear Selection
                                         </button>
@@ -2179,7 +2179,7 @@ export default function AdminDashboard() {
                                     setSelectedTutorIds([]);
                                   }}
                                   className={`pb-2.5 pr-4 transition-all relative cursor-pointer ${
-                                    tutorPanelTab === "matches" ? "text-indigo-650 dark:text-indigo-400 font-black" : "text-slate-450 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                    tutorPanelTab === "matches" ? "text-indigo-650 dark:text-indigo-400 font-black" : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                                   }`}
                                 >
                                   Best Matches ({matchedTutors.length})
@@ -2194,7 +2194,7 @@ export default function AdminDashboard() {
                                     setSelectedTutorIds([]);
                                   }}
                                   className={`pb-2.5 px-4 transition-all relative cursor-pointer ${
-                                    tutorPanelTab === "all" ? "text-indigo-650 dark:text-indigo-400 font-black" : "text-slate-450 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                    tutorPanelTab === "all" ? "text-indigo-650 dark:text-indigo-400 font-black" : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                                   }`}
                                 >
                                   Search Other Tutors
@@ -2247,19 +2247,19 @@ export default function AdminDashboard() {
                                     )}
 
                                     {tutorPanelTab === "all" && !tutorSearchQuery.trim() && (
-                                      <div className="py-8 text-center text-xs font-bold text-slate-450 dark:text-slate-500">
+                                      <div className="py-8 text-center text-xs font-bold text-slate-400 dark:text-slate-500">
                                         Enter search query above to find any tutor in the master database.
                                       </div>
                                     )}
 
                                     {tutorPanelTab === "matches" && tutorsList.length === 0 && (
-                                      <div className="py-6 text-center text-xs font-bold text-slate-450 dark:text-slate-500">
+                                      <div className="py-6 text-center text-xs font-bold text-slate-400 dark:text-slate-500">
                                         No best matches found for this tuition location.
                                       </div>
                                     )}
 
                                     {tutorSearchQuery.trim() && tutorPanelTab === "all" && tutorsList.length === 0 && (
-                                      <div className="py-6 text-center text-xs font-bold text-slate-450 dark:text-slate-500">
+                                      <div className="py-6 text-center text-xs font-bold text-slate-400 dark:text-slate-500">
                                         No tutors found matching your search.
                                       </div>
                                     )}
@@ -2272,7 +2272,7 @@ export default function AdminDashboard() {
                                       <div
                                         key={t._id}
                                         className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl border transition duration-200 bg-white dark:bg-slate-800 ${
-                                          isSelected ? "border-indigo-400 bg-indigo-50/20 dark:border-indigo-600 dark:bg-indigo-900/30" : "border-slate-150 dark:border-slate-700 hover:border-slate-350 dark:hover:border-slate-600"
+                                          isSelected ? "border-indigo-400 bg-indigo-50/20 dark:border-indigo-600 dark:bg-indigo-900/30" : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
                                         }`}
                                       >
                                         <div className="flex items-center gap-3">
@@ -2483,7 +2483,7 @@ export default function AdminDashboard() {
                               )}
                             </div>
 
-                            <p className="mt-2 text-xs font-bold text-slate-450 dark:text-slate-500">
+                            <p className="mt-2 text-xs font-bold text-slate-400 dark:text-slate-500">
                               Last Updated: {formatSubmittedDate(p.updatedAt)}
                             </p>
                           </div>
@@ -2491,7 +2491,7 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleDeleteDraft(p._id)}
-                              className="h-11 flex items-center justify-center gap-1.5 rounded-2xl bg-rose-500 px-4 text-xs font-bold text-white transition hover:bg-rose-650 cursor-pointer"
+                              className="h-11 flex items-center justify-center gap-1.5 rounded-2xl bg-rose-500 px-4 text-xs font-bold text-white transition hover:bg-rose-600 cursor-pointer"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                               Delete Draft
@@ -2538,7 +2538,7 @@ export default function AdminDashboard() {
 
                         {p.formData?.planType ? (
                           <div className="rounded-2xl bg-amber-50/20 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 p-5 transition hover:bg-amber-50/30 dark:hover:bg-amber-900/20">
-                            <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-amber-750 dark:text-amber-500 flex items-center gap-1.5">
+                            <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-500 flex items-center gap-1.5">
                               <Award className="h-4 w-4 text-amber-700" />
                               Selected Plan & Pricing
                             </h4>
@@ -2546,12 +2546,12 @@ export default function AdminDashboard() {
                               <InfoRow icon={Award} label="Plan Type" value={p.formData.planType.charAt(0).toUpperCase() + p.formData.planType.slice(1)} />
                               <InfoRow icon={Calendar} label="Days / Week" value={p.formData.daysPerWeek ? `${p.formData.daysPerWeek} Days` : "Not specified"} />
                               <InfoRow icon={Clock} label="Hours / Day" value={p.formData.hoursPerDay ? `${p.formData.hoursPerDay} Hr` : "Not specified"} />
-                              <InfoRow icon={CreditCard} label="Monthly Fee" value={p.formData.monthlyFees ? `₹${p.formData.monthlyFees.toLocaleString('en-IN')}` : "Not specified"} />
+                              <InfoRow icon={CreditCard} label="Monthly Fee" value={p.formData.monthlyFees ? `?${p.formData.monthlyFees.toLocaleString('en-IN')}` : "Not specified"} />
                               {p.formData.totalBaseFee && p.formData.totalBaseFee !== p.formData.monthlyFees && (
-                                <InfoRow icon={CreditCard} label="Total Base Fee" value={`₹${p.formData.totalBaseFee.toLocaleString('en-IN')}`} />
+                                <InfoRow icon={CreditCard} label="Total Base Fee" value={`?${p.formData.totalBaseFee.toLocaleString('en-IN')}`} />
                               )}
                               {p.formData.siblingDiscount > 0 && (
-                                <InfoRow icon={CreditCard} label="Sibling Concession" value={`-₹${p.formData.siblingDiscount.toLocaleString('en-IN')} (${p.formData.siblingConcessionPercent}%)`} />
+                                <InfoRow icon={CreditCard} label="Sibling Concession" value={`-?${p.formData.siblingDiscount.toLocaleString('en-IN')} (${p.formData.siblingConcessionPercent}%)`} />
                               )}
                             </div>
                           </div>
@@ -2664,7 +2664,7 @@ export default function AdminDashboard() {
                   <p className="text-lg font-black text-slate-900 dark:text-white">
                     Tutor: {b.tutorName || "Tutor not provided"}
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-650 dark:text-slate-400">
+                  <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-400">
                     Learner: {b.learnerName || "Learner not provided"} | Phone: {b.phone || "No phone"}
                   </p>
                   <p className="mt-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -2815,9 +2815,9 @@ export default function AdminDashboard() {
                                   <Activity className="h-4 w-4 text-indigo-500" />
                                   CRM Performance Statistics
                                 </p>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50/50 dark:bg-slate-800/30 p-4 rounded-2xl border border-slate-150 dark:border-slate-700">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50/50 dark:bg-slate-800/30 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
                                   <div className="text-center p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700">
-                                    <span className="block text-[10px] font-black uppercase text-slate-455 dark:text-slate-500">Total Assignments</span>
+                                    <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">Total Assignments</span>
                                     <span className="block text-lg font-black text-slate-800 dark:text-white mt-0.5">{t.performanceStats.totalAssignments}</span>
                                   </div>
                                   <div className="text-center p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700">
@@ -2826,7 +2826,7 @@ export default function AdminDashboard() {
                                   </div>
                                   <div className="text-center p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700">
                                     <span className="block text-[10px] font-black uppercase text-rose-500">Demo Cancelled</span>
-                                    <span className="block text-lg font-black text-rose-650 dark:text-rose-400 mt-0.5">{t.performanceStats.demoCancelled}</span>
+                                    <span className="block text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5">{t.performanceStats.demoCancelled}</span>
                                   </div>
                                   <div className="text-center p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700">
                                     <span className="block text-[10px] font-black uppercase text-red-500">Rejected</span>
@@ -3044,7 +3044,7 @@ export default function AdminDashboard() {
                     if (!tutor) return null;
                     const isNewTutorWorkflow = !(tutor.status === "approved" && tutor.onboardingCompleted);
                     return (
-                      <div key={tId} className="flex items-center justify-between rounded-xl p-2.5 border border-slate-150 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-700 shadow-sm">
+                      <div key={tId} className="flex items-center justify-between rounded-xl p-2.5 border border-slate-200 dark:border-slate-700 text-xs font-bold bg-white dark:bg-slate-700 shadow-sm">
                         <span className="text-slate-800 dark:text-slate-200">{tutor.name}</span>
                         <span>
                           {isNewTutorWorkflow ? (
@@ -3170,7 +3170,7 @@ export default function AdminDashboard() {
             <div className="max-h-[85vh] w-full max-w-5xl overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl flex flex-col relative z-50">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-4 mb-4">
                 <div>
-                  <h3 className="text-xl font-black text-slate-850 dark:text-white flex items-center gap-2">
+                  <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
                     <Users className="h-5 w-5 text-indigo-500" />
                     Broadcast History Logs
                   </h3>
@@ -3188,7 +3188,7 @@ export default function AdminDashboard() {
 
               <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-[300px]">
                 {broadcastLogs.length === 0 ? (
-                  <div className="text-center py-20 text-xs text-slate-450 font-semibold italic">No broadcast events logged yet.</div>
+                  <div className="text-center py-20 text-xs text-slate-400 font-semibold italic">No broadcast events logged yet.</div>
                 ) : (
                   <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
                     <table className="w-full text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -3208,7 +3208,7 @@ export default function AdminDashboard() {
                         {broadcastLogs.map((log) => {
                           const timeStr = formatSubmittedDate(log.time || log.createdAt);
                           return (
-                            <tr key={log._id} className="border-b border-slate-150/70 dark:border-slate-700 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
+                            <tr key={log._id} className="border-b border-slate-200/70 dark:border-slate-700 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
                               <td className="p-3 text-slate-500 dark:text-slate-400 text-[10px]">{timeStr}</td>
                               <td className="p-3 text-slate-900 dark:text-white font-bold">
                                 <span className="block">{log.tutorName}</span>
@@ -3316,14 +3316,14 @@ function getStatusColor(status) {
 
 function StatCard({ title, value, subtitle, icon: Icon, gradientClass }) {
   return (
-    <div className="rounded-3xl p-6 shadow-sm border border-slate-205/60 dark:border-slate-800 transition duration-300 hover:-translate-y-1 hover:shadow-md glass-card bg-white dark:bg-slate-900 flex items-center justify-between">
+    <div className="rounded-3xl p-6 shadow-sm border border-slate-200/60 dark:border-slate-800 transition duration-300 hover:-translate-y-1 hover:shadow-md glass-card bg-white dark:bg-slate-900 flex items-center justify-between">
       <div>
         <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{title}</p>
         <p className="mt-2 text-4xl font-black text-slate-900 dark:text-white tracking-tight">{value}</p>
         <p className="mt-1.5 text-xs font-bold text-slate-500 dark:text-slate-400">{subtitle}</p>
       </div>
       {Icon && (
-        <div className={`p-3.5 rounded-2xl ${gradientClass || 'bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-300'}`}>
+        <div className={`p-3.5 rounded-2xl ${gradientClass || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
           <Icon className="h-5 w-5 stroke-[2.5]" />
         </div>
       )}
@@ -3707,7 +3707,7 @@ function AdminAttendanceConsole({
               fetchData();
               if (expandedId) fetchLeadAttendanceLogs(expandedId);
             }}
-            className="flex items-center gap-1.5 px-3.5 h-11 rounded-2xl border border-slate-250 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer shrink-0 shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 h-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer shrink-0 shadow-sm"
           >
             <RefreshCw className="h-4 w-4 text-slate-500 dark:text-slate-400" />
             Refresh
@@ -3716,7 +3716,7 @@ function AdminAttendanceConsole({
           <button
             type="button"
             onClick={() => setShowCustomizeModal(true)}
-            className="flex items-center gap-1.5 px-3.5 h-11 rounded-2xl border border-slate-250 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer shrink-0 shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 h-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer shrink-0 shadow-sm"
           >
             <Settings className="h-4 w-4 text-slate-500 dark:text-slate-400" />
             Columns
@@ -3724,7 +3724,7 @@ function AdminAttendanceConsole({
         </div>
       </div>
 
-      <div className="w-full rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 overflow-x-auto xl:overflow-x-hidden">
+      <div className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-x-auto xl:overflow-x-hidden">
         <table className="w-full text-left border-collapse table-auto text-xs">
           <thead>
             <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -3814,7 +3814,7 @@ function AdminAttendanceConsole({
                         if (c.key === "teacherName") {
                           return (
                             <td key={c.key} className="py-2.5 px-2">
-                              <div className="font-semibold text-slate-650 dark:text-slate-300 truncate max-w-[110px]" title={p.assignedTutor || "Not Assigned"}>
+                              <div className="font-semibold text-slate-600 dark:text-slate-300 truncate max-w-[110px]" title={p.assignedTutor || "Not Assigned"}>
                                 {p.assignedTutor || "Not Assigned"}
                               </div>
                             </td>
@@ -3874,9 +3874,9 @@ function AdminAttendanceConsole({
                     </tr>
 
                     {isExpanded && (
-                      <tr className="bg-slate-50/30">
-                        <td colSpan={attendanceColumns.filter(c => c.enabled).length + 1} className="p-5 border-t border-slate-100">
-                          <div className="bg-white rounded-2xl border border-slate-150 p-5 shadow-inner">
+                      <tr className="bg-slate-50/30 dark:bg-slate-800/30">
+                        <td colSpan={attendanceColumns.filter(c => c.enabled).length + 1} className="p-5 border-t border-slate-100 dark:border-slate-800">
+                          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-inner">
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                               
                               {/* Left Columns: Timeline and Logs */}
@@ -3940,7 +3940,7 @@ function AdminAttendanceConsole({
                                   return (
                                     <div className="space-y-4">
                                       {/* Month / Cycle Selection Tabs */}
-                                      <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2.5 overflow-x-auto">
+                                      <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-700 pb-2.5 overflow-x-auto">
                                         <span className="text-[10px] font-black text-slate-400 uppercase mr-1 shrink-0">Month / Cycle:</span>
                                         {availableCycles.map((cyc) => {
                                           const isSelected = currentSelectedCycle === cyc;
@@ -3996,30 +3996,30 @@ function AdminAttendanceConsole({
                                               <p className="text-xs font-bold text-slate-500 mt-0.5">Cycle Dates: {cycleDates}</p>
                                             </div>
                                             <div className="text-xs font-bold text-slate-600">
-                                              Current Assigned: <strong className="text-slate-800">{p.assignedTutor || "Not Assigned"}</strong>
+                                              Current Assigned: <strong className="text-slate-800 dark:text-slate-100">{p.assignedTutor || "Not Assigned"}</strong>
                                             </div>
                                           </div>
 
                                           <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                                            <div className="bg-white rounded-xl p-2 border border-slate-150 shadow-xs">
+                                            <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
                                               <span className="text-[9px] font-black uppercase text-slate-400 block">Total</span>
-                                              <strong className="text-sm font-black text-slate-800">
+                                              <strong className="text-sm font-black text-slate-800 dark:text-slate-100">
                                                 {selectedCycleObj?.totalClasses ?? (p.totalClasses || 12)}
                                               </strong>
                                             </div>
-                                            <div className="bg-white rounded-xl p-2 border border-slate-150 shadow-xs">
+                                            <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
                                               <span className="text-[9px] font-black uppercase text-slate-400 block">Completed</span>
                                               <strong className="text-sm font-black text-emerald-600">
                                                 {selectedCycleObj?.completedClasses ?? filteredLogs.filter(l => l.status === "Done").length}
                                               </strong>
                                             </div>
-                                            <div className="bg-white rounded-xl p-2 border border-slate-150 shadow-xs">
+                                            <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
                                               <span className="text-[9px] font-black uppercase text-slate-400 block">Missed</span>
                                               <strong className="text-sm font-black text-rose-500">
                                                 {selectedCycleObj?.missedClasses ?? filteredLogs.filter(l => l.status === "Missed").length}
                                               </strong>
                                             </div>
-                                            <div className="bg-white rounded-xl p-2 border border-slate-150 shadow-xs">
+                                            <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
                                               <span className="text-[9px] font-black uppercase text-slate-400 block">Remaining</span>
                                               <strong className="text-sm font-black text-indigo-600">
                                                 {selectedCycleObj?.remainingClasses ?? Math.max(0, (selectedCycleObj?.totalClasses ?? p.totalClasses ?? 12) - filteredLogs.filter(l => l.status === "Done").length)}
@@ -4031,7 +4031,7 @@ function AdminAttendanceConsole({
 
                                       {/* Logs in selected cycle */}
                                       {filteredLogs.length === 0 ? (
-                                        <p className="text-xs font-bold text-slate-400 text-center py-4 bg-slate-50 rounded-xl">
+                                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 text-center py-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
                                           No class logs recorded for Month {currentSelectedCycle}.
                                         </p>
                                       ) : (
@@ -4056,7 +4056,7 @@ function AdminAttendanceConsole({
                                                       <select
                                                         value={logStatus}
                                                         onChange={(e) => setLogStatus(e.target.value)}
-                                                        className="w-full h-9 px-3 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                                                        className="w-full h-9 px-3 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                                                       >
                                                         <option value="Done">Done</option>
                                                         <option value="Missed">Missed</option>
@@ -4069,7 +4069,7 @@ function AdminAttendanceConsole({
                                                         required
                                                         value={logDate}
                                                         onChange={(e) => setLogDate(e.target.value)}
-                                                        className="w-full h-9 px-3 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                        className="w-full h-9 px-3 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                                                       />
                                                     </div>
                                                   </div>
@@ -4082,7 +4082,7 @@ function AdminAttendanceConsole({
                                                         required
                                                         value={logTopics}
                                                         onChange={(e) => setLogTopics(e.target.value)}
-                                                        className="w-full p-3 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                                                        className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                                                       />
                                                     </div>
                                                   ) : (
@@ -4097,7 +4097,7 @@ function AdminAttendanceConsole({
                                                             className={`px-2 py-1.5 rounded-lg border text-[10px] font-bold text-center transition-all cursor-pointer ${
                                                               logMissedReason === reason
                                                                 ? "border-rose-500 bg-rose-50 text-rose-700"
-                                                                : "border-slate-200 bg-white text-slate-650"
+                                                                : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                                                             }`}
                                                           >
                                                             {reason}
@@ -4111,7 +4111,7 @@ function AdminAttendanceConsole({
                                                           placeholder="Specify custom reason..."
                                                           value={logCustomReason}
                                                           onChange={(e) => setLogCustomReason(e.target.value)}
-                                                          className="w-full h-9 px-3 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                          className="w-full h-9 px-3 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                                                         />
                                                       )}
                                                     </div>
@@ -4138,10 +4138,10 @@ function AdminAttendanceConsole({
                                             }
 
                                             return (
-                                              <div key={log._id} className="bg-slate-50 rounded-xl border border-slate-200/80 p-3.5 flex justify-between gap-4 text-xs font-semibold">
+                                              <div key={log._id} className="bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700 p-3.5 flex justify-between gap-4 text-xs font-semibold">
                                                 <div className="space-y-1">
                                                   <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="font-extrabold text-slate-800">Class {logIndex} ({log.date})</span>
+                                                    <span className="font-extrabold text-slate-800 dark:text-slate-100">Class {logIndex} ({log.date})</span>
                                                     <span className="bg-indigo-50 border border-indigo-150 text-indigo-700 text-[10px] font-black px-2 py-0.5 rounded">
                                                       Month {log.packageCycle || 1}
                                                     </span>
@@ -4182,16 +4182,16 @@ function AdminAttendanceConsole({
                                                   </div>
 
                                                   {log.status === "Done" ? (
-                                                    <p className="text-slate-655 mt-1">
+                                                    <p className="text-slate-600 mt-1">
                                                       <strong className="text-slate-700 font-extrabold">Topics Covered:</strong> {log.topicsCovered}
                                                     </p>
                                                   ) : (
-                                                    <p className="text-slate-655 mt-1">
+                                                    <p className="text-slate-600 mt-1">
                                                       <strong className="text-slate-700 font-extrabold">Reason:</strong> {log.missedReason === "Other" ? log.customReason : log.missedReason}
                                                     </p>
                                                   )}
 
-                                                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 flex-wrap">
+                                                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 flex-wrap">
                                                     <button
                                                       type="button"
                                                       onClick={() => startEditLogInline(log)}
@@ -4221,7 +4221,7 @@ function AdminAttendanceConsole({
                                                   </div>
                                                 </div>
 
-                                                <div className="text-right text-[10px] font-bold text-slate-450 shrink-0 self-center">
+                                                <div className="text-right text-[10px] font-bold text-slate-400 shrink-0 self-center">
                                                   <span>By {log.tutorName || p.assignedTutor || "Teacher"}</span>
                                                   <span className="block mt-0.5">{new Date(log.timestamp).toLocaleDateString()}</span>
                                                 </div>
@@ -4236,7 +4236,7 @@ function AdminAttendanceConsole({
                               </div>
 
                               {/* Right Column: Inline Edit Tuition Details */}
-                              <div className="border-t lg:border-t-0 lg:border-l border-slate-200 pt-5 lg:pt-0 lg:pl-6 space-y-4">
+                              <div className="border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700 pt-5 lg:pt-0 lg:pl-6 space-y-4">
                                 <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Edit Tuition Details</h4>
                                 
                                 <form onSubmit={(e) => handleUpdateTuitionInline(e, p._id)} className="space-y-3.5">
@@ -4254,7 +4254,7 @@ function AdminAttendanceConsole({
                                       placeholder="e.g. 1.5 hours"
                                       value={tDuration}
                                       onChange={(e) => setTDuration(e.target.value)}
-                                      className="w-full h-10 px-3.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                      className="w-full h-10 px-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                                     />
                                   </div>
 
@@ -4267,7 +4267,7 @@ function AdminAttendanceConsole({
                                         min="1"
                                         value={tTotalClasses}
                                         onChange={(e) => setTTotalClasses(e.target.value)}
-                                        className="w-full h-10 px-3.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                        className="w-full h-10 px-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                                       />
                                     </div>
                                     <div>
@@ -4278,7 +4278,7 @@ function AdminAttendanceConsole({
                                         min="0"
                                         value={tCompletedClasses}
                                         onChange={(e) => setTCompletedClasses(e.target.value)}
-                                        className="w-full h-10 px-3.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                        className="w-full h-10 px-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                                       />
                                     </div>
                                   </div>
@@ -4290,7 +4290,7 @@ function AdminAttendanceConsole({
                                       placeholder="e.g. Mon, Wed, Fri @ 5 PM"
                                       value={tSchedule}
                                       onChange={(e) => setTSchedule(e.target.value)}
-                                      className="w-full h-10 px-3.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                      className="w-full h-10 px-3.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                                     />
                                   </div>
 
@@ -4332,8 +4332,8 @@ function AdminAttendanceConsole({
 
       {showCustomizeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-fadeIn">
-          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[85vh] z-50">
-            <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50 text-slate-800">
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col max-h-[85vh] z-50">
+            <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
               <h3 className="text-sm font-black uppercase tracking-wider">Customize Attendance Columns</h3>
               <button 
                 type="button"
@@ -4350,7 +4350,7 @@ function AdminAttendanceConsole({
               </p>
               <div className="space-y-2">
                 {attendanceColumns.map((col, idx) => (
-                  <div key={col.key} className="flex items-center justify-between bg-slate-50 rounded-xl p-3 border border-slate-150">
+                  <div key={col.key} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-xl p-3 border border-slate-200 dark:border-slate-700">
                     <label className="flex items-center gap-3 cursor-pointer text-xs font-bold text-slate-700">
                       <input
                         type="checkbox"
@@ -4361,7 +4361,7 @@ function AdminAttendanceConsole({
                           setAttendanceColumns(updated);
                           localStorage.setItem("attendanceColumnsConfig", JSON.stringify(updated));
                         }}
-                        className="rounded border-slate-350 accent-indigo-600"
+                        className="rounded border-slate-300 accent-indigo-600"
                       />
                       {col.label}
                     </label>
@@ -4403,14 +4403,14 @@ function AdminAttendanceConsole({
               </div>
             </div>
 
-            <div className="bg-slate-50 px-6 py-4 flex justify-between border-t border-slate-100">
+            <div className="bg-slate-50 dark:bg-slate-800 px-6 py-4 flex justify-between border-t border-slate-100 dark:border-slate-700">
               <button
                 type="button"
                 onClick={() => {
                   setAttendanceColumns(DEFAULT_ATTENDANCE_COLUMNS);
                   localStorage.removeItem("attendanceColumnsConfig");
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-150 transition cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition cursor-pointer"
               >
                 Reset Default
               </button>
@@ -4443,7 +4443,7 @@ function MiniStat({ title, value, color, icon: Icon }) {
         <p className="mt-2 text-3xl font-black tracking-tight">{value}</p>
       </div>
       {Icon && (
-        <div className="p-3 bg-white/60 rounded-xl shadow-sm">
+        <div className="p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm">
           <Icon className="h-5 w-5 stroke-[2.5]" />
         </div>
       )}
@@ -4453,10 +4453,10 @@ function MiniStat({ title, value, color, icon: Icon }) {
 
 function SectionHeader({ title, subtitle, icon: Icon }) {
   return (
-    <div className="mb-6 border-b border-slate-200/80 pb-4">
+    <div className="mb-6 border-b border-slate-200/80 dark:border-slate-700 pb-4">
       <div className="flex items-center gap-2.5">
         {Icon && <Icon className="h-6 w-6 text-slate-700" />}
-        <h2 className="text-2xl font-black tracking-tight text-slate-900">
+        <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
           {title}
         </h2>
       </div>
@@ -4467,7 +4467,7 @@ function SectionHeader({ title, subtitle, icon: Icon }) {
 
 function EmptyState({ text }) {
   return (
-    <div className="rounded-3xl border border-dashed border-slate-300 bg-white/80 p-8 text-center text-sm font-bold text-slate-400">
+    <div className="rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 p-8 text-center text-sm font-bold text-slate-400 dark:text-slate-500">
       {text}
     </div>
   );
@@ -4475,10 +4475,10 @@ function EmptyState({ text }) {
 
 function InfoRow({ label, value, icon: Icon }) {
   return (
-    <div className="flex items-start gap-2 py-1.5 text-xs font-bold text-slate-650">
+    <div className="flex items-start gap-2 py-1.5 text-xs font-bold text-slate-600">
       {Icon && <Icon className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />}
       <div className="min-w-0 flex-1">
-        <span className="text-slate-800">{label}: </span>
+        <span className="text-slate-800 dark:text-slate-100">{label}: </span>
         <span className="text-slate-600 font-semibold break-words leading-relaxed">
           {value || value === 0 ? value : <span className="text-slate-400 italic font-medium">Not provided</span>}
         </span>
@@ -4495,7 +4495,7 @@ function Badge({ text, color = "slate" }) {
     emerald: "bg-emerald-50 text-emerald-700 border-emerald-200/50",
     red: "bg-rose-50 text-rose-700 border-rose-200/50",
     yellow: "bg-amber-50 text-amber-700 border-amber-200/50",
-    slate: "bg-slate-100 text-slate-700 border-slate-200",
+    slate: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700",
   };
 
   return (
@@ -4581,10 +4581,10 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-slideFade">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 md:p-8">
-        <div className="mb-6 flex items-center justify-between border-b border-slate-100 pb-4">
-          <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-            <Edit className="h-6 w-6 text-slate-800" />
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-200 dark:border-slate-700 md:p-8">
+        <div className="mb-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-4">
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Edit className="h-6 w-6 text-slate-800 dark:text-slate-200" />
             {title}
           </h2>
 
@@ -4598,7 +4598,7 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
 
         {/* Section 1: Personal & Contact Details */}
         <div className="mb-6">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3 border-b border-slate-100 pb-1">Personal & Contact Info</h3>
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 border-b border-slate-100 dark:border-slate-700 pb-1">Personal & Contact Info</h3>
           <div className="grid gap-4 md:grid-cols-2">
             <ModalInput
               placeholder="Name"
@@ -4653,7 +4653,7 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
 
         {/* Section 2: Professional & Address Info */}
         <div className="mb-6">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3 border-b border-slate-100 pb-1">Professional & Address Info</h3>
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 border-b border-slate-100 dark:border-slate-700 pb-1">Professional & Address Info</h3>
           <div className="grid gap-4 md:grid-cols-2">
             <ModalInput
               placeholder="Qualification"
@@ -4707,7 +4707,7 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
 
         {/* Section 3: Teaching Preferences & Availability */}
         <div className="mb-6">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3 border-b border-slate-100 pb-1">Teaching Preferences & Availability</h3>
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 border-b border-slate-100 dark:border-slate-700 pb-1">Teaching Preferences & Availability</h3>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col">
               <label className="text-[10px] font-black uppercase text-slate-400 mb-1 ml-2">Max Travel Distance</label>
@@ -4760,13 +4760,13 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
         </div>
 
         <textarea
-          className="mt-4 min-h-[120px] w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-sm font-semibold"
+          className="mt-4 min-h-[120px] w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 text-sm font-semibold"
           placeholder="About tutor..."
           value={form.about}
           onChange={(e) => setForm({ ...form, about: e.target.value })}
         />
 
-        <div className="mt-6 flex gap-3 border-t border-slate-100 pt-4">
+        <div className="mt-6 flex gap-3 border-t border-slate-100 dark:border-slate-700 pt-4">
           <button
             onClick={onPrimary}
             className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-blue-700 cursor-pointer"
@@ -4776,7 +4776,7 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
 
           <button
             onClick={onClose}
-            className="rounded-2xl border border-slate-200 px-6 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+            className="rounded-2xl border border-slate-200 dark:border-slate-700 px-6 py-3 text-sm font-bold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
           >
             Cancel
           </button>
@@ -4791,7 +4791,7 @@ function ModalSelect({ placeholder, value, onChange, options }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-12 w-full rounded-2xl border border-slate-200 px-4 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-sm font-semibold bg-white cursor-pointer"
+      className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 px-4 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 text-sm font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 cursor-pointer"
     >
       <option value="" disabled>{placeholder}</option>
       {options.map((opt) => (
@@ -4805,7 +4805,7 @@ function ModalDateInput({ placeholder, value, onChange }) {
   return (
     <input
       type="date"
-      className="h-12 w-full rounded-2xl border border-slate-200 px-4 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-sm font-semibold bg-white"
+      className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 px-4 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 text-sm font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
       placeholder={placeholder}
       value={value ? value.substring(0, 10) : ""}
       onChange={(e) => onChange(e.target.value)}
@@ -4826,7 +4826,7 @@ function CheckboxGroup({ label, options, selectedValues, onChange }) {
               className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition cursor-pointer select-none ${
                 isChecked
                   ? "bg-indigo-50 border-indigo-300 text-indigo-700 font-extrabold shadow-sm"
-                  : "bg-white border-slate-200 text-slate-650 hover:bg-slate-50"
+                  : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
               }`}
             >
               <input
@@ -4853,7 +4853,7 @@ function CheckboxGroup({ label, options, selectedValues, onChange }) {
 function ModalInput({ value, onChange, placeholder }) {
   return (
     <input
-      className="h-12 rounded-2xl border border-slate-200 px-4 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-sm font-semibold"
+      className="h-12 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 text-sm font-semibold"
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -5240,13 +5240,13 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
 
           {/* Visual Conversion Funnel */}
           <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-6 animate-slideFade">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5 mb-4">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
               <Award className="h-4 w-4 text-emerald-400" />
               Complete Admissions Lead Conversion Funnel
             </span>
             <div className="space-y-3">
               {funnelSteps.map((step, idx) => (
-                <div key={step.label} className="bg-slate-950/40 border border-slate-850/80 p-3.5 px-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div key={step.label} className="bg-slate-950/40 border border-slate-800/80 p-3.5 px-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-4 min-w-[250px]">
                     <span className="text-xs font-bold text-slate-500">{String(idx + 1).padStart(2, "0")}</span>
                     <div>
@@ -5260,7 +5260,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                       <span>Funnel Rate</span>
                       <span>{step.pct}%</span>
                     </div>
-                    <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-850">
+                    <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
                       <div className={`h-full ${step.color}`} style={{ width: `${step.pct}%` }} />
                     </div>
                   </div>
@@ -5287,7 +5287,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
             {/* Daily Visitors Line Chart */}
             <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 lg:col-span-2">
               <div className="mb-4 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                   <Activity className="h-4 w-4 text-blue-500" />
                   Visitor Traffic Trend
                 </span>
@@ -5338,7 +5338,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
 
             {/* Traffic Sources Pie Chart */}
             <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 flex flex-col justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5 mb-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
                 <Globe className="h-4 w-4 text-emerald-500" />
                 Traffic Referral Sources
               </span>
@@ -5391,7 +5391,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
 
           {/* Marketing Lead Generation Breakdown (UTM Sources) */}
           <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-6 animate-slideFade">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5 mb-4">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
               <Award className="h-4 w-4 text-emerald-400" />
               Marketing Lead Generation Acquisition (UTM Sources)
             </span>
@@ -5415,7 +5415,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                 const colorClass = sourceColors[src.name] || "bg-slate-600";
 
                 return (
-                  <div key={src.name} className="relative bg-slate-950/40 border border-slate-850 p-4 rounded-2xl flex flex-col justify-between overflow-hidden">
+                  <div key={src.name} className="relative bg-slate-950/40 border border-slate-800 p-4 rounded-2xl flex flex-col justify-between overflow-hidden">
                     <div>
                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{src.name} Leads</span>
                       <p className="mt-2 text-3xl font-black text-white tracking-tight">{src.count}</p>
@@ -5439,7 +5439,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Top Cities Bar Chart */}
             <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 lg:col-span-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5 mb-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
                 <MapPin className="h-4 w-4 text-rose-500" />
                 Top Cities Geolocation
               </span>
@@ -5481,7 +5481,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
 
             {/* Devices and Tech Specs */}
             <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 flex flex-col justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5 mb-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
                 <Laptop className="h-4 w-4 text-purple-500" />
                 Devices & Technology Specs
               </span>
@@ -5507,7 +5507,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                         <div key={dev} className="flex items-center gap-3">
                           <Icon className="h-4 w-4 text-slate-400 shrink-0" />
                           <span className="text-xs font-semibold w-16">{dev}</span>
-                          <div className="flex-1 bg-slate-850 h-2 rounded-full overflow-hidden">
+                          <div className="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden">
                             <div className={`h-full ${barColors[dev]}`} style={{ width: `${pct}%` }} />
                           </div>
                           <span className="text-xs font-bold w-12 text-right">{pct}%</span>
@@ -5518,7 +5518,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                 </div>
 
                 {/* Top Browser and Top OS */}
-                <div className="grid grid-cols-2 gap-4 border-t border-slate-850 pt-4">
+                <div className="grid grid-cols-2 gap-4 border-t border-slate-800 pt-4">
                   <div>
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Top Operating System</span>
                     <p className="mt-1 text-sm font-bold text-slate-200">
@@ -5542,7 +5542,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Plans Conversion Performance */}
             <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 lg:col-span-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5 mb-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
                 <Award className="h-4 w-4 text-indigo-400" />
                 Plans Carousel Conversion Funnel
               </span>
@@ -5562,10 +5562,10 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                   </thead>
                   <tbody>
                     {Array.isArray(data?.plans) && data.plans.map((plan) => (
-                      <tr key={plan.name} className="border-b border-slate-850/50 last:border-0">
+                      <tr key={plan.name} className="border-b border-slate-800/50 last:border-0">
                         <td className="py-4 font-bold text-white text-sm">{plan.name}</td>
-                        <td className="py-4 text-center font-bold text-slate-350">{plan.views || 0}</td>
-                        <td className="py-4 text-center font-bold text-slate-350">{plan.exploreClicks || 0}</td>
+                        <td className="py-4 text-center font-bold text-slate-400">{plan.views || 0}</td>
+                        <td className="py-4 text-center font-bold text-slate-400">{plan.exploreClicks || 0}</td>
                         <td className="py-4 text-center font-bold text-emerald-400">{plan.selections || 0}</td>
                         <td className="py-4 text-center font-bold text-indigo-400">{plan.enquiries || 0}</td>
                         <td className="py-4 text-center font-bold text-purple-400">{plan.demos || 0}</td>
@@ -5583,33 +5583,33 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
 
             {/* Custom Interactive Action Events */}
             <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 flex flex-col justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5 mb-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
                 <MousePointerClick className="h-4 w-4 text-amber-500" />
                 Key CTA Button Clicks
               </span>
 
               <div className="space-y-2 flex-1 flex flex-col justify-around">
-                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-850/60 py-2">
+                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-800/60 py-2">
                   <span className="text-slate-400">Explore Plans</span>
                   <span className="bg-slate-800 px-2 py-0.5 rounded text-white font-bold">{actionCounts.explore_plan}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-850/60 py-2">
+                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-800/60 py-2">
                   <span className="text-slate-400">Book Demo CTA</span>
                   <span className="bg-slate-800 px-2 py-0.5 rounded text-white font-bold">{actionCounts.book_demo}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-850/60 py-2">
+                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-800/60 py-2">
                   <span className="text-slate-400">Plan Selected</span>
                   <span className="bg-slate-800 px-2 py-0.5 rounded text-white font-bold">{actionCounts.choose_plan}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-850/60 py-2">
+                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-800/60 py-2">
                   <span className="text-slate-400">Become a Tutor CTA</span>
                   <span className="bg-slate-800 px-2 py-0.5 rounded text-white font-bold">{actionCounts.become_tutor}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-850/60 py-2">
+                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-800/60 py-2">
                   <span className="text-slate-400">WhatsApp Button Clicks</span>
                   <span className="bg-emerald-950/40 border border-emerald-900/60 text-emerald-400 px-2 py-0.5 rounded font-bold">{actionCounts.whatsapp_click}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-850/60 py-2">
+                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-800/60 py-2">
                   <span className="text-slate-400">Phone Call Clicks</span>
                   <span className="bg-blue-950/40 border border-blue-900/60 text-blue-400 px-2 py-0.5 rounded font-bold">{actionCounts.call_click}</span>
                 </div>
@@ -5628,7 +5628,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
           {/* Page Analytics Table with Search and Sort */}
           <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <Eye className="h-4 w-4 text-emerald-400" />
                 Most Visited Pages & Engagement Metrics
               </span>
@@ -5680,10 +5680,10 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                     </tr>
                   ) : (
                     sortedAndFilteredPages.map((page) => (
-                      <tr key={page.page} className="border-b border-slate-850/50 last:border-0 hover:bg-slate-900/20 transition">
+                      <tr key={page.page} className="border-b border-slate-800/50 last:border-0 hover:bg-slate-900/20 transition">
                         <td className="py-4 font-mono font-bold text-blue-400 text-xs break-all pr-4">{page.page}</td>
                         <td className="py-4 text-center font-bold text-white">{page.views}</td>
-                        <td className="py-4 text-center font-bold text-slate-350">{formatTimeSpent(page.avgTimeSpent)}</td>
+                        <td className="py-4 text-center font-bold text-slate-400">{formatTimeSpent(page.avgTimeSpent)}</td>
                         <td className="py-4 text-center font-bold">
                           <span className={getScrollColor(page.avgScrollDepth)}>{page.avgScrollDepth}%</span>
                         </td>
@@ -5705,7 +5705,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
             {/* Real-time Activity feed with timeline modal hooks */}
             <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 lg:col-span-2">
               <div className="flex justify-between items-center mb-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                   <Activity className="h-4 w-4 text-blue-400 animate-pulse" />
                   Live Visitor Event Log (Click to view session timeline)
                 </span>
@@ -5753,7 +5753,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                       form_abandoned: "bg-rose-950/40 border-rose-900/50 text-rose-400",
                       form_started: "bg-indigo-950/40 border-indigo-900/50 text-indigo-400",
                       whatsapp_click: "bg-emerald-950/40 border-emerald-900/50 text-emerald-400",
-                      page_view: "bg-slate-850 border-slate-800 text-slate-350"
+                      page_view: "bg-slate-800 border-slate-800 text-slate-400"
                     };
 
                     const actionClass = actionColors[act.action] || "bg-blue-950/40 border-blue-900/50 text-blue-400";
@@ -5762,7 +5762,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                       <div
                         key={act._id}
                         onClick={() => handleOpenSession(act.session_id)}
-                        className="flex gap-4 items-start border-b border-slate-850/50 pb-3 last:border-0 last:pb-0 cursor-pointer hover:bg-slate-850/30 transition p-2.5 rounded-2xl"
+                        className="flex gap-4 items-start border-b border-slate-800/50 pb-3 last:border-0 last:pb-0 cursor-pointer hover:bg-slate-800/30 transition p-2.5 rounded-2xl"
                       >
                         <span className="text-[10px] font-bold text-slate-500 w-14 shrink-0 mt-1">{timeStr}</span>
                         <div className="flex-1">
@@ -5781,13 +5781,13 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                             )}
                             <span>from</span> <span className="text-blue-400 font-black">{act.city || "Unknown City"}</span>
                             <span className="text-slate-700">•</span>
-                            Source: <span className="text-slate-350 font-semibold">{formatSourceName(act.source)}</span>
+                            Source: <span className="text-slate-400 font-semibold">{formatSourceName(act.source)}</span>
                             <span className="text-slate-700">•</span>
-                            Device: <span className="text-slate-350 font-semibold">{act.device || "Desktop"}{act.os ? ` (${act.os})` : ""}</span>
+                            Device: <span className="text-slate-400 font-semibold">{act.device || "Desktop"}{act.os ? ` (${act.os})` : ""}</span>
                             {act.ipAddress && (
                               <>
                                 <span className="text-slate-700">•</span>
-                                IP: <span className="text-slate-350 font-mono font-semibold">{act.ipAddress}</span>
+                                IP: <span className="text-slate-400 font-mono font-semibold">{act.ipAddress}</span>
                               </>
                             )}
                           </p>
@@ -5807,7 +5807,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
             {/* Microsoft Clarity Project Widget */}
             <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 flex flex-col justify-between">
               <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-350 flex items-center gap-1.5 mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-3">
                   <Activity className="h-4 w-4 text-blue-400" />
                   Session Recordings & Heatmaps
                 </span>
@@ -5863,7 +5863,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
               </div>
               <button
                 onClick={() => setSelectedSessionId(null)}
-                className="rounded-full bg-slate-800 hover:bg-slate-750 px-4 py-2 text-xs font-bold text-slate-350 transition cursor-pointer border border-slate-700/50"
+                className="rounded-full bg-slate-800 hover:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-400 transition cursor-pointer border border-slate-700/50"
               >
                 Close
               </button>
@@ -5943,7 +5943,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                       call_click: "border-blue-500/50 bg-blue-950/20 text-blue-400"
                     };
 
-                    const actionStyle = actionStyles[log.action] || "border-slate-700 bg-slate-900/50 text-slate-350";
+                    const actionStyle = actionStyles[log.action] || "border-slate-700 bg-slate-900/50 text-slate-400";
 
                     return (
                       <div key={log._id} className="relative">
@@ -5952,7 +5952,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                           log.action === "form_submitted" ? "border-emerald-500" : "border-slate-800"
                         }`} />
 
-                        <div className="bg-slate-950/40 border border-slate-850/80 p-3.5 rounded-2xl">
+                        <div className="bg-slate-950/40 border border-slate-800/80 p-3.5 rounded-2xl">
                           <div className="flex items-center justify-between gap-4 mb-1">
                             <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${actionStyle}`}>
                               {actionLabels[log.action] || log.action.replace("_", " ")}
@@ -5965,7 +5965,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                           )}
 
                           {log.plan_clicked && (
-                            <p className="text-xs font-semibold text-slate-350 mt-1">
+                            <p className="text-xs font-semibold text-slate-400 mt-1">
                               Plan: <span className="text-indigo-400 font-bold">{log.plan_clicked}</span>
                             </p>
                           )}

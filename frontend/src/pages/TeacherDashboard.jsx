@@ -492,7 +492,7 @@ export default function TeacherDashboard() {
                         </div>
 
                         {isLogsExpanded && (
-                          <div className="border-t border-slate-150 dark:border-slate-800 bg-slate-50/55 dark:bg-slate-950/20 p-4 animate-slideFade">
+                          <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/55 dark:bg-slate-950/20 p-4 animate-slideFade">
                             <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-3">Timeline & Topics Covered</span>
                             
                             {loadingHistoryLogsId === student._id ? (
@@ -512,7 +512,7 @@ export default function TeacherDashboard() {
                                 {historyLogs[student._id].map((log, index) => {
                                   const classNum = historyLogs[student._id].length - index;
                                   return (
-                                    <div key={log._id} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl p-3 text-xs">
+                                    <div key={log._id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-3 text-xs">
                                       <div className="flex items-center justify-between mb-1 pb-1 border-b border-slate-100 dark:border-slate-800">
                                         <div className="flex items-center gap-1.5 flex-wrap">
                                           <span className="font-extrabold text-slate-800 dark:text-white">Class {classNum} ({log.date})</span>
@@ -530,9 +530,9 @@ export default function TeacherDashboard() {
                                       </div>
                                       
                                       {log.status === "Done" ? (
-                                        <p className="text-[11px] text-slate-600 dark:text-slate-350 font-semibold"><strong className="text-slate-700 dark:text-slate-200 font-extrabold">Topics Covered:</strong> {log.topicsCovered}</p>
+                                        <p className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold"><strong className="text-slate-700 dark:text-slate-200 font-extrabold">Topics Covered:</strong> {log.topicsCovered}</p>
                                       ) : (
-                                        <p className="text-[11px] text-slate-600 dark:text-slate-350 font-semibold">
+                                        <p className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold">
                                           <strong className="text-slate-700 dark:text-slate-200 font-extrabold">Reason:</strong> {log.missedReason === "Other" ? log.customReason : log.missedReason}
                                         </p>
                                       )}
@@ -556,7 +556,7 @@ export default function TeacherDashboard() {
       {/* Attendance Modal (Mandatory Popup) */}
       {showModal && selectedStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade">
-          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-150 dark:border-slate-800 animate-slideFade">
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800 animate-slideFade">
             
             {/* Modal Header */}
             <div className={`px-6 py-5 flex items-center justify-between border-b ${
@@ -581,7 +581,7 @@ export default function TeacherDashboard() {
               <div className="p-6 space-y-4">
                 
                 {/* Basic Student Reference */}
-                <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-3 border border-slate-100 dark:border-slate-850 text-[11px] font-bold text-slate-700 dark:text-slate-350 flex justify-between items-center">
+                <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-3 border border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300 flex justify-between items-center">
                   <span>Student: <strong className="text-slate-900 dark:text-white">{selectedStudent.studentName}</strong></span>
                   <span>ID: <strong className="text-slate-900 dark:text-white">{selectedStudent.requirementId}</strong></span>
                 </div>
@@ -637,7 +637,7 @@ export default function TeacherDashboard() {
                             className={`px-3 py-2.5 rounded-xl border text-[11px] font-bold text-left transition-all cursor-pointer ${
                               missedReason === reason
                                 ? "border-rose-500 dark:border-rose-800/80 bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-450 font-extrabold shadow-sm"
-                                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-450"
+                                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-450"
                             }`}
                           >
                             {reason}

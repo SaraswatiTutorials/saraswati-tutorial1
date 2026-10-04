@@ -245,7 +245,7 @@ export default function ParentPortal() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-16 text-slate-800 dark:text-slate-100 transition-colors duration-200">
       {/* Brand Header */}
-      <header className="bg-slate-900 dark:bg-slate-950 text-white shadow-md border-b border-slate-850">
+      <header className="bg-slate-900 dark:bg-slate-950 text-white shadow-md border-b border-slate-800">
         <div className="mx-auto max-w-3xl px-4 py-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md">
@@ -279,7 +279,7 @@ export default function ParentPortal() {
                 placeholder="Registered phone number (e.g. 9876543210)"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full h-12 pl-10 pr-4 rounded-2xl bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition-all text-slate-800 dark:text-white"
+                className="w-full h-12 pl-10 pr-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition-all text-slate-800 dark:text-white"
               />
             </div>
             
@@ -346,7 +346,7 @@ export default function ParentPortal() {
                           )}
                           <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${
                             card.currentAttendanceStatus === "Done"
-                              ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-150 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300"
+                              ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300"
                               : card.currentAttendanceStatus === "Missed"
                               ? "bg-rose-50 dark:bg-rose-955/20 border-rose-150 dark:border-rose-900/60 text-rose-700 dark:text-rose-400"
                               : "bg-amber-50 dark:bg-amber-950/40 border-amber-150 dark:border-amber-900/40 text-amber-700 dark:text-amber-300"
@@ -398,7 +398,7 @@ export default function ParentPortal() {
 
                   {/* Expandable History Detail */}
                   {isExpanded && (
-                    <div className="border-t border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 p-6 animate-slideFade">
+                    <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 p-6 animate-slideFade">
                       
                       {/* Attendance Grid Summary details */}
                       <div className="grid grid-cols-4 gap-2 mb-6 text-center">

@@ -360,7 +360,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
 
                     {/* 3 Mini Stat Boxes */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700 rounded-2xl p-3.5 flex items-center gap-3">
+                      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl p-3.5 flex items-center gap-3">
                         <div className="p-2.5 rounded-xl bg-purple-100 dark:bg-purple-950/40 text-purple-600 shrink-0">
                           <Target className="h-4 w-4" />
                         </div>
@@ -371,7 +371,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                         </div>
                       </div>
 
-                      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700 rounded-2xl p-3.5 flex items-center gap-3">
+                      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl p-3.5 flex items-center gap-3">
                         <div className="p-2.5 rounded-xl bg-teal-100 dark:bg-teal-950/40 text-teal-600 shrink-0">
                           <FileText className="h-4 w-4" />
                         </div>
@@ -382,7 +382,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                         </div>
                       </div>
 
-                      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700 rounded-2xl p-3.5 flex items-center gap-3">
+                      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl p-3.5 flex items-center gap-3">
                         <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-950/40 text-amber-600 shrink-0">
                           <TrendingUp className="h-4 w-4" />
                         </div>
@@ -449,7 +449,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
                       {WEEKLY_DAYS.map((day) => (
-                        <div key={day.day} className="bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700 rounded-2xl p-3 text-center">
+                        <div key={day.day} className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl p-3 text-center">
                           <p className="text-xs font-black text-slate-700 dark:text-slate-300">{day.day}</p>
                           <div className="flex items-center justify-center gap-1 my-1.5">
                             <span className={`h-1.5 w-1.5 rounded-full ${day.color}`} />
