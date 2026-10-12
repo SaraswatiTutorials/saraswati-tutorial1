@@ -69,6 +69,9 @@ import {
 
 const EDUCATION_CERT_PASSWORD = "saraswati7250";
 
+const CARD_BATCH_SIZE = 30;
+const BROADCAST_LOG_PAGE_SIZE = 100;
+
 const LEAD_STATUSES = [
   "New Lead",
   "Fees Finalized",
@@ -191,6 +194,71 @@ function getLeadLocation(parentEnquiry) {
   );
 }
 
+// ── Display-only duplicate handling ──────────────────────────────────────────
+// The same person saved more than once is shown as ONE card. Nothing is deleted:
+// the extra records stay in the database and are only left out of the lists.
+//   Lead  = same phone (last 10 digits) + same student name(s)
+//   Tutor = same phone (last 10 digits) + same name
+// Records that only share a REQ ID / tutor code are different people and stay visible.
+// The same rules are applied by GET /parent-enquiries/dashboard-counts.
+function lastTenDigits(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length >= 10 ? digits.slice(-10) : "";
+}
+
+function leadDuplicateKey(lead) {
+  const phone = lastTenDigits(lead?.phone);
+  const students = (lead?.wards || [])
+    .map((ward) => String(ward?.studentName || "").trim().toLowerCase())
+    .filter(Boolean)
+    .sort()
+    .join("|");
+  return phone && students ? `${phone}#${students}` : "";
+}
+
+function tutorDuplicateKey(tutor) {
+  const phone = lastTenDigits(tutor?.phone);
+  const name = String(tutor?.name || "").trim().toLowerCase();
+  return phone && name ? `${phone}#${name}` : "";
+}
+
+// Keeps one record per key: a preferred one if there is any, otherwise the newest.
+// Returns the kept records in their original order, each with hiddenDuplicateCount.
+function keepUniqueRecords(records, getKey, isPreferred) {
+  const groups = new Map();
+  for (const record of records) {
+    const key = getKey(record);
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(record);
+  }
+
+  const hiddenIds = new Set();
+  const hiddenCountById = new Map();
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const keeper = [...group].sort(
+      (a, b) =>
+        Number(isPreferred(b)) - Number(isPreferred(a)) ||
+        new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    )[0];
+    for (const record of group) {
+      if (record !== keeper) hiddenIds.add(record._id);
+    }
+    hiddenCountById.set(keeper._id, group.length - 1);
+  }
+
+  if (hiddenIds.size === 0) return records;
+
+  return records
+    .filter((record) => !hiddenIds.has(record._id))
+    .map((record) =>
+      hiddenCountById.has(record._id)
+        ? { ...record, hiddenDuplicateCount: hiddenCountById.get(record._id) }
+        : record
+    );
+}
+
 function buildSearchText(parentEnquiry) {
   const wardTexts =
     parentEnquiry?.wards?.map((ward) =>
@@ -276,6 +344,18 @@ export default function AdminDashboard() {
   const [showParents, setShowParents] = useState(true);
   const [showTutors, setShowTutors] = useState(true);
 
+  // Cards are drawn in batches so the page becomes usable quickly; search, filters and counts still use the full lists
+  const [visibleLeadCount, setVisibleLeadCount] = useState(CARD_BATCH_SIZE);
+  const [visibleTutorCount, setVisibleTutorCount] = useState(CARD_BATCH_SIZE);
+
+  // True while only the quick first batch is on screen and the complete lists are still downloading
+  const [showingFirstBatch, setShowingFirstBatch] = useState(false);
+  const fullDataLoadedRef = useRef(false);
+  const [fullDataLoaded, setFullDataLoaded] = useState(false);
+
+  // Real totals from the server, shown on the stat cards until the complete lists have arrived
+  const [dashboardCounts, setDashboardCounts] = useState(null);
+
   const [matchingLeadId, setMatchingLeadId] = useState(null);
   const [selectedTutorIds, setSelectedTutorIds] = useState([]);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
@@ -283,6 +363,8 @@ export default function AdminDashboard() {
     `Hello {{TutorName}}\n\nA new tuition opportunity is available.\n\nLocation:\n{{Location}}\n\nGrade:\n{{ParentGrade}}\n\nTiming:\n{{Timing}}\n\nRequirement ID:\n{{RequirementID}}\n\nReply YES if interested.`
   );
   const [broadcastLogs, setBroadcastLogs] = useState([]);
+  const [hasMoreBroadcastLogs, setHasMoreBroadcastLogs] = useState(false);
+  const loadingMoreBroadcastLogsRef = useRef(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [broadcastType, setBroadcastType] = useState("whatsapp");
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
@@ -472,6 +554,9 @@ export default function AdminDashboard() {
         tdRes.json(),
       ]);
 
+      fullDataLoadedRef.current = true;
+      setFullDataLoaded(true);
+      setShowingFirstBatch(false);
       setEnquiries(Array.isArray(eData) ? eData : []);
       setParentEnquiries(Array.isArray(peData) ? peData : []);
       setBookings(Array.isArray(bData) ? bData : []);
@@ -482,6 +567,50 @@ export default function AdminDashboard() {
       console.error("Dashboard fetch error:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDashboardCounts = async () => {
+    try {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`${API_BASE}/parent-enquiries/dashboard-counts`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        setDashboardCounts(await res.json());
+      }
+    } catch (err) {
+      console.error("Error fetching dashboard counts:", err);
+    }
+  };
+
+  // Quick first paint: fetch only the newest leads and tutors so cards appear right away.
+  // fetchData() then loads the complete lists in the background and replaces them.
+  const fetchFirstBatch = async () => {
+    try {
+      const token = localStorage.getItem("adminToken");
+      const headers = {
+        "Authorization": `Bearer ${token}`,
+      };
+
+      const [peRes, tRes] = await Promise.all([
+        fetch(`${API_BASE}/parent-enquiries?limit=${CARD_BATCH_SIZE}`, { headers }),
+        fetch(`${API_BASE}/tutors?limit=${CARD_BATCH_SIZE}`, { headers }),
+      ]);
+
+      if (!peRes.ok || !tRes.ok) return;
+
+      const [peData, tData] = await Promise.all([peRes.json(), tRes.json()]);
+
+      if (fullDataLoadedRef.current) return;
+
+      setParentEnquiries(Array.isArray(peData) ? peData : []);
+      setTutors(Array.isArray(tData) ? tData : []);
+      setShowingFirstBatch(true);
+    } catch (err) {
+      console.error("Dashboard first batch fetch error:", err);
     }
   };
 
@@ -502,18 +631,48 @@ export default function AdminDashboard() {
     }
   };
 
+  // Loads the newest logs one page at a time. A refresh reloads as many rows as are already on screen.
   const fetchBroadcastLogs = async () => {
     try {
       const token = localStorage.getItem("adminToken");
-      const res = await fetch(`${API_BASE}/parent-enquiries/broadcast-logs`, {
+      const limit = Math.max(BROADCAST_LOG_PAGE_SIZE, broadcastLogs.length);
+      const res = await fetch(`${API_BASE}/parent-enquiries/broadcast-logs?limit=${limit}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        setBroadcastLogs(Array.isArray(data) ? data : []);
+        const logs = Array.isArray(data) ? data : [];
+        setBroadcastLogs(logs);
+        setHasMoreBroadcastLogs(logs.length === limit);
       }
     } catch (err) {
       console.error("Error fetching broadcast logs:", err);
+    }
+  };
+
+  // Next page of older logs, added below the ones already shown
+  const fetchMoreBroadcastLogs = async () => {
+    if (loadingMoreBroadcastLogsRef.current) return;
+    loadingMoreBroadcastLogsRef.current = true;
+    try {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(
+        `${API_BASE}/parent-enquiries/broadcast-logs?limit=${BROADCAST_LOG_PAGE_SIZE}&skip=${broadcastLogs.length}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const page = Array.isArray(data) ? data : [];
+        setBroadcastLogs((prev) => {
+          const seen = new Set(prev.map((log) => log._id));
+          return [...prev, ...page.filter((log) => !seen.has(log._id))];
+        });
+        setHasMoreBroadcastLogs(page.length === BROADCAST_LOG_PAGE_SIZE);
+      }
+    } catch (err) {
+      console.error("Error fetching more broadcast logs:", err);
+    } finally {
+      loadingMoreBroadcastLogsRef.current = false;
     }
   };
 
@@ -672,21 +831,34 @@ export default function AdminDashboard() {
   }, [matchingLeadId]);
 
   useEffect(() => {
+    // The Attendance tab button already calls fetchData() itself, so it is not repeated here
     if (currentMainTab === "analytics") {
       fetchAnalyticsData();
-    } else if (currentMainTab === "attendance") {
-      fetchData();
     }
   }, [currentMainTab, period]);
 
   useEffect(() => {
-    fetchData();
+    fetchDashboardCounts();
+    fetchFirstBatch().then(() => fetchData());
     fetchAlerts();
   }, []);
 
-  const suggestionValues = useMemo(() => {
-    return buildSuggestionValues(parentEnquiries);
+  // One card per person (see keepUniqueRecords). A lead with a tutor assigned, and a tutor
+  // that leads are assigned to, is the copy that is kept.
+  const uniqueParentEnquiries = useMemo(() => {
+    return keepUniqueRecords(parentEnquiries, leadDuplicateKey, (lead) => Boolean(lead.assignedTutorId));
   }, [parentEnquiries]);
+
+  const uniqueTutors = useMemo(() => {
+    const assignedTutorIds = new Set(
+      parentEnquiries.map((lead) => String(lead.assignedTutorId || "")).filter(Boolean)
+    );
+    return keepUniqueRecords(tutors, tutorDuplicateKey, (tutor) => assignedTutorIds.has(String(tutor._id)));
+  }, [tutors, parentEnquiries]);
+
+  const suggestionValues = useMemo(() => {
+    return buildSuggestionValues(uniqueParentEnquiries);
+  }, [uniqueParentEnquiries]);
 
   const suggestions = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -701,7 +873,7 @@ export default function AdminDashboard() {
   const filteredParentEnquiries = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    return parentEnquiries.filter((parentEnquiry) => {
+    return uniqueParentEnquiries.filter((parentEnquiry) => {
       const status = normalizeLeadStatus(parentEnquiry.status);
 
       const matchesFilter =
@@ -711,7 +883,7 @@ export default function AdminDashboard() {
 
       return matchesFilter && matchesSearch;
     });
-  }, [parentEnquiries, search, leadFilter]);
+  }, [uniqueParentEnquiries, search, leadFilter]);
 
   const filteredDrafts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -741,7 +913,7 @@ export default function AdminDashboard() {
   }, [drafts, search]);
 
   const filteredTutors = useMemo(() => {
-    return tutors.filter(
+    return uniqueTutors.filter(
       (t) =>
         t.name?.toLowerCase().includes(search.toLowerCase()) ||
         t.subject?.toLowerCase().includes(search.toLowerCase()) ||
@@ -749,14 +921,40 @@ export default function AdminDashboard() {
         t.email?.toLowerCase().includes(search.toLowerCase()) ||
         t.phone?.toLowerCase().includes(search.toLowerCase())
     );
-  }, [tutors, search]);
+  }, [uniqueTutors, search]);
 
-  const pendingTutors = tutors.filter(
-    (t) => !t.status || t.status === "pending"
-  ).length;
+  useEffect(() => {
+    setVisibleLeadCount(CARD_BATCH_SIZE);
+    setVisibleTutorCount(CARD_BATCH_SIZE);
+  }, [search, leadFilter]);
 
-  const approvedTutors = tutors.filter((t) => t.status === "approved").length;
-  const rejectedTutors = tutors.filter((t) => t.status === "rejected").length;
+  // Until the complete lists have arrived, the numbers come from the server's totals
+  const serverTotals = !fullDataLoaded ? dashboardCounts : null;
+  const noSearch = !search.trim();
+
+  const pendingTutors = serverTotals
+    ? serverTotals.pendingTutors
+    : uniqueTutors.filter((t) => !t.status || t.status === "pending").length;
+
+  const approvedTutors = serverTotals
+    ? serverTotals.approvedTutors
+    : uniqueTutors.filter((t) => t.status === "approved").length;
+  const rejectedTutors = serverTotals
+    ? serverTotals.rejectedTutors
+    : uniqueTutors.filter((t) => t.status === "rejected").length;
+
+  const totalTutorCount = serverTotals ? serverTotals.tutors : uniqueTutors.length;
+  const totalLeadCount = serverTotals ? serverTotals.leads : uniqueParentEnquiries.length;
+  const totalDraftCount = serverTotals ? serverTotals.drafts : drafts.length;
+  const totalEnquiryCount = serverTotals ? serverTotals.enquiries : enquiries.length;
+  const totalBookingCount = serverTotals ? serverTotals.bookings : bookings.length;
+  const totalTutorDraftCount = serverTotals ? serverTotals.tutorDrafts : tutorDrafts.length;
+  const visibleLeadTotal =
+    serverTotals && noSearch && leadFilter === "All Leads"
+      ? serverTotals.leads
+      : filteredParentEnquiries.length;
+  const filteredDraftTotal =
+    serverTotals && noSearch ? serverTotals.drafts : filteredDrafts.length;
 
   const updateLeadStatus = async (id, status) => {
     const token = localStorage.getItem("adminToken");
@@ -1254,9 +1452,9 @@ export default function AdminDashboard() {
             }`}
           >
             Tutor Drafts
-            {tutorDrafts.length > 0 && (
+            {totalTutorDraftCount > 0 && (
               <span className="ml-2 inline-flex items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40 px-2 py-0.5 text-[10px] font-black text-violet-700 dark:text-violet-300">
-                {tutorDrafts.length}
+                {totalTutorDraftCount}
               </span>
             )}
             {currentMainTab === "tutorDrafts" && (
@@ -1625,7 +1823,7 @@ export default function AdminDashboard() {
 
         {currentMainTab === "leads" && (
           <>
-            {loading && (
+            {loading && !showingFirstBatch && (
               <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-sm font-medium text-blue-700 flex items-center gap-2">
                 <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
                 Loading latest dashboard data...
@@ -1635,7 +1833,7 @@ export default function AdminDashboard() {
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard
             title="Total Tutors"
-            value={tutors.length}
+            value={totalTutorCount}
             subtitle={`${approvedTutors} approved`}
             icon={Award}
             gradientClass="bg-indigo-50 text-indigo-600"
@@ -1643,23 +1841,23 @@ export default function AdminDashboard() {
 
           <StatCard
             title="Active Parent Leads"
-            value={parentEnquiries.length}
-            subtitle={`${filteredParentEnquiries.length} visible`}
+            value={totalLeadCount}
+            subtitle={`${visibleLeadTotal} visible`}
             icon={Users}
             gradientClass="bg-blue-50 dark:bg-blue-950/40 text-blue-650 dark:text-blue-400"
           />
 
           <StatCard
             title="Incomplete Drafts"
-            value={drafts.length}
-            subtitle={`${filteredDrafts.length} filtered`}
+            value={totalDraftCount}
+            subtitle={`${filteredDraftTotal} filtered`}
             icon={FileText}
             gradientClass="bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400"
           />
 
           <StatCard
             title="General Enquiries"
-            value={enquiries.length}
+            value={totalEnquiryCount}
             subtitle="Website enquiries"
             icon={Mail}
             gradientClass="bg-teal-50 dark:bg-teal-950/40 text-teal-650 dark:text-teal-400"
@@ -1667,7 +1865,7 @@ export default function AdminDashboard() {
 
           <StatCard
             title="Bookings"
-            value={bookings.length}
+            value={totalBookingCount}
             subtitle="Scheduled sessions"
             icon={Calendar}
             gradientClass="bg-purple-50 dark:bg-purple-950/40 text-purple-650 dark:text-purple-400"
@@ -1789,7 +1987,7 @@ export default function AdminDashboard() {
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                Active Leads ({filteredParentEnquiries.length})
+                Active Leads ({visibleLeadTotal})
                 {leadTab === "active" && (
                   <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
                 )}
@@ -1802,7 +2000,7 @@ export default function AdminDashboard() {
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                Incomplete Drafts ({filteredDrafts.length})
+                Incomplete Drafts ({filteredDraftTotal})
                 {leadTab === "drafts" && (
                   <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
                 )}
@@ -1814,7 +2012,7 @@ export default function AdminDashboard() {
                 <EmptyState text="No parent leads found for this search or filter." />
               ) : (
                 <div className="grid gap-5">
-                  {filteredParentEnquiries.map((p) => {
+                  {filteredParentEnquiries.slice(0, visibleLeadCount).map((p) => {
                     const currentStatus = normalizeLeadStatus(p.status);
                     const submittedAt = formatSubmittedDate(p.createdAt);
                     const online = isOnlineLead(p);
@@ -1856,6 +2054,13 @@ export default function AdminDashboard() {
                                 ) : (p.odooSyncStatus === "synced" || p.odooLeadId) ? (
                                   <Badge text={`Odoo Synced${p.odooLeadId ? ` (#${p.odooLeadId})` : ""}`} color="emerald" />
                                 ) : null}
+
+                                {p.hiddenDuplicateCount > 0 && (
+                                  <Badge
+                                    text={`${p.hiddenDuplicateCount} older duplicate ${p.hiddenDuplicateCount === 1 ? "enquiry" : "enquiries"} hidden`}
+                                    color="yellow"
+                                  />
+                                )}
 
                                 {online && <Badge text="Online" color="blue" />}
 
@@ -2216,7 +2421,7 @@ export default function AdminDashboard() {
                                   tutorsList = matchedTutors;
                                 } else {
                                   // "Search Other Tutors" filters over ALL loaded database tutors
-                                  tutorsList = tutors.filter(t => {
+                                  tutorsList = uniqueTutors.filter(t => {
                                     const q = tutorSearchQuery.toLowerCase().trim();
                                     if (!q) return false; // Show nothing by default until query is typed
                                     return (
@@ -2444,6 +2649,11 @@ export default function AdminDashboard() {
                       </div>
                     );
                   })}
+                  {filteredParentEnquiries.length > visibleLeadCount && (
+                    <ShowMoreButton onShowMore={() => setVisibleLeadCount((count) => count + CARD_BATCH_SIZE)}>
+                      Show more leads ({filteredParentEnquiries.length - visibleLeadCount} remaining)
+                    </ShowMoreButton>
+                  )}
                 </div>
               )
             ) : (
@@ -2688,7 +2898,7 @@ export default function AdminDashboard() {
               <EmptyState text="No tutors yet." />
             ) : (
               <div className="grid gap-5">
-                {filteredTutors.map((t) => {
+                {filteredTutors.slice(0, visibleTutorCount).map((t) => {
                   const statusBorderColors = {
                     approved: "border-l-4 border-l-emerald-500",
                     rejected: "border-l-4 border-l-rose-500",
@@ -2725,6 +2935,13 @@ export default function AdminDashboard() {
                               <h3 className="text-xl font-black text-slate-900 dark:text-white">
                                 {t.name || "Unnamed Tutor"}
                               </h3>
+
+                              {t.hiddenDuplicateCount > 0 && (
+                                <Badge
+                                  text={`${t.hiddenDuplicateCount} duplicate ${t.hiddenDuplicateCount === 1 ? "record" : "records"} hidden`}
+                                  color="yellow"
+                                />
+                              )}
 
                               {t.status === "approved" && (
                                 <Badge text="Approved" color="emerald" />
@@ -2929,6 +3146,11 @@ export default function AdminDashboard() {
                     </div>
                   );
                 })}
+                {filteredTutors.length > visibleTutorCount && (
+                  <ShowMoreButton onShowMore={() => setVisibleTutorCount((count) => count + CARD_BATCH_SIZE)}>
+                    Show more tutors ({filteredTutors.length - visibleTutorCount} remaining)
+                  </ShowMoreButton>
+                )}
               </div>
             )}
           </section>
@@ -2949,7 +3171,7 @@ export default function AdminDashboard() {
 
         {currentMainTab === "attendance" && (
           <AdminAttendanceConsole
-            parentEnquiries={parentEnquiries}
+            parentEnquiries={uniqueParentEnquiries}
             fetchLeadAttendanceLogs={fetchLeadAttendanceLogs}
             attendanceLogs={attendanceLogs}
             fetchingLogsLeadId={fetchingLogsLeadId}
@@ -3279,6 +3501,15 @@ export default function AdminDashboard() {
                             </tr>
                           );
                         })}
+                        {hasMoreBroadcastLogs && (
+                          <tr>
+                            <td colSpan={8} className="p-3 text-center">
+                              <ShowMoreButton onShowMore={fetchMoreBroadcastLogs}>
+                                Show older logs
+                              </ShowMoreButton>
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -3312,6 +3543,37 @@ function getStatusColor(status) {
   if (status === "Rejected") return "red";
   if (status === "Lost") return "red";
   return "slate";
+}
+
+// "Show more" button that also fires by itself when it scrolls into view,
+// so the next batch of cards appears as the admin scrolls down.
+function ShowMoreButton({ onShowMore, children }) {
+  const buttonRef = useRef(null);
+
+  useEffect(() => {
+    const node = buttonRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) onShowMore();
+      },
+      { rootMargin: "300px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  });
+
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      onClick={onShowMore}
+      className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-3 text-sm font-extrabold text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+    >
+      {children}
+    </button>
+  );
 }
 
 function StatCard({ title, value, subtitle, icon: Icon, gradientClass }) {
@@ -3366,6 +3628,12 @@ function AdminAttendanceConsole({
   fetchData,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Rows are drawn in batches; search still runs over every student
+  const [visibleRowCount, setVisibleRowCount] = useState(CARD_BATCH_SIZE);
+  useEffect(() => {
+    setVisibleRowCount(CARD_BATCH_SIZE);
+  }, [searchTerm]);
   const [expandedId, setExpandedId] = useState(null);
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
   const [activeCycleFilter, setActiveCycleFilter] = useState({}); // { [leadId]: 'all' | cycleNumber }
@@ -3751,7 +4019,8 @@ function AdminAttendanceConsole({
                 </td>
               </tr>
             ) : (
-              filtered.map((p) => {
+              <>
+              {filtered.slice(0, visibleRowCount).map((p) => {
                 const isExpanded = expandedId === p._id;
                 const studentName = p.wards?.map((w) => w.studentName).join(", ") || "Unknown Student";
                 const hasTotal = p.totalClasses !== null && p.totalClasses !== undefined;
@@ -4324,7 +4593,17 @@ function AdminAttendanceConsole({
                     )}
                   </React.Fragment>
                 );
-              })
+              })}
+              {filtered.length > visibleRowCount && (
+                <tr>
+                  <td colSpan={attendanceColumns.filter(c => c.enabled).length + 1} className="py-4 text-center">
+                    <ShowMoreButton onShowMore={() => setVisibleRowCount((count) => count + CARD_BATCH_SIZE)}>
+                      Show more students ({filtered.length - visibleRowCount} remaining)
+                    </ShowMoreButton>
+                  </td>
+                </tr>
+              )}
+              </>
             )}
           </tbody>
         </table>

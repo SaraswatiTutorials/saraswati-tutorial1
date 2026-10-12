@@ -1289,13 +1289,59 @@ export async function upsertMasterTutor(data) {
         );
 
 
+      // Skip codes that are already in use — otherwise a deleted Odoo tutor
+      // lowers the count and the next tutor reuses an existing code.
+      const codeFor = (n) =>
+        `TUT${String(n).padStart(4, "0")}`;
+
+      let nextNumber =
+        count + 1;
+
+      try {
+
+        const existingCodes =
+          await callOdoo(
+            "object",
+            "execute_kw",
+            [
+              _DB,
+              uid,
+              _PASSWORD,
+
+              "master_tutors",
+
+              "search_read",
+
+              [[["tutor_id", "=like", "TUT%"]]],
+
+              {
+                fields: ["tutor_id"],
+              },
+            ]
+          );
+
+        const usedCodes =
+          new Set(
+            (existingCodes || []).map(
+              (record) => record.tutor_id
+            )
+          );
+
+        while (usedCodes.has(codeFor(nextNumber))) {
+          nextNumber += 1;
+        }
+
+      } catch (codeErr) {
+
+        console.warn(
+          "[Odoo] Could not read existing tutor codes, using count:",
+          codeErr.message
+        );
+      }
+
+
       const tutorCode =
-        `TUT${String(
-          count + 1
-        ).padStart(
-          4,
-          "0"
-        )}`;
+        codeFor(nextNumber);
 
 
       payload.tutor_id =

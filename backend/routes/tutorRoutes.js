@@ -63,16 +63,32 @@ router.get("/", async (req, res) => {
       } catch (e) {}
     }
 
-    let tutors;
-    if (isAdmin) {
-      tutors = await Tutor.find().sort({ createdAt: -1 });
-    } else {
-      // Exclude documents, phone, and email for public searches
-      tutors = await Tutor.find({}, { documents: 0, phone: 0, email: 0 }).sort({ createdAt: -1 });
-    }
+    // Exclude documents, phone, and email for public searches
+    const tutorQuery = isAdmin
+      ? Tutor.find()
+      : Tutor.find({}, { documents: 0, phone: 0, email: 0 });
+
+    // Optional ?limit=N returns only the newest N tutors (used for the dashboard's quick first batch).
+    // Without it, every tutor is returned exactly as before.
+    const limit = Number.parseInt(req.query.limit, 10);
+    tutorQuery.sort({ createdAt: -1 });
+    if (limit > 0) tutorQuery.limit(limit);
+
+    // Load tutors and their assigned leads at the same time (one DB round trip each)
+    const [tutors, assignedLeads] = await Promise.all([
+      tutorQuery.batchSize(1000),
+      ParentEnquiry.find({
+        $or: [
+          { assignedTutorId: { $ne: null } },
+          { assignedTutor: { $nin: [null, ""] } }
+        ]
+      })
+        .select("assignedTutorId assignedTutor status")
+        .lean()
+    ]);
 
     // Append performance stats dynamically
-    const statsMap = await getTutorStatsMap(tutors);
+    const statsMap = getTutorStatsMap(tutors, assignedLeads);
 
     const tutorsWithStats = tutors.map((tutor) => ({
       ...tutor.toObject(),
@@ -342,6 +358,14 @@ router.post("/", async (req, res) => {
     // Check for duplicate in MongoDB by phone number
     let tutor = await Tutor.findOne({ phone: phone.trim() });
 
+    // Same mobile number written differently (+91, spaces, leading 0) is still the same tutor
+    if (!tutor) {
+      const phoneDigits = String(phone).replace(/\D/g, "");
+      if (phoneDigits.length >= 10) {
+        tutor = await Tutor.findOne({ phone: { $regex: `${phoneDigits.slice(-10)}$` } });
+      }
+    }
+
     // Explicitly extract all matching fields to ensure they are never lost during spread
     const body = req.body;
     const tutorData = {
@@ -494,24 +518,16 @@ router.delete("/:id", verifyToken(["admin"]), async (req, res) => {
   }
 });
 
-async function getTutorStatsMap(tutors) {
-  if (!tutors.length) {
-    return new Map();
-  }
-
-  const tutorIds = tutors.map((tutor) => tutor._id);
-  const tutorNames = tutors.map((tutor) => tutor.name).filter(Boolean);
-
-  const assignedLeads = await ParentEnquiry.find({
-    $or: [
-      { assignedTutorId: { $in: tutorIds } },
-      { assignedTutor: { $in: tutorNames } }
-    ]
-  }).lean();
-
+function getTutorStatsMap(tutors, assignedLeads) {
   const statsMap = new Map();
+  const tutorIdsByName = new Map();
 
   for (const tutor of tutors) {
+    if (tutor.name) {
+      if (!tutorIdsByName.has(tutor.name)) tutorIdsByName.set(tutor.name, []);
+      tutorIdsByName.get(tutor.name).push(String(tutor._id));
+    }
+
     statsMap.set(String(tutor._id), {
       totalAssignments: 0,
       demoScheduled: 0,
@@ -531,10 +547,8 @@ async function getTutorStatsMap(tutors) {
     }
 
     if (lead.assignedTutor) {
-      for (const tutor of tutors) {
-        if (tutor.name === lead.assignedTutor) {
-          matchingTutorIds.add(String(tutor._id));
-        }
+      for (const tutorId of tutorIdsByName.get(lead.assignedTutor) || []) {
+        matchingTutorIds.add(tutorId);
       }
     }
 

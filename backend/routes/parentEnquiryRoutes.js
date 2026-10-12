@@ -7,6 +7,9 @@ import { createLead, updateLead, updateLeadAssignment, syncTutorStats, addOdooCh
 import { verifyToken } from "../middleware/authMiddleware.js";
 import { resolveGeo } from "../utils/geoLookup.js";
 import Tutor from "../models/Tutor.js";
+import TutorRegistrationDraft from "../models/TutorRegistrationDraft.js";
+import Enquiry from "../models/Enquiry.js";
+import Booking from "../models/Booking.js";
 import BroadcastLog from "../models/BroadcastLog.js";
 import {
   sendWhatsAppToTutor,
@@ -63,26 +66,19 @@ async function computeTutorStats(tutor) {
 // =============================================================
 router.get("/", verifyToken(["admin"]), async (req, res) => {
   try {
-    const data = await ParentEnquiry.find().sort({ createdAt: -1 });
-
     // Synchronize completedClasses and packageStatus with Attendance single source of truth.
-    // Batch attendance counts into one aggregation instead of one count query per lead.
-    const leadsNeedingAttendance = data.filter(
-      (lead) =>
-        lead.status === "Enrolled" ||
-        lead.assignedTutorId ||
-        (lead.totalClasses && lead.totalClasses > 0)
-    );
+    // Leads and the attendance counts (one aggregation for all leads) load at the same time.
+    // Optional ?limit=N returns only the newest N leads (used for the dashboard's quick first batch).
+    // Without it, every lead is returned exactly as before.
+    const limit = Number.parseInt(req.query.limit, 10);
+    const leadQuery = ParentEnquiry.find().sort({ createdAt: -1 });
+    if (limit > 0) leadQuery.limit(limit);
 
-    const attendanceCounts = new Map();
-
-    if (leadsNeedingAttendance.length > 0) {
-      const leadIds = leadsNeedingAttendance.map((lead) => lead._id);
-
-      const attendanceSummary = await Attendance.aggregate([
+    const [data, attendanceSummary] = await Promise.all([
+      leadQuery.batchSize(1000),
+      Attendance.aggregate([
         {
           $match: {
-            parentEnquiryId: { $in: leadIds },
             status: "Done",
           },
         },
@@ -95,14 +91,16 @@ router.get("/", verifyToken(["admin"]), async (req, res) => {
             count: { $sum: 1 },
           },
         },
-      ]);
+      ]),
+    ]);
 
-      for (const row of attendanceSummary) {
-        const leadId = String(row._id.parentEnquiryId);
-        const cycle = row._id.packageCycle == null ? 1 : row._id.packageCycle;
-        const key = `${leadId}:${cycle}`;
-        attendanceCounts.set(key, (attendanceCounts.get(key) || 0) + row.count);
-      }
+    const attendanceCounts = new Map();
+
+    for (const row of attendanceSummary) {
+      const leadId = String(row._id.parentEnquiryId);
+      const cycle = row._id.packageCycle == null ? 1 : row._id.packageCycle;
+      const key = `${leadId}:${cycle}`;
+      attendanceCounts.set(key, (attendanceCounts.get(key) || 0) + row.count);
     }
 
     const synchronizedData = await Promise.all(
@@ -150,6 +148,108 @@ router.get("/drafts", verifyToken(["admin"]), async (req, res) => {
 });
 
 // =============================================================
+// GET dashboard totals (counts only — lets the admin dashboard show
+// its numbers immediately while the full lists are still loading)
+// GET /api/parent-enquiries/dashboard-counts
+// =============================================================
+router.get("/dashboard-counts", verifyToken(["admin"]), async (req, res) => {
+  try {
+    const [
+      tutorDocs,
+      leadDocs,
+      drafts,
+      tutorDrafts,
+      enquiries,
+      bookings,
+    ] = await Promise.all([
+      Tutor.find().select("phone name status createdAt").lean(),
+      ParentEnquiry.find().select("phone wards.studentName assignedTutorId createdAt").lean(),
+      ParentEnquiryDraft.countDocuments({}),
+      TutorRegistrationDraft.countDocuments({}),
+      Enquiry.countDocuments({}),
+      Booking.countDocuments({}),
+    ]);
+
+    // The dashboard shows the same person saved more than once as ONE card, so the totals
+    // are counted the same way (same rules as keepUniqueRecords in AdminDashboard.jsx):
+    //   Lead  = same phone (last 10 digits) + same student name(s)
+    //   Tutor = same phone (last 10 digits) + same name
+    // Kept copy: the preferred one if any, otherwise the newest.
+    const lastTenDigits = (value) => {
+      const digits = String(value || "").replace(/\D/g, "");
+      return digits.length >= 10 ? digits.slice(-10) : "";
+    };
+    const keepUnique = (records, getKey, isPreferred) => {
+      const keepers = new Map();
+      const unique = [];
+      for (const record of records) {
+        const key = getKey(record);
+        if (!key) {
+          unique.push(record);
+          continue;
+        }
+        const current = keepers.get(key);
+        const better =
+          !current ||
+          Number(isPreferred(record)) - Number(isPreferred(current)) ||
+          new Date(record.createdAt || 0) - new Date(current.createdAt || 0);
+        if (!current || better > 0) keepers.set(key, record);
+      }
+      return [...unique, ...keepers.values()];
+    };
+
+    const uniqueLeads = keepUnique(
+      leadDocs,
+      (lead) => {
+        const phone = lastTenDigits(lead.phone);
+        const students = (lead.wards || [])
+          .map((ward) => String(ward?.studentName || "").trim().toLowerCase())
+          .filter(Boolean)
+          .sort()
+          .join("|");
+        return phone && students ? `${phone}#${students}` : "";
+      },
+      (lead) => Boolean(lead.assignedTutorId)
+    );
+
+    const assignedTutorIds = new Set(
+      leadDocs.map((lead) => String(lead.assignedTutorId || "")).filter(Boolean)
+    );
+    const uniqueTutors = keepUnique(
+      tutorDocs,
+      (tutor) => {
+        const phone = lastTenDigits(tutor.phone);
+        const name = String(tutor.name || "").trim().toLowerCase();
+        return phone && name ? `${phone}#${name}` : "";
+      },
+      (tutor) => assignedTutorIds.has(String(tutor._id))
+    );
+
+    const tutors = uniqueTutors.length;
+    const approvedTutors = uniqueTutors.filter((t) => t.status === "approved").length;
+    const rejectedTutors = uniqueTutors.filter((t) => t.status === "rejected").length;
+    // Same rule the dashboard uses: pending = no status or status "pending"
+    const pendingTutors = uniqueTutors.filter((t) => !t.status || t.status === "pending").length;
+    const leads = uniqueLeads.length;
+
+    res.json({
+      tutors,
+      approvedTutors,
+      rejectedTutors,
+      pendingTutors,
+      leads,
+      drafts,
+      tutorDrafts,
+      enquiries,
+      bookings,
+    });
+  } catch (error) {
+    console.error("Dashboard counts fetch error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// =============================================================
 // GET all broadcast logs (with optional leadId filter)
 // GET /api/parent-enquiries/broadcast-logs?leadId=xxx&requirementId=yyy
 // =============================================================
@@ -162,6 +262,19 @@ router.get("/broadcast-logs", verifyToken(["admin"]), async (req, res) => {
     if (requirementId) filter.requirementId = requirementId;
     if (tutorId) filter.tutorId = tutorId;
     if (status) filter.status = status;
+
+    // Optional ?limit=N&skip=M returns one page (used by the dashboard's logs table).
+    // Without limit, every matching log is returned exactly as before.
+    const limit = Number.parseInt(req.query.limit, 10);
+    if (limit > 0) {
+      const skip = Math.max(0, Number.parseInt(req.query.skip, 10) || 0);
+      const page = await BroadcastLog.find(filter)
+        .sort({ time: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+      return res.json(page);
+    }
 
     const logs = await BroadcastLog.find(filter).sort({ time: -1 }).lean();
     res.json(logs);
@@ -304,7 +417,35 @@ router.post("/", async (req, res) => {
     let websiteStudentId = "";
     try {
       const count = await ParentEnquiry.countDocuments({});
-      const seq = String(count + 1).padStart(5, "0");
+      let nextNumber = count + 1;
+
+      // Never go below the highest ID already issued — otherwise deleting a lead
+      // lowers the count and the next lead reuses an existing REQ/STU ID.
+      const latest = await ParentEnquiry.findOne({ requirementId: /^REQ-\d{5}$/ })
+        .sort({ requirementId: -1 })
+        .select("requirementId")
+        .lean();
+      if (latest) {
+        nextNumber = Math.max(nextNumber, Number(latest.requirementId.slice(4)) + 1);
+      }
+
+      // Skip any number that is already taken
+      const idsFor = (n) => {
+        const padded = String(n).padStart(5, "0");
+        return { requirementId: `REQ-${padded}`, websiteStudentId: `STU-${padded}` };
+      };
+      while (
+        await ParentEnquiry.exists({
+          $or: [
+            { requirementId: idsFor(nextNumber).requirementId },
+            { websiteStudentId: idsFor(nextNumber).websiteStudentId },
+          ],
+        })
+      ) {
+        nextNumber += 1;
+      }
+
+      const seq = String(nextNumber).padStart(5, "0");
       requirementId = `REQ-${seq}`;
       websiteStudentId = `STU-${seq}`;
       console.log("[ParentEnquiry] Generated IDs:", requirementId, websiteStudentId);
