@@ -1,31 +1,53 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 
 import HomePage from "./pages/HomePage";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminLogin from "./pages/AdminLogin";
-import ParentEnquiryForm from "./pages/ParentEnquiryForm";
-import BlogPage from "./pages/BlogPage";
-import BlogDetail from "./pages/BlogDetail";
-import ThankYou from "./pages/ThankYou";
-import TutorRegistration from "./pages/TutorRegistration";
-import PaymentPage from "./pages/PaymentPage";
-
-import BlogLogin from "./pages/BlogLogin";
-import AdminBlogEditor from "./pages/AdminBlogEditor";
-import CategoryPage from "./pages/CategoryPage";
-import CoursePage from "./pages/CoursePage";
-import SubCategoryPage from "./pages/SubCategoryPage";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import Disclaimer from "./pages/Disclaimer";
-import TermsConditions from "./pages/TermsAndConditions";
-import Testimonials from "./pages/Testimonials";
 import MumbaiPage from "./pages/MumbaiPage";
-import AnalyticsTracker from "./components/AnalyticsTracker";
-import TeacherLogin from "./pages/TeacherLogin";
-import TeacherDashboard from "./pages/TeacherDashboard";
-import ParentPortal from "./pages/ParentPortal";
 import ParentOnboarding from "./pages/ParentOnboarding";
+import AnalyticsTracker from "./components/AnalyticsTracker";
+
+// Every other page is downloaded only when it is opened, so visitors do not
+// download the admin dashboard and admins do not download the public pages.
+// If a page file is missing (the site was updated while this tab was open), reload once.
+function lazyPage(importPage) {
+  return lazy(() =>
+    importPage()
+      .then((module) => {
+        sessionStorage.removeItem("pageReloadedForUpdate");
+        return module;
+      })
+      .catch((error) => {
+        if (!sessionStorage.getItem("pageReloadedForUpdate")) {
+          sessionStorage.setItem("pageReloadedForUpdate", "1");
+          window.location.reload();
+          return new Promise(() => {});
+        }
+        throw error;
+      })
+  );
+}
+
+const AdminDashboard = lazyPage(() => import("./pages/AdminDashboard"));
+const AdminLogin = lazyPage(() => import("./pages/AdminLogin"));
+const ParentEnquiryForm = lazyPage(() => import("./pages/ParentEnquiryForm"));
+const BlogPage = lazyPage(() => import("./pages/BlogPage"));
+const BlogDetail = lazyPage(() => import("./pages/BlogDetail"));
+const ThankYou = lazyPage(() => import("./pages/ThankYou"));
+const TutorRegistration = lazyPage(() => import("./pages/TutorRegistration"));
+const PaymentPage = lazyPage(() => import("./pages/PaymentPage"));
+const BlogLogin = lazyPage(() => import("./pages/BlogLogin"));
+const AdminBlogEditor = lazyPage(() => import("./pages/AdminBlogEditor"));
+const CategoryPage = lazyPage(() => import("./pages/CategoryPage"));
+const CoursePage = lazyPage(() => import("./pages/CoursePage"));
+const SubCategoryPage = lazyPage(() => import("./pages/SubCategoryPage"));
+const PrivacyPolicy = lazyPage(() => import("./pages/PrivacyPolicy"));
+const Disclaimer = lazyPage(() => import("./pages/Disclaimer"));
+const TermsConditions = lazyPage(() => import("./pages/TermsAndConditions"));
+const Testimonials = lazyPage(() => import("./pages/Testimonials"));
+const TeacherLogin = lazyPage(() => import("./pages/TeacherLogin"));
+const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));
+const ParentPortal = lazyPage(() => import("./pages/ParentPortal"));
 
 // Admin Protected Route
 function ProtectedRoute({ children }) {
@@ -62,6 +84,7 @@ export default function App() {
     <HelmetProvider>
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-200">
         <AnalyticsTracker />
+        <Suspense fallback={<div className="py-24 text-center text-sm font-semibold text-slate-500">Loading...</div>}>
         <Routes>
           {/* Public Pages */}
           <Route
@@ -135,6 +158,7 @@ export default function App() {
 
           <Route path="*" element={<h1>404 - Page Not Found</h1>} />
         </Routes>
+        </Suspense>
       </div>
     </HelmetProvider>
   );

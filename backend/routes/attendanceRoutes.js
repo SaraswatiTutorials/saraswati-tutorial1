@@ -13,6 +13,21 @@ import { verifyToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+// Requests for the same student + date run one at a time, so a double tap cannot
+// slip past the "already marked?" check in /mark and insert the same class twice.
+const attendanceLocks = new Map();
+async function withAttendanceLock(key, task) {
+  const previous = attendanceLocks.get(key) || Promise.resolve();
+  const run = previous.then(task);
+  const tail = run.catch(() => {});
+  attendanceLocks.set(key, tail);
+  try {
+    return await run;
+  } finally {
+    if (attendanceLocks.get(key) === tail) attendanceLocks.delete(key);
+  }
+}
+
 // =============================================================
 // Helper: Date operations and cycle breakdown calculations
 // =============================================================
@@ -283,7 +298,8 @@ router.get("/tutor/:tutorId/students", verifyToken(["admin", "tutor"]), async (r
 // =============================================================
 // POST: Mark Attendance (Done / Missed) - Idempotent & Editable
 // =============================================================
-router.post("/mark", verifyToken(["admin", "tutor"]), async (req, res) => {
+router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
+  withAttendanceLock(`${req.body?.parentEnquiryId}:${req.body?.date}`, async () => {
   try {
     const {
       parentEnquiryId,
@@ -465,7 +481,8 @@ router.post("/mark", verifyToken(["admin", "tutor"]), async (req, res) => {
     console.error("Mark attendance error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
-});
+  })
+);
 
 // =============================================================
 // GET: Comprehensive Attendance History (all cycles)
@@ -646,16 +663,35 @@ router.get("/admin-alerts", verifyToken(["admin"]), async (req, res) => {
   try {
     const alerts = [];
 
-    // Condition 1: If a teacher has missed more than two classes in total
-    const missedAggregation = await Attendance.aggregate([
-      { $match: { status: "Missed" } },
-      {
-        $group: {
-          _id: { tutorId: "$tutorId", tutorName: "$tutorName" },
-          missedCount: { $sum: 1 },
+    // Both alert queries are independent, so run them at the same time
+    const [missedAggregation, activeLeads] = await Promise.all([
+      // Condition 1: If a teacher has missed more than two classes in total
+      Attendance.aggregate([
+        { $match: { status: "Missed" } },
+        {
+          $group: {
+            _id: { tutorId: "$tutorId", tutorName: "$tutorName" },
+            missedCount: { $sum: 1 },
+          },
         },
-      },
-      { $match: { missedCount: { $gt: 2 } } },
+        { $match: { missedCount: { $gt: 2 } } },
+      ]),
+      // Condition 2: Payment reminders at >= 90% completion
+      ParentEnquiry.find({
+        status: {
+          $in: [
+            "New Lead",
+            "Fees Finalized",
+            "Demo Scheduled",
+            "Feedback Pending",
+            "Enrolled",
+            "Won",
+          ],
+        },
+        totalClasses: { $gt: 0 },
+      })
+        .select("_id requirementId wards completedClasses totalClasses")
+        .lean(),
     ]);
 
     missedAggregation.forEach((item) => {
@@ -669,23 +705,6 @@ router.get("/admin-alerts", verifyToken(["admin"]), async (req, res) => {
         severity: "high",
       });
     });
-
-    // Condition 2: Payment reminders at >= 90% completion
-    const activeLeads = await ParentEnquiry.find({
-      status: {
-        $in: [
-          "New Lead",
-          "Fees Finalized",
-          "Demo Scheduled",
-          "Feedback Pending",
-          "Enrolled",
-          "Won",
-        ],
-      },
-      totalClasses: { $gt: 0 },
-    })
-      .select("_id requirementId wards completedClasses totalClasses")
-      .lean();
 
     activeLeads.forEach((lead) => {
       const completed = lead.completedClasses || 0;

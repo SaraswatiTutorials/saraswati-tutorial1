@@ -44,6 +44,8 @@ app.use(
       "https://odoo.saraswatitutorial.com",
     ],
     credentials: true,
+    // Let the browser cache the preflight instead of sending an OPTIONS before every API call
+    maxAge: 86400,
   })
 );
 app.use(express.json());
