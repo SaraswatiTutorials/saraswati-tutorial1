@@ -48,7 +48,6 @@ import {
   ExternalLink,
   FileCheck2
 } from "lucide-react";
-
 import { API_BASE } from "../config";
 import ThemeToggle from "../components/ThemeToggle";
 import {
@@ -69,8 +68,8 @@ import {
 
 const EDUCATION_CERT_PASSWORD = "saraswati7250";
 
-const CARD_BATCH_SIZE = 30;
-const BROADCAST_LOG_PAGE_SIZE = 100;
+const CARD_BATCH_SIZE = 10;
+const BROADCAST_LOG_PAGE_SIZE = CARD_BATCH_SIZE;
 
 const LEAD_STATUSES = [
   "New Lead",
@@ -347,6 +346,12 @@ export default function AdminDashboard() {
   // Cards are drawn in batches so the page becomes usable quickly; search, filters and counts still use the full lists
   const [visibleLeadCount, setVisibleLeadCount] = useState(CARD_BATCH_SIZE);
   const [visibleTutorCount, setVisibleTutorCount] = useState(CARD_BATCH_SIZE);
+  const [visibleDraftCount, setVisibleDraftCount] = useState(CARD_BATCH_SIZE);
+  const [visibleTutorDraftCount, setVisibleTutorDraftCount] = useState(CARD_BATCH_SIZE);
+  const [visibleEnquiryCount, setVisibleEnquiryCount] = useState(CARD_BATCH_SIZE);
+  const [visibleBookingCount, setVisibleBookingCount] = useState(CARD_BATCH_SIZE);
+  const [visibleTncRecordCount, setVisibleTncRecordCount] = useState(CARD_BATCH_SIZE);
+  const [visibleTutorPanelCount, setVisibleTutorPanelCount] = useState(CARD_BATCH_SIZE);
 
   // True while only the quick first batch is on screen and the complete lists are still downloading
   const [showingFirstBatch, setShowingFirstBatch] = useState(false);
@@ -502,6 +507,7 @@ export default function AdminDashboard() {
       if (res.ok) {
         const data = await res.json();
         setTncRecords(data.records || []);
+        setVisibleTncRecordCount(CARD_BATCH_SIZE);
         setTncStats({
           totalAccepted:  data.totalAccepted  || 0,
           totalDismissed: data.totalDismissed || 0,
@@ -923,10 +929,34 @@ export default function AdminDashboard() {
     );
   }, [uniqueTutors, search]);
 
+  const filteredTutorDrafts = useMemo(() => {
+    const q = tutorDraftSearch.trim().toLowerCase();
+    return tutorDrafts.filter((draft) => {
+      if (!q) return true;
+      const formData = draft.formData || {};
+      return (
+        (formData.name || "").toLowerCase().includes(q) ||
+        (draft.phone || "").includes(q) ||
+        (formData.city || "").toLowerCase().includes(q) ||
+        (formData.qualification || "").toLowerCase().includes(q) ||
+        (formData.subjects || []).join(" ").toLowerCase().includes(q)
+      );
+    });
+  }, [tutorDrafts, tutorDraftSearch]);
+
   useEffect(() => {
     setVisibleLeadCount(CARD_BATCH_SIZE);
     setVisibleTutorCount(CARD_BATCH_SIZE);
+    setVisibleDraftCount(CARD_BATCH_SIZE);
   }, [search, leadFilter]);
+
+  useEffect(() => {
+    setVisibleTutorDraftCount(CARD_BATCH_SIZE);
+  }, [tutorDraftSearch]);
+
+  useEffect(() => {
+    setVisibleTutorPanelCount(CARD_BATCH_SIZE);
+  }, [matchingLeadId, tutorPanelTab, tutorSearchQuery]);
 
   // Until the complete lists have arrived, the numbers come from the server's totals
   const serverTotals = !fullDataLoaded ? dashboardCounts : null;
@@ -1559,7 +1589,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {tncRecords.map((rec, idx) => (
+                    {tncRecords.slice(0, visibleTncRecordCount).map((rec, idx) => (
                       <tr key={rec._id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/60 transition-colors">
                         <td className="px-4 py-3 text-xs text-slate-400 dark:text-slate-500 font-mono">{idx + 1}</td>
                         <td className="px-4 py-3">
@@ -1579,6 +1609,15 @@ export default function AdminDashboard() {
                         <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">{formatSubmittedDate(rec.createdAt)}</td>
                       </tr>
                     ))}
+                    {tncRecords.length > visibleTncRecordCount && (
+                      <tr>
+                        <td colSpan={7} className="py-4 text-center">
+                          <ShowMoreButton onShowMore={() => setVisibleTncRecordCount((count) => count + CARD_BATCH_SIZE)}>
+                            Show 10 more records ({tncRecords.length - visibleTncRecordCount} remaining)
+                          </ShowMoreButton>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1621,7 +1660,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Draft Cards */}
-            {tutorDrafts.length === 0 ? (
+            {filteredTutorDrafts.length === 0 ? (
               <div className="rounded-3xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-16 text-center">
                 <GraduationCap className="mx-auto mb-4 h-12 w-12 text-slate-300 dark:text-slate-600" />
                 <p className="text-base font-black text-slate-400 dark:text-slate-500">No tutor drafts found</p>
@@ -1629,19 +1668,8 @@ export default function AdminDashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {tutorDrafts
-                  .filter((d) => {
-                    if (!tutorDraftSearch.trim()) return true;
-                    const q = tutorDraftSearch.toLowerCase();
-                    const fd = d.formData || {};
-                    return (
-                      (fd.name || "").toLowerCase().includes(q) ||
-                      (d.phone || "").includes(q) ||
-                      (fd.city || "").toLowerCase().includes(q) ||
-                      (fd.qualification || "").toLowerCase().includes(q) ||
-                      ((fd.subjects || []).join(" ")).toLowerCase().includes(q)
-                    );
-                  })
+                {filteredTutorDrafts
+                  .slice(0, visibleTutorDraftCount)
                   .map((draft) => {
                     const fd = draft.formData || {};
                     const isExpanded = expandedTutorDraftId === draft._id;
@@ -1816,6 +1844,11 @@ export default function AdminDashboard() {
                       </div>
                     );
                   })}
+                {filteredTutorDrafts.length > visibleTutorDraftCount && (
+                  <ShowMoreButton onShowMore={() => setVisibleTutorDraftCount((count) => count + CARD_BATCH_SIZE)}>
+                    Show 10 more tutor drafts ({filteredTutorDrafts.length - visibleTutorDraftCount} remaining)
+                  </ShowMoreButton>
+                )}
               </div>
             )}
           </div>
@@ -2471,7 +2504,7 @@ export default function AdminDashboard() {
 
                                     {tutorsList.length > 0 && (
                                       <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-                                        {tutorsList.map(t => {
+                                        {tutorsList.slice(0, visibleTutorPanelCount).map(t => {
                                     const isSelected = selectedTutorIds.includes(t._id);
                                     return (
                                       <div
@@ -2638,6 +2671,13 @@ export default function AdminDashboard() {
                                       </div>
                                     );
                                   })}
+                                  {tutorsList.length > visibleTutorPanelCount && (
+                                    <div className="text-center">
+                                      <ShowMoreButton onShowMore={() => setVisibleTutorPanelCount((count) => count + CARD_BATCH_SIZE)}>
+                                        Show 10 more tutors ({tutorsList.length - visibleTutorPanelCount} remaining)
+                                      </ShowMoreButton>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </>
@@ -2651,7 +2691,7 @@ export default function AdminDashboard() {
                   })}
                   {filteredParentEnquiries.length > visibleLeadCount && (
                     <ShowMoreButton onShowMore={() => setVisibleLeadCount((count) => count + CARD_BATCH_SIZE)}>
-                      Show more leads ({filteredParentEnquiries.length - visibleLeadCount} remaining)
+                      Show 10 more leads ({filteredParentEnquiries.length - visibleLeadCount} remaining)
                     </ShowMoreButton>
                   )}
                 </div>
@@ -2661,7 +2701,7 @@ export default function AdminDashboard() {
                 <EmptyState text="No incomplete draft leads found for this search." />
               ) : (
                 <div className="grid gap-5">
-                  {filteredDrafts.map((p) => (
+                  {filteredDrafts.slice(0, visibleDraftCount).map((p) => (
                     <div
                       key={p._id}
                       className="overflow-hidden rounded-3xl bg-white dark:bg-slate-900 shadow-sm border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-amber-500 transition duration-300 hover:shadow-lg animate-slideFade"
@@ -2823,6 +2863,11 @@ export default function AdminDashboard() {
                       ) : null}
                     </div>
                   ))}
+                  {filteredDrafts.length > visibleDraftCount && (
+                    <ShowMoreButton onShowMore={() => setVisibleDraftCount((count) => count + CARD_BATCH_SIZE)}>
+                      Show 10 more draft leads ({filteredDrafts.length - visibleDraftCount} remaining)
+                    </ShowMoreButton>
+                  )}
                 </div>
               )
             )}
@@ -2836,7 +2881,7 @@ export default function AdminDashboard() {
             <EmptyState text="No enquiries yet." />
           ) : (
             <div className="grid gap-5 md:grid-cols-2">
-              {enquiries.map((e) => (
+              {enquiries.slice(0, visibleEnquiryCount).map((e) => (
                 <div
                   key={e._id}
                   className="rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200/80 dark:border-slate-800 transition duration-300 hover:shadow-lg"
@@ -2855,6 +2900,11 @@ export default function AdminDashboard() {
                   </p>
                 </div>
               ))}
+              {enquiries.length > visibleEnquiryCount && (
+                <ShowMoreButton onShowMore={() => setVisibleEnquiryCount((count) => count + CARD_BATCH_SIZE)}>
+                  Show 10 more enquiries ({enquiries.length - visibleEnquiryCount} remaining)
+                </ShowMoreButton>
+              )}
             </div>
           )}
         </section>
@@ -2866,7 +2916,7 @@ export default function AdminDashboard() {
             <EmptyState text="No bookings yet." />
           ) : (
             <div className="grid gap-5 md:grid-cols-2">
-              {bookings.map((b) => (
+              {bookings.slice(0, visibleBookingCount).map((b) => (
                 <div
                   key={b._id}
                   className="rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200/80 dark:border-slate-800 transition duration-300 hover:shadow-lg"
@@ -2882,6 +2932,11 @@ export default function AdminDashboard() {
                   </p>
                 </div>
               ))}
+              {bookings.length > visibleBookingCount && (
+                <ShowMoreButton onShowMore={() => setVisibleBookingCount((count) => count + CARD_BATCH_SIZE)}>
+                  Show 10 more bookings ({bookings.length - visibleBookingCount} remaining)
+                </ShowMoreButton>
+              )}
             </div>
           )}
         </section>
@@ -3148,7 +3203,7 @@ export default function AdminDashboard() {
                 })}
                 {filteredTutors.length > visibleTutorCount && (
                   <ShowMoreButton onShowMore={() => setVisibleTutorCount((count) => count + CARD_BATCH_SIZE)}>
-                    Show more tutors ({filteredTutors.length - visibleTutorCount} remaining)
+                    Show 10 more tutors ({filteredTutors.length - visibleTutorCount} remaining)
                   </ShowMoreButton>
                 )}
               </div>
@@ -3505,7 +3560,7 @@ export default function AdminDashboard() {
                           <tr>
                             <td colSpan={8} className="p-3 text-center">
                               <ShowMoreButton onShowMore={fetchMoreBroadcastLogs}>
-                                Show older logs
+                                Show 10 older logs
                               </ShowMoreButton>
                             </td>
                           </tr>
@@ -3545,33 +3600,16 @@ function getStatusColor(status) {
   return "slate";
 }
 
-// "Show more" button that also fires by itself when it scrolls into view,
-// so the next batch of cards appears as the admin scrolls down.
+// Renders a manual control for revealing the next batch of records.
 function ShowMoreButton({ onShowMore, children }) {
-  const buttonRef = useRef(null);
-
-  useEffect(() => {
-    const node = buttonRef.current;
-    if (!node || typeof IntersectionObserver === "undefined") return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) onShowMore();
-      },
-      { rootMargin: "300px" }
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  });
-
   return (
     <button
-      ref={buttonRef}
       type="button"
       onClick={onShowMore}
-      className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-3 text-sm font-extrabold text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-3 text-sm font-extrabold text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
     >
       {children}
+      <ChevronDown className="h-4 w-4" aria-hidden="true" />
     </button>
   );
 }
@@ -4598,7 +4636,7 @@ function AdminAttendanceConsole({
                 <tr>
                   <td colSpan={attendanceColumns.filter(c => c.enabled).length + 1} className="py-4 text-center">
                     <ShowMoreButton onShowMore={() => setVisibleRowCount((count) => count + CARD_BATCH_SIZE)}>
-                      Show more students ({filtered.length - visibleRowCount} remaining)
+                      Show 10 more students ({filtered.length - visibleRowCount} remaining)
                     </ShowMoreButton>
                   </td>
                 </tr>
@@ -5322,6 +5360,17 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
     return filtered;
   }, [data?.pages, pageSearch, pageSortField, pageSortOrder]);
 
+  const [visiblePageCount, setVisiblePageCount] = useState(CARD_BATCH_SIZE);
+  const [visibleActivityCount, setVisibleActivityCount] = useState(CARD_BATCH_SIZE);
+
+  useEffect(() => {
+    setVisiblePageCount(CARD_BATCH_SIZE);
+  }, [pageSearch, period]);
+
+  useEffect(() => {
+    setVisibleActivityCount(CARD_BATCH_SIZE);
+  }, [period]);
+
   // 4. Session Timeline Modal state
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [sessionLogs, setSessionLogs] = useState([]);
@@ -5958,7 +6007,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                       <td colSpan={5} className="text-center py-6 text-slate-500 italic">No matching pages found</td>
                     </tr>
                   ) : (
-                    sortedAndFilteredPages.map((page) => (
+                    sortedAndFilteredPages.slice(0, visiblePageCount).map((page) => (
                       <tr key={page.page} className="border-b border-slate-800/50 last:border-0 hover:bg-slate-900/20 transition">
                         <td className="py-4 font-mono font-bold text-blue-400 text-xs break-all pr-4">{page.page}</td>
                         <td className="py-4 text-center font-bold text-white">{page.views}</td>
@@ -5973,6 +6022,15 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                         </td>
                       </tr>
                     ))
+                  )}
+                  {sortedAndFilteredPages.length > visiblePageCount && (
+                    <tr>
+                      <td colSpan={5} className="py-4 text-center">
+                        <ShowMoreButton onShowMore={() => setVisiblePageCount((count) => count + CARD_BATCH_SIZE)}>
+                          Show 10 more pages ({sortedAndFilteredPages.length - visiblePageCount} remaining)
+                        </ShowMoreButton>
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -6004,7 +6062,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                     No recent activities recorded.
                   </div>
                 ) : (
-                  data.recentActivity.map((act) => {
+                  data.recentActivity.slice(0, visibleActivityCount).map((act) => {
                     const dateObj = act?.createdAt ? new Date(act.createdAt) : null;
                     const timeStr = dateObj && !isNaN(dateObj.getTime())
                       ? dateObj.toLocaleTimeString("en-IN", {
@@ -6079,6 +6137,13 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                       </div>
                     );
                   })
+                )}
+                {Array.isArray(data?.recentActivity) && data.recentActivity.length > visibleActivityCount && (
+                  <div className="text-center">
+                    <ShowMoreButton onShowMore={() => setVisibleActivityCount((count) => count + CARD_BATCH_SIZE)}>
+                      Show 10 more events ({data.recentActivity.length - visibleActivityCount} remaining)
+                    </ShowMoreButton>
+                  </div>
                 )}
               </div>
             </div>
