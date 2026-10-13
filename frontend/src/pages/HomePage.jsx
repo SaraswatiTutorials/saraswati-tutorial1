@@ -776,7 +776,7 @@ export default function HomePage() {
   // 5 exact Bangalore FAQs
   const faqs = [
     {
-      q: "Do you provide home tuition across all areas of Bangalore?",
+      q: "Do you provide home tuition across all areas of Bangalore",
       a: "Yes, Saraswati Tutorials provides home tuition services across major areas of Bangalore including Whitefield, HSR Layout, Indiranagar, Jayanagar, Koramangala, JP Nagar, Electronic City, and nearby locations."
     },
     {
