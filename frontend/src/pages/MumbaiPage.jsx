@@ -209,7 +209,7 @@ export default function MumbaiPage() {
   // 5 exact FAQs
   const faqs = [
     {
-      q: "Do you provide home tuition across all areas of Mumbai?",
+      q: "Do you provide home tuition across all areas of Mumbai",
       a: "Yes, Saraswati Tutorials provides home tuition services across major areas of Mumbai including Andheri, Bandra, Powai, Borivali, Thane, Navi Mumbai and nearby locations."
     },
     {
