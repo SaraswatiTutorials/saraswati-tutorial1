@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef, useDeferredValue } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import {
@@ -46,10 +46,14 @@ import {
   Eye,
   MousePointerClick,
   ExternalLink,
-  FileCheck2
+  FileCheck2,
+  BarChart3,
+  ClipboardCheck,
+  Inbox
 } from "lucide-react";
 import { API_BASE } from "../config";
 import ThemeToggle from "../components/ThemeToggle";
+import AdminLayout from "../components/admin/AdminLayout";
 import {
   AreaChart,
   Area,
@@ -67,6 +71,18 @@ import {
 } from "recharts";
 
 const EDUCATION_CERT_PASSWORD = "saraswati7250";
+
+// Header title and breadcrumb section for each sidebar page (keys = currentMainTab values)
+const ADMIN_PAGES = {
+  leads: { title: "Parent Leads", section: "Leads" },
+  enquiries: { title: "Enquiries", section: "Leads" },
+  bookings: { title: "Bookings", section: "Leads" },
+  tutors: { title: "Tutors", section: "Tutors" },
+  tutorDrafts: { title: "Tutor Drafts", section: "Tutors" },
+  attendance: { title: "Attendance & Class Tracking", section: "Operations" },
+  analytics: { title: "Analytics & Visitor Insights", section: "Insights" },
+  tncAcceptances: { title: "T&C Acceptances", section: "Compliance" },
+};
 
 const CARD_BATCH_SIZE = 10;
 const BROADCAST_LOG_PAGE_SIZE = CARD_BATCH_SIZE;
@@ -337,6 +353,8 @@ export default function AdminDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  // Lists filter on a deferred copy so typing stays responsive with many records
+  const deferredSearch = useDeferredValue(search);
   const [leadFilter, setLeadFilter] = useState("All Leads");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -362,6 +380,11 @@ export default function AdminDashboard() {
   const [dashboardCounts, setDashboardCounts] = useState(null);
 
   const [matchingLeadId, setMatchingLeadId] = useState(null);
+  // Table rows whose full details are open
+  const [expandedLeadIds, setExpandedLeadIds] = useState([]);
+  const [expandedTutorIds, setExpandedTutorIds] = useState([]);
+  const toggleExpanded = (setter, id) =>
+    setter((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const [selectedTutorIds, setSelectedTutorIds] = useState([]);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastTemplate, setBroadcastTemplate] = useState(
@@ -383,7 +406,7 @@ export default function AdminDashboard() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTutor, setNewTutor] = useState(emptyTutor);
 
-  const [currentMainTab, setCurrentMainTab] = useState("leads"); // "leads" | "analytics" | "attendance" | "tutorDrafts" | "tncAcceptances"
+  const [currentMainTab, setCurrentMainTab] = useState("leads"); // a key of ADMIN_PAGES
   const [alerts, setAlerts] = useState([]);
 
   // T&C Acceptances state
@@ -877,7 +900,7 @@ export default function AdminDashboard() {
   }, [search, suggestionValues]);
 
   const filteredParentEnquiries = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
 
     return uniqueParentEnquiries.filter((parentEnquiry) => {
       const status = normalizeLeadStatus(parentEnquiry.status);
@@ -889,10 +912,10 @@ export default function AdminDashboard() {
 
       return matchesFilter && matchesSearch;
     });
-  }, [uniqueParentEnquiries, search, leadFilter]);
+  }, [uniqueParentEnquiries, deferredSearch, leadFilter]);
 
   const filteredDrafts = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
 
     return drafts.filter((draft) => {
       const formData = draft.formData || {};
@@ -916,18 +939,19 @@ export default function AdminDashboard() {
 
       return matchesSearch;
     });
-  }, [drafts, search]);
+  }, [drafts, deferredSearch]);
 
   const filteredTutors = useMemo(() => {
+    const q = deferredSearch.toLowerCase();
     return uniqueTutors.filter(
       (t) =>
-        t.name?.toLowerCase().includes(search.toLowerCase()) ||
-        t.subject?.toLowerCase().includes(search.toLowerCase()) ||
-        t.location?.toLowerCase().includes(search.toLowerCase()) ||
-        t.email?.toLowerCase().includes(search.toLowerCase()) ||
-        t.phone?.toLowerCase().includes(search.toLowerCase())
+        t.name?.toLowerCase().includes(q) ||
+        t.subject?.toLowerCase().includes(q) ||
+        t.location?.toLowerCase().includes(q) ||
+        t.email?.toLowerCase().includes(q) ||
+        t.phone?.toLowerCase().includes(q)
     );
-  }, [uniqueTutors, search]);
+  }, [uniqueTutors, deferredSearch]);
 
   const filteredTutorDrafts = useMemo(() => {
     const q = tutorDraftSearch.trim().toLowerCase();
@@ -1234,8 +1258,193 @@ export default function AdminDashboard() {
     }
   };
 
+  const goToTab = (key) => {
+    setCurrentMainTab(key);
+    if (key === "attendance") fetchData();
+    if (key === "tncAcceptances") fetchTncRecords(tncFilter);
+    window.scrollTo({ top: 0 });
+  };
+
+  const navGroups = [
+    {
+      label: "Leads",
+      items: [
+        { key: "leads", label: "Parent Leads", icon: Users, badge: totalLeadCount },
+        { key: "enquiries", label: "Enquiries", icon: Mail, badge: totalEnquiryCount },
+        { key: "bookings", label: "Bookings", icon: Calendar, badge: totalBookingCount },
+      ],
+    },
+    {
+      label: "Tutors",
+      items: [
+        { key: "tutors", label: "Tutors", icon: Award, badge: pendingTutors },
+        { key: "tutorDrafts", label: "Tutor Drafts", icon: FileText, badge: totalTutorDraftCount },
+      ],
+    },
+    {
+      label: "Operations",
+      items: [{ key: "attendance", label: "Attendance & Classes", icon: ClipboardCheck }],
+    },
+    {
+      label: "Insights",
+      items: [{ key: "analytics", label: "Analytics", icon: BarChart3 }],
+    },
+    {
+      label: "Compliance",
+      items: [{ key: "tncAcceptances", label: "T&C Acceptances", icon: FileCheck2, badge: tncStats.totalAccepted }],
+    },
+  ];
+  const activePage = ADMIN_PAGES[currentMainTab] || ADMIN_PAGES.leads;
+
+  const adminEmail = (() => {
+    try {
+      return localStorage.getItem("adminEmail") || "";
+    } catch {
+      return "";
+    }
+  })();
+
+  const headerActions = (
+    <>
+      <div className="relative">
+        <button
+          onClick={() => setShowAlertsDropdown(!showAlertsDropdown)}
+          className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-sm transition hover:text-indigo-600 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+            aria-label={`System alerts (${activeAlerts.length})`}
+            aria-expanded={showAlertsDropdown}
+          title="System Alerts"
+        >
+          <Bell className="h-[18px] w-[18px]" />
+          {activeAlerts.length > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-[#f5f4f0] dark:border-slate-950 bg-rose-500 px-1 text-xs font-bold text-white">
+              {activeAlerts.length}
+            </span>
+          )}
+        </button>
+
+        {showAlertsDropdown && (
+          <>
+            {/* Mobile Backdrop Overlay */}
+            <div
+              className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[290] sm:hidden"
+              onClick={() => setShowAlertsDropdown(false)}
+            />
+            <div className="fixed left-4 right-4 top-20 max-w-md mx-auto sm:absolute sm:left-auto sm:right-0 sm:top-14 sm:w-96 rounded-2xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xl border border-slate-200 dark:border-slate-700 p-4.5 z-[300] animate-slideFade">
+              <div className="flex justify-between items-center pb-2.5 border-b border-slate-100 dark:border-slate-700">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-rose-500" />
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">System Alerts ({activeAlerts.length})</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {activeAlerts.length > 0 && (
+                    <button
+                      onClick={() => {
+                        const allIds = activeAlerts.map(a => a.id);
+                        const updated = [...dismissedAlerts, ...allIds];
+                        setDismissedAlerts(updated);
+                        localStorage.setItem("dismissedAlerts", JSON.stringify(updated));
+                      }}
+                      className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowAlertsDropdown(false)}
+                    className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg sm:hidden cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-3 max-h-72 overflow-y-auto space-y-2 pr-1">
+                {activeAlerts.length === 0 ? (
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 py-6 text-center">
+                    <CheckCircle2 className="mx-auto mb-2 h-6 w-6 text-emerald-500" />
+                    No pending attendance alerts
+                  </p>
+                ) : (
+                  activeAlerts.map(alert => (
+                    <div
+                      key={alert.id}
+                      className={`p-3 rounded-2xl border text-xs flex flex-col gap-2 ${
+                        alert.severity === "high"
+                          ? "bg-rose-50/80 border-rose-200 text-rose-950 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-200"
+                          : "bg-amber-50/80 border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-900/60 dark:text-amber-200"
+                      }`}
+                    >
+                      <p className="font-semibold leading-normal text-slate-800 dark:text-slate-200">{alert.message}</p>
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => dismissAlert(alert.id)}
+                          className="text-xs font-bold uppercase tracking-wider bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 px-3 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setShowAddForm(true)}
+        className="inline-flex h-10 items-center gap-2 rounded-full bg-indigo-600 px-3 md:px-5 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 transition hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 cursor-pointer"
+        aria-label="Add tutor"
+      >
+        <Plus className="h-4 w-4" />
+        <span className="hidden md:inline">Add Tutor</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={fetchData}
+        disabled={loading}
+        className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-sm transition hover:text-indigo-600 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+        aria-label={loading ? "Refreshing data" : "Refresh data"}
+        title="Refresh"
+      >
+        <RefreshCw className={`h-[18px] w-[18px] ${loading ? "animate-spin" : ""}`} />
+      </button>
+
+      <ThemeToggle buttonClassName="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-sm transition hover:text-indigo-600 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer" />
+
+      <div className="hidden md:flex items-center gap-3 border-l border-slate-200 dark:border-slate-800 pl-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-sm font-semibold text-white">
+          {(adminEmail || "A").charAt(0).toUpperCase()}
+        </div>
+        <div className="hidden xl:block leading-tight">
+          <p className="text-sm font-semibold text-slate-900 dark:text-white">Admin</p>
+          <p className="max-w-[180px] truncate text-xs text-slate-500 dark:text-slate-400">{adminEmail || "Administrator"}</p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-sm transition hover:text-indigo-600 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer hover:!text-rose-600 dark:hover:!text-rose-400"
+        aria-label="Log out"
+        title="Log out"
+      >
+        <LogOut className="h-[18px] w-[18px]" />
+      </button>
+    </>
+  );
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#e0f2fe,transparent_35%),radial-gradient(circle_at_bottom_right,#f3e8ff,transparent_30%),linear-gradient(135deg,#f8fafc,#f1f5f9)] dark:bg-[radial-gradient(circle_at_top_left,rgba(30,58,138,0.15),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(88,28,135,0.1),transparent_30%),linear-gradient(135deg,#0f172a,#090e1a)] px-4 py-8 md:px-6 md:py-12 transition-colors duration-300">
+    <AdminLayout
+      navGroups={navGroups}
+      activeKey={currentMainTab}
+      onNavigate={goToTab}
+      title={activePage.title}
+      breadcrumb={["Admin", activePage.section]}
+      actions={headerActions}
+    >
       <style>{`
         .animate-slideFade {
           animation: slideFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -1258,20 +1467,19 @@ export default function AdminDashboard() {
         }
       `}</style>
 
-      <div className="mx-auto max-w-7xl">
         {/* Persistent Top System Alerts Banner */}
         {activeAlerts.length > 0 && (
-          <div className="mb-6 rounded-2xl sm:rounded-3xl border border-rose-200 bg-rose-50/95 dark:border-rose-900/50 dark:bg-rose-950/30 backdrop-blur-xl p-3.5 sm:p-4 text-slate-900 dark:text-slate-100 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-slideFade">
+          <div className="mb-6 rounded-2xl sm:rounded-2xl border border-rose-200 bg-rose-50/95 dark:border-rose-900/50 dark:bg-rose-950/30 backdrop-blur-xl p-3.5 sm:p-4 text-slate-900 dark:text-slate-100 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-slideFade">
             <div className="flex items-start sm:items-center gap-3">
-              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-2xl bg-rose-500 text-white flex items-center justify-center shrink-0 animate-pulse shadow-md shadow-rose-500/20 mt-0.5 sm:mt-0">
+              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
                 <Bell className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
               </div>
               <div>
-                <p className="text-[11px] sm:text-xs font-black uppercase text-rose-600 tracking-wider">System Alert ({activeAlerts.length} Pending)</p>
+                <p className="text-xs font-bold uppercase text-rose-600 dark:text-rose-400 tracking-wider">System Alert ({activeAlerts.length} Pending)</p>
                 <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5 leading-snug break-words">{activeAlerts[0]?.message}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0 justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t border-rose-200/60 sm:border-0">
+            <div className="flex items-center gap-2 shrink-0 justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t border-rose-200/60 dark:border-rose-900/60 sm:border-0">
               <button
                 onClick={() => dismissAlert(activeAlerts[0].id)}
                 className="flex-1 sm:flex-none rounded-xl border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-rose-100 dark:hover:bg-rose-950/40 transition cursor-pointer text-center"
@@ -1288,238 +1496,13 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        <div className="mb-8 rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6 text-white shadow-xl relative border border-slate-800/80 md:p-8">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(59,130,246,0.15),transparent)] pointer-events-none rounded-3xl overflow-hidden" />
-
-          <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-center">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="h-2 w-2 rounded-full bg-blue-450 animate-ping" />
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-300">
-                  Admin Control Center
-                </p>
-              </div>
-
-              <h1 className="text-3.5xl font-black tracking-tight md:text-5xl bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
-                Saraswati Tutorial Dashboard
-              </h1>
-
-              <p className="mt-3 max-w-2xl text-xs font-semibold leading-relaxed text-slate-400 md:text-sm">
-                Manage parent leads, tutor approvals, bookings, search, filters,
-                and lead pipeline from one unified portal.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3 items-center relative z-20">
-              {/* Notification Center Bell */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowAlertsDropdown(!showAlertsDropdown)}
-                  className="flex items-center justify-center rounded-2xl bg-white/10 h-11 w-11 text-white ring-1 ring-white/20 transition duration-300 hover:bg-white/20 hover:scale-[1.02] cursor-pointer relative"
-                  title="System Alerts"
-                >
-                  <Bell className="h-5 w-5" />
-                  {activeAlerts.length > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-rose-500 rounded-full text-[10px] font-black flex items-center justify-center animate-pulse border-2 border-slate-900">
-                      {activeAlerts.length}
-                    </span>
-                  )}
-                </button>
-
-                {showAlertsDropdown && (
-                  <>
-                    {/* Mobile Backdrop Overlay */}
-                    <div
-                      className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs z-[290] sm:hidden"
-                      onClick={() => setShowAlertsDropdown(false)}
-                    />
-                    <div className="fixed left-4 right-4 top-20 max-w-md mx-auto sm:absolute sm:left-auto sm:right-0 sm:top-14 sm:w-96 rounded-3xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xl border border-slate-200 dark:border-slate-700 p-4.5 z-[300] animate-slideFade">
-                      <div className="flex justify-between items-center pb-2.5 border-b border-slate-100 dark:border-slate-700">
-                        <div className="flex items-center gap-2">
-                          <Bell className="h-4 w-4 text-rose-500" />
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">System Alerts ({activeAlerts.length})</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {activeAlerts.length > 0 && (
-                            <button
-                              onClick={() => {
-                                const allIds = activeAlerts.map(a => a.id);
-                                const updated = [...dismissedAlerts, ...allIds];
-                                setDismissedAlerts(updated);
-                                localStorage.setItem("dismissedAlerts", JSON.stringify(updated));
-                              }}
-                              className="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer"
-                            >
-                              Clear All
-                            </button>
-                          )}
-                          <button
-                            onClick={() => setShowAlertsDropdown(false)}
-                            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg sm:hidden cursor-pointer"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="mt-3 max-h-72 overflow-y-auto space-y-2 pr-1">
-                        {activeAlerts.length === 0 ? (
-                          <p className="text-xs font-bold text-slate-500 py-6 text-center">
-                            ?? No pending attendance alerts!
-                          </p>
-                        ) : (
-                          activeAlerts.map(alert => (
-                            <div
-                              key={alert.id}
-                              className={`p-3 rounded-2xl border text-xs flex flex-col gap-2 ${
-                                alert.severity === "high"
-                                  ? "bg-rose-50/80 border-rose-200 text-rose-950 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-200"
-                                  : "bg-amber-50/80 border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-900/60 dark:text-amber-200"
-                              }`}
-                            >
-                              <p className="font-semibold leading-normal text-slate-800 dark:text-slate-200">{alert.message}</p>
-                              <div className="flex justify-end">
-                                <button
-                                  onClick={() => dismissAlert(alert.id)}
-                                  className="text-[10px] font-black uppercase tracking-wider bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 px-3 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
-                                >
-                                  Dismiss
-                                </button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition duration-300 hover:bg-emerald-600 hover:scale-[1.02] cursor-pointer"
-              >
-                <Plus className="h-4.5 w-4.5 stroke-[2.5]" />
-                Add Tutor
-              </button>
-
-              <button
-                onClick={fetchData}
-                className="flex items-center gap-2 rounded-2xl bg-white/10 px-5 py-3 text-sm font-bold text-white ring-1 ring-white/20 transition duration-300 hover:bg-white/20 hover:scale-[1.02] cursor-pointer"
-              >
-                <RefreshCw className="h-4.5 w-4.5 stroke-[2.5]" />
-                Refresh
-              </button>
-
-              <ThemeToggle />
-
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 rounded-2xl bg-rose-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-rose-500/20 transition duration-300 hover:bg-rose-600 hover:scale-[1.02] cursor-pointer"
-              >
-                <LogOut className="h-4.5 w-4.5 stroke-[2.5]" />
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Tab Switcher */}
-        <div className="mb-8 flex flex-wrap border-b border-slate-200/80 dark:border-slate-800 gap-6">
-          <button
-            onClick={() => setCurrentMainTab("leads")}
-            className={`pb-4 text-base font-extrabold transition-all relative cursor-pointer ${
-              currentMainTab === "leads"
-                ? "text-blue-600 font-extrabold"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-            }`}
-          >
-            Admission Leads
-            {currentMainTab === "leads" && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setCurrentMainTab("analytics")}
-            className={`pb-4 text-base font-extrabold transition-all relative cursor-pointer ${
-              currentMainTab === "analytics"
-                ? "text-blue-650 font-extrabold"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-            }`}
-          >
-            Analytics &amp; Visitor Insights
-            {currentMainTab === "analytics" && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setCurrentMainTab("attendance");
-              fetchData();
-            }}
-            className={`pb-4 text-base font-extrabold transition-all relative cursor-pointer ${
-              currentMainTab === "attendance"
-                ? "text-blue-650 font-extrabold"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-            }`}
-          >
-            Attendance &amp; Class Tracking
-            {currentMainTab === "attendance" && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
-            )}
-          </button>
-
-          {/* NEW: Tutor Drafts tab */}
-          <button
-            type="button"
-            onClick={() => setCurrentMainTab("tutorDrafts")}
-            className={`pb-4 text-base font-extrabold transition-all relative cursor-pointer ${
-              currentMainTab === "tutorDrafts"
-                ? "text-violet-600 font-extrabold"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-            }`}
-          >
-            Tutor Drafts
-            {totalTutorDraftCount > 0 && (
-              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40 px-2 py-0.5 text-[10px] font-black text-violet-700 dark:text-violet-300">
-                {totalTutorDraftCount}
-              </span>
-            )}
-            {currentMainTab === "tutorDrafts" && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-600 rounded-full" />
-            )}
-          </button>
-          {/* T&C Acceptances tab */}
-          <button
-            type="button"
-            onClick={() => { setCurrentMainTab("tncAcceptances"); fetchTncRecords(tncFilter); }}
-            className={`pb-4 text-base font-extrabold transition-all relative cursor-pointer ${
-              currentMainTab === "tncAcceptances"
-                ? "text-emerald-600 font-extrabold"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-            }`}
-          >
-            T&amp;C Acceptances
-            {tncStats.totalAccepted > 0 && (
-              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-300">
-                {tncStats.totalAccepted}
-              </span>
-            )}
-            {currentMainTab === "tncAcceptances" && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 rounded-full" />
-            )}
-          </button>
-        </div>
-
         {/* ───────────────── T&C ACCEPTANCES PANEL ───────────────── */}
         {currentMainTab === "tncAcceptances" && (
           <div className="animate-slideFade">
             {/* Header */}
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                   T&amp;C Acceptances
                 </h2>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -1543,7 +1526,7 @@ export default function AdminDashboard() {
                 { label: "Dismissed",       value: tncStats.totalDismissed, color: "text-rose-700 dark:text-rose-300",     bg: "bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-700" },
               ].map(s => (
                 <div key={s.label} className={`rounded-2xl border p-4 text-center ${s.bg}`}>
-                  <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                  <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">{s.label}</p>
                 </div>
               ))}
@@ -1573,9 +1556,9 @@ export default function AdminDashboard() {
                 <p className="text-sm text-slate-400">Loading records…</p>
               </div>
             ) : tncRecords.length === 0 ? (
-              <div className="rounded-3xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-16 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-16 text-center">
                 <ShieldCheck className="mx-auto mb-4 h-12 w-12 text-slate-300 dark:text-slate-600" />
-                <p className="text-base font-black text-slate-400 dark:text-slate-500">No T&amp;C records yet</p>
+                <p className="text-base font-bold text-slate-400 dark:text-slate-500">No T&amp;C records yet</p>
                 <p className="mt-1 text-sm text-slate-400 dark:text-slate-600">Records appear here when parents click Accept or Dismiss on the Terms &amp; Conditions page.</p>
               </div>
             ) : (
@@ -1584,7 +1567,7 @@ export default function AdminDashboard() {
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-900 text-left">
                       {["#", "Action", "Name", "Phone", "Source", "IP Address", "Date & Time"].map(h => (
-                        <th key={h} className="px-4 py-3 text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 dark:border-slate-700">{h}</th>
+                        <th key={h} className="px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 dark:border-slate-700">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1631,7 +1614,7 @@ export default function AdminDashboard() {
             {/* Header */}
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                   Tutor Registration Drafts
                 </h2>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -1661,9 +1644,9 @@ export default function AdminDashboard() {
 
             {/* Draft Cards */}
             {filteredTutorDrafts.length === 0 ? (
-              <div className="rounded-3xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-16 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-16 text-center">
                 <GraduationCap className="mx-auto mb-4 h-12 w-12 text-slate-300 dark:text-slate-600" />
-                <p className="text-base font-black text-slate-400 dark:text-slate-500">No tutor drafts found</p>
+                <p className="text-base font-bold text-slate-400 dark:text-slate-500">No tutor drafts found</p>
                 <p className="mt-1 text-sm text-slate-400 dark:text-slate-600">Drafts appear here when tutors save progress on the registration form.</p>
               </div>
             ) : (
@@ -1674,27 +1657,27 @@ export default function AdminDashboard() {
                     const fd = draft.formData || {};
                     const isExpanded = expandedTutorDraftId === draft._id;
                     const stepLabels = ["", "Personal Info", "Teaching Profile", "Location & Docs"];
-                    const stepColors = ["", "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300", "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300", "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"];
+                    const stepColors = ["", "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300", "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300", "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"];
 
                     return (
                       <div
                         key={draft._id}
-                        className="glass-card rounded-3xl overflow-hidden transition-all duration-300"
+                        className="glass-card rounded-2xl overflow-hidden transition-all duration-300"
                       >
                         {/* Card Header */}
                         <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                           {/* Avatar */}
-                          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-black text-lg shrink-0 shadow-lg shadow-violet-500/20">
+                          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm">
                             {(fd.name || "?")[0].toUpperCase()}
                           </div>
 
                           {/* Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <p className="font-black text-slate-900 dark:text-slate-100 text-base truncate">
+                              <p className="font-bold text-slate-900 dark:text-slate-100 text-base truncate">
                                 {fd.name || <span className="text-slate-400 italic">Name not provided</span>}
                               </p>
-                              <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${stepColors[draft.stepReached] || "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>
+                              <span className={`text-xs font-bold uppercase px-2.5 py-0.5 rounded-full ${stepColors[draft.stepReached] || "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>
                                 Step {draft.stepReached} - {stepLabels[draft.stepReached] || "Unknown"}
                               </span>
                             </div>
@@ -1706,7 +1689,7 @@ export default function AdminDashboard() {
                                 <span>Subjects: {fd.subjects.slice(0, 3).join(", ")}{fd.subjects.length > 3 ? " +" + (fd.subjects.length - 3) : ""}</span>
                               )}
                             </div>
-                            <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500 font-medium">
                               Last updated: {new Date(draft.updatedAt).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                             </p>
                           </div>
@@ -1779,7 +1762,7 @@ export default function AdminDashboard() {
                                 .filter((row) => row.value)
                                 .map((row) => (
                                   <div key={row.label} className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3.5">
-                                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">{row.label}</p>
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">{row.label}</p>
                                     <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 break-words">{row.value}</p>
                                   </div>
                                 ))}
@@ -1788,7 +1771,7 @@ export default function AdminDashboard() {
                             {/* Uploaded Documents Section */}
                             {(fd.photoUrl || fd.idProofUrl || fd.expCertUrl || fd.otherDocUrl) && (
                               <div className="mt-5 space-y-2">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                                   Uploaded Documents
                                 </p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1812,7 +1795,7 @@ export default function AdminDashboard() {
                                         href={doc.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center gap-1 text-xs font-black text-blue-600 dark:text-blue-400 hover:underline"
+                                        className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
                                       >
                                         Open ↗
                                       </a>
@@ -1833,7 +1816,7 @@ export default function AdminDashboard() {
                                 href="/tutor-verification"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-violet-500/20 hover:opacity-90 transition cursor-pointer"
+                                className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-90 transition cursor-pointer"
                               >
                                 <GraduationCap className="h-4 w-4" />
                                 Open Registration Form
@@ -1854,22 +1837,23 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {["leads", "enquiries", "bookings", "tutors"].includes(currentMainTab) && loading && !showingFirstBatch && (
+          <div className="mb-6 flex items-center gap-2 rounded-xl border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/70 dark:bg-indigo-950/30 p-3.5 text-sm font-medium text-indigo-700 dark:text-indigo-300" role="status">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            Loading latest dashboard data...
+          </div>
+        )}
+
         {currentMainTab === "leads" && (
           <>
-            {loading && !showingFirstBatch && (
-              <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-sm font-medium text-blue-700 flex items-center gap-2">
-                <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
-                Loading latest dashboard data...
-              </div>
-            )}
 
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <StatCard
             title="Total Tutors"
             value={totalTutorCount}
             subtitle={`${approvedTutors} approved`}
             icon={Award}
-            gradientClass="bg-indigo-50 text-indigo-600"
+            gradientClass="bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
           />
 
           <StatCard
@@ -1877,7 +1861,7 @@ export default function AdminDashboard() {
             value={totalLeadCount}
             subtitle={`${visibleLeadTotal} visible`}
             icon={Users}
-            gradientClass="bg-blue-50 dark:bg-blue-950/40 text-blue-650 dark:text-blue-400"
+            gradientClass="bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
           />
 
           <StatCard
@@ -1885,7 +1869,7 @@ export default function AdminDashboard() {
             value={totalDraftCount}
             subtitle={`${filteredDraftTotal} filtered`}
             icon={FileText}
-            gradientClass="bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400"
+            gradientClass="bg-amber-50 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400"
           />
 
           <StatCard
@@ -1893,7 +1877,7 @@ export default function AdminDashboard() {
             value={totalEnquiryCount}
             subtitle="Website enquiries"
             icon={Mail}
-            gradientClass="bg-teal-50 dark:bg-teal-950/40 text-teal-650 dark:text-teal-400"
+            gradientClass="bg-teal-50 dark:bg-teal-500/15 text-teal-600 dark:text-teal-400"
           />
 
           <StatCard
@@ -1901,19 +1885,16 @@ export default function AdminDashboard() {
             value={totalBookingCount}
             subtitle="Scheduled sessions"
             icon={Calendar}
-            gradientClass="bg-purple-50 dark:bg-purple-950/40 text-purple-650 dark:text-purple-400"
+            gradientClass="bg-purple-50 dark:bg-purple-500/15 text-purple-600 dark:text-purple-400"
           />
-        </div>
-
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
           <MiniStat title="Pending Tutors" value={pendingTutors} color="yellow" icon={Clock} />
           <MiniStat title="Approved Tutors" value={approvedTutors} color="green" icon={CheckCircle2} />
           <MiniStat title="Rejected Tutors" value={rejectedTutors} color="red" icon={XCircle} />
         </div>
 
-        <div className="mb-8 rounded-3xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200/80 dark:border-slate-800">
-          <div className="grid gap-4 md:grid-cols-[1fr_240px_auto_auto_auto]">
-            <div className="relative">
+        <div className="mb-6 rounded-2xl bg-white dark:bg-slate-900 p-4 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none">
+          <div className="flex flex-wrap gap-3">
+            <div className="relative min-w-[220px] flex-[1_1_320px]">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                 <Search className="h-5 w-5" />
               </div>
@@ -1928,7 +1909,7 @@ export default function AdminDashboard() {
                   setTimeout(() => setShowSuggestions(false), 200);
                 }}
                 placeholder="Search parent, student, phone, area, subject, school..."
-                className="h-12 w-full rounded-2xl border border-slate-200/80 dark:border-slate-700 pl-11 pr-4 text-sm font-semibold outline-none transition duration-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                className="h-11 w-full rounded-xl border border-slate-200/80 dark:border-slate-700 pl-11 pr-4 text-sm font-semibold outline-none transition duration-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
               />
 
               {showSuggestions && suggestions.length > 0 && (
@@ -1950,11 +1931,11 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            <div className="relative">
+            <div className="relative w-full sm:w-52">
               <select
                 value={leadFilter}
                 onChange={(e) => setLeadFilter(e.target.value)}
-                className="h-12 w-full appearance-none rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 pr-10 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none transition duration-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                className="h-11 w-full appearance-none rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 pr-10 text-sm font-bold text-slate-700 dark:text-slate-200 outline-none transition duration-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
               >
                 {FILTER_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -1962,29 +1943,23 @@ export default function AdminDashboard() {
                   </option>
                 ))}
               </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
                 <ChevronDown className="h-4.5 w-4.5 stroke-[2.5]" />
               </div>
             </div>
 
             <button
               onClick={() => setShowParents(!showParents)}
-              className={`flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition duration-300 cursor-pointer ${
-                showParents
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-              }`}
+              aria-pressed={!showParents}
+              className="flex items-center justify-center gap-2 h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
             >
               {showParents ? "Hide Parent Leads" : "Show Parent Leads"}
             </button>
 
             <button
               onClick={() => setShowTutors(!showTutors)}
-              className={`flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition duration-300 cursor-pointer ${
-                showTutors
-                  ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20 hover:bg-purple-700"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-              }`}
+              aria-pressed={!showTutors}
+              className="flex items-center justify-center gap-2 h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
             >
               {showTutors ? "Hide Tutors" : "Show Tutors"}
             </button>
@@ -1994,7 +1969,7 @@ export default function AdminDashboard() {
                 fetchBroadcastLogs();
                 setShowLogsModal(true);
               }}
-              className="flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition duration-300 cursor-pointer"
+              className="flex items-center justify-center gap-2 h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
             >
               <Users className="h-4 w-4" />
               View Broadcast Logs
@@ -2003,7 +1978,7 @@ export default function AdminDashboard() {
         </div>
 
         {showParents && (
-          <section className="mb-10 animate-slideFade">
+          <section className="mb-8 animate-slideFade">
             <SectionHeader
               icon={Users}
               title="Parent Leads"
@@ -2014,28 +1989,28 @@ export default function AdminDashboard() {
             <div className="mb-6 flex border-b border-slate-200/80 gap-6">
               <button
                 onClick={() => setLeadTab("active")}
-                className={`pb-4 text-sm font-extrabold transition-all relative cursor-pointer ${
+                className={`pb-4 text-sm font-semibold transition-all relative cursor-pointer ${
                   leadTab === "active"
-                    ? "text-blue-600"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "text-indigo-600 dark:text-indigo-400"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
                 }`}
               >
                 Active Leads ({visibleLeadTotal})
                 {leadTab === "active" && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
                 )}
               </button>
               <button
                 onClick={() => setLeadTab("drafts")}
-                className={`pb-4 text-sm font-extrabold transition-all relative cursor-pointer ${
+                className={`pb-4 text-sm font-semibold transition-all relative cursor-pointer ${
                   leadTab === "drafts"
-                    ? "text-blue-600"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "text-indigo-600 dark:text-indigo-400"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
                 }`}
               >
                 Incomplete Drafts ({filteredDraftTotal})
                 {leadTab === "drafts" && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
                 )}
               </button>
             </div>
@@ -2044,15 +2019,25 @@ export default function AdminDashboard() {
               filteredParentEnquiries.length === 0 ? (
                 <EmptyState text="No parent leads found for this search or filter." />
               ) : (
-                <div className="grid gap-5">
-                  {filteredParentEnquiries.slice(0, visibleLeadCount).map((p) => {
+                <div className="xl:overflow-hidden xl:rounded-2xl xl:bg-white xl:dark:bg-slate-900 xl:shadow-[0_1px_3px_rgba(15,23,42,0.05)] xl:dark:shadow-none">
+                  <div className="hidden gap-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 xl:grid xl:grid-cols-[2.25rem_minmax(0,1.75fr)_minmax(0,1.25fr)_minmax(0,0.95fr)_minmax(0,0.95fr)_10rem_7.75rem]">
+                    <span>#</span>
+                    <span>Parent</span>
+                    <span>Students</span>
+                    <span>Plan &amp; Fee</span>
+                    <span>Submitted</span>
+                    <span>Status</span>
+                    <span className="text-right">Action</span>
+                  </div>
+                  <div className="space-y-3 xl:space-y-0 xl:divide-y xl:divide-slate-100 xl:dark:divide-slate-800">
+                  {filteredParentEnquiries.slice(0, visibleLeadCount).map((p, leadIndex) => {
                     const currentStatus = normalizeLeadStatus(p.status);
                     const submittedAt = formatSubmittedDate(p.createdAt);
                     const online = isOnlineLead(p);
                     const leadLocation = getLeadLocation(p);
 
                     const borderColors = {
-                      "New Lead": "border-l-4 border-l-blue-500",
+                      "New Lead": "border-l-4 border-l-indigo-500",
                       "Fees Finalized": "border-l-4 border-l-purple-500",
                       "Demo Scheduled": "border-l-4 border-l-amber-500",
                       "Demo Cancelled": "border-l-4 border-l-orange-400",
@@ -2063,28 +2048,157 @@ export default function AdminDashboard() {
                       "Lost": "border-l-4 border-l-rose-500",
                     };
                     const borderClass = borderColors[currentStatus] || "border-l-4 border-l-slate-400";
+                    const isExpanded = expandedLeadIds.includes(p._id) || matchingLeadId === p._id;
+                    const leadName = p.parentName || p.name || "Unnamed Parent";
+                    const toggleMatching = () => {
+                      if (matchingLeadId === p._id) {
+                        setMatchingLeadId(null);
+                        setSelectedTutorIds([]);
+                        setTutorPanelTab("matches");
+                        setTutorSearchQuery("");
+                      } else {
+                        setMatchingLeadId(p._id);
+                        setSelectedTutorIds([]);
+                        setTutorPanelTab("matches");
+                        setTutorSearchQuery("");
+                      }
+                    };
 
                     return (
-                      <div
-                        key={p._id}
-                        className={`overflow-hidden rounded-3xl bg-white dark:bg-slate-900 shadow-sm border border-slate-200/80 dark:border-slate-800 transition duration-300 hover:shadow-lg ${borderClass} animate-slideFade`}
-                      >
-                        <div className="border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/80 dark:to-slate-900 p-5">
-                          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-                            <div>
+                      <div key={p._id} className={`overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none xl:rounded-none xl:shadow-none ${borderClass} ${isExpanded ? "xl:bg-slate-50/70 xl:dark:bg-slate-800/25" : "xl:bg-transparent xl:dark:bg-transparent"}`}>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={isExpanded}
+                          onClick={() => toggleExpanded(setExpandedLeadIds, p._id)}
+                          onKeyDown={(e) => {
+                            if (e.target !== e.currentTarget) return;
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              toggleExpanded(setExpandedLeadIds, p._id);
+                            }
+                          }}
+                          className="grid cursor-pointer grid-cols-2 gap-x-4 gap-y-3 px-4 py-3.5 transition hover:bg-slate-50 dark:hover:bg-slate-800/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 sm:px-5 xl:items-center xl:gap-4 xl:grid-cols-[2.25rem_minmax(0,1.75fr)_minmax(0,1.25fr)_minmax(0,0.95fr)_minmax(0,0.95fr)_10rem_7.75rem]"
+                        >
+                          <span className="hidden text-sm font-medium tabular-nums text-slate-400 xl:block">
+                            {String(leadIndex + 1).padStart(2, "0")}
+                          </span>
+
+                          <div className="col-span-2 flex min-w-0 items-center gap-3 xl:col-span-1">
+                            <span className="shrink-0"><Avatar name={leadName} /></span>
+                            <div className="min-w-0">
+                              <p className="flex items-center gap-1.5 break-words text-[15px] font-semibold text-slate-900 dark:text-white">
+                                <span className="min-w-0 break-words">{leadName}</span>
+                                {p.odooSyncStatus === "failed" && (
+                                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" aria-label="Odoo sync failed" />
+                                )}
+                              </p>
+                              <p className="text-sm text-slate-500 dark:text-slate-400">
+                                {p.phone || "No phone"}
+                                {p.requirementId ? <span className="text-slate-400 dark:text-slate-500"> · {p.requirementId}</span> : null}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="order-last col-span-2 flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-slate-800 pt-3 xl:order-none xl:col-span-1 xl:col-start-7 xl:row-start-1 xl:justify-end xl:gap-1.5 xl:border-0 xl:pt-0">
+                            <IconAction
+                              label={isExpanded ? "Hide details" : "View details"}
+                              icon={isExpanded ? ChevronUp : Eye}
+                              tone="indigo"
+                              onClick={() => toggleExpanded(setExpandedLeadIds, p._id)}
+                            />
+                            <IconAction
+                              label={matchingLeadId === p._id ? "Close tutor search" : "Search tutor"}
+                              icon={Search}
+                              tone={matchingLeadId === p._id ? "dark" : "emerald"}
+                              onClick={toggleMatching}
+                            />
+                            <IconAction
+                              label="Delete enquiry"
+                              icon={Trash2}
+                              tone="rose"
+                              onClick={() => {
+                                if (window.confirm("Delete this enquiry?")) {
+                                  handleDeleteParentEnquiry(p._id);
+                                }
+                              }}
+                            />
+                          </div>
+
+                          <div className="col-span-2 min-w-0 text-sm text-slate-700 dark:text-slate-200 xl:col-span-1 xl:col-start-3 xl:row-start-1">
+                            <CellLabel>Students</CellLabel>
+                            {p.wards?.length ? (
+                              <>
+                                <p className="break-words font-medium">
+                                  {p.wards.map((w) => `${w.studentName || w.fullName || "Student"}${w.classGrade ? ` (${w.classGrade})` : ""}`).join(", ")}
+                                </p>
+                                <p className="break-words text-xs text-slate-500 dark:text-slate-400">
+                                  {getSubjects(p.wards[0]?.subjectsNeeded)}
+                                  {p.wards.length > 1 ? ` · ${p.wards.length} students` : ""}
+                                </p>
+                              </>
+                            ) : (
+                              <p className="text-slate-400">No ward data</p>
+                            )}
+                          </div>
+
+                          <div className="min-w-0 text-sm xl:col-start-4 xl:row-start-1">
+                            <CellLabel>Plan &amp; Fee</CellLabel>
+                            {p.planType ? (
+                              <>
+                                <p className="font-semibold text-slate-900 dark:text-white">
+                                  {p.monthlyFees ? `₹${p.monthlyFees.toLocaleString("en-IN")}` : "—"}
+                                  <span className="font-normal text-slate-500 dark:text-slate-400">/mo</span>
+                                </p>
+                                <p className="text-xs capitalize text-slate-500 dark:text-slate-400">
+                                  {p.planType}
+                                  {p.daysPerWeek ? ` · ${p.daysPerWeek}d × ${p.hoursPerDay || "?"}h` : ""}
+                                </p>
+                              </>
+                            ) : (
+                              <p className="text-slate-400">No plan</p>
+                            )}
+                          </div>
+
+                          <div className="min-w-0 text-sm xl:col-start-5 xl:row-start-1">
+                            <CellLabel>Submitted</CellLabel>
+                            <p className="text-slate-700 dark:text-slate-200">{submittedAt}</p>
+                            <p className="break-words text-xs text-slate-500 dark:text-slate-400">
+                              {online ? "Online" : leadLocation || "—"}
+                            </p>
+                          </div>
+
+                          <div className="col-span-2 xl:col-span-1 xl:col-start-6 xl:row-start-1" onClick={(e) => e.stopPropagation()}>
+                            <label className="relative inline-flex">
+                              <span className="sr-only">Lead status</span>
+                              <select
+                                value={currentStatus}
+                                onChange={(e) => updateLeadStatus(p._id, e.target.value)}
+                                className={`h-8 appearance-none rounded-full border pl-3 pr-8 text-xs font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer ${STATUS_SELECT_TONES[getStatusColor(currentStatus)] || STATUS_SELECT_TONES.slate}`}
+                              >
+                                {LEAD_STATUSES.map((status) => (
+                                  <option key={status} value={status}>
+                                    {status}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-70" />
+                            </label>
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                        <div className="px-3 pb-4 sm:px-5 animate-slideFade">
+                        <div className="overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none ring-1 ring-slate-200/70 dark:ring-slate-800">
+                        <div className="border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/80 dark:to-slate-900 px-4 py-4 sm:px-5">
+                          <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+                            <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">
-                                  {p.parentName || p.name || "Unnamed Parent"}
+                                <h3 className="min-w-0 break-words text-base font-semibold text-slate-900 dark:text-slate-100">
+                                  Lead details
                                 </h3>
 
-                                <Badge
-                                  text={currentStatus}
-                                  color={getStatusColor(currentStatus)}
-                                />
-
-                                {p.odooSyncStatus === "failed" ? (
-                                  <Badge text={`⚠ Odoo Sync Failed${p.odooSyncError ? `: ${p.odooSyncError}` : ""}`} color="red" />
-                                ) : (p.odooSyncStatus === "synced" || p.odooLeadId) ? (
+                                {p.odooSyncStatus === "failed" ? null : (p.odooSyncStatus === "synced" || p.odooLeadId) ? (
                                   <Badge text={`Odoo Synced${p.odooLeadId ? ` (#${p.odooLeadId})` : ""}`} color="emerald" />
                                 ) : null}
 
@@ -2101,64 +2215,35 @@ export default function AdminDashboard() {
                                   <Badge text={leadLocation} color="slate" />
                                 )}
 
-                                {p.geoInfo?.city && (
-                                  <Badge
-                                    text={`Filled from: ${p.geoInfo.city}, ${p.geoInfo.region || ""}`}
-                                    color="emerald"
-                                  />
-                                )}
-
-                                {p.ipAddress && (
-                                  <span className="text-xs text-slate-400 font-semibold">
-                                    IP: {p.ipAddress}
-                                  </span>
-                                )}
                               </div>
 
-                              <p className="mt-2 text-xs font-bold text-slate-400 dark:text-slate-500">
-                                Submitted: {submittedAt}
+                              {p.odooSyncStatus === "failed" && (
+                                <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 px-2.5 py-1.5 text-xs font-medium text-rose-700 dark:text-rose-300">
+                                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                  <span className="min-w-0 break-words">
+                                    Odoo sync failed{p.odooSyncError ? `: ${p.odooSyncError}` : ""}
+                                  </span>
+                                </p>
+                              )}
+
+                              <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                                <span>Submitted: {submittedAt}</span>
+                                {p.geoInfo?.city && (
+                                  <span className="text-emerald-700 dark:text-emerald-400">
+                                    Filled from: {p.geoInfo.city}{p.geoInfo.region ? `, ${p.geoInfo.region}` : ""}
+                                  </span>
+                                )}
+                                {p.ipAddress && <span className="min-w-0 break-all">IP: {p.ipAddress}</span>}
                               </p>
                             </div>
 
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                              <div className="relative">
-                                <select
-                                  value={currentStatus}
-                                  onChange={(e) =>
-                                    updateLeadStatus(p._id, e.target.value)
-                                  }
-                                  className="h-11 appearance-none rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-4 pr-10 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500"
-                                >
-                                  {LEAD_STATUSES.map((status) => (
-                                    <option key={status} value={status}>
-                                      {status}
-                                    </option>
-                                  ))}
-                                </select>
-                                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                                  <ChevronDown className="h-4 w-4" />
-                                </div>
-                              </div>
-
-                              <button
-                                onClick={() => {
-                                  if (window.confirm("Delete this enquiry?")) {
-                                    handleDeleteParentEnquiry(p._id);
-                                  }
-                                }}
-                                className="h-11 flex items-center justify-center gap-1.5 rounded-2xl bg-rose-500 px-4 text-xs font-bold text-white transition hover:bg-rose-600 cursor-pointer"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                Delete
-                              </button>
-                            </div>
                           </div>
                         </div>
 
-                        <div className="grid gap-5 p-5 lg:grid-cols-3">
-                          <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-5 transition hover:bg-slate-50 dark:hover:bg-slate-800">
-                            <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                              <User className="h-4 w-4 text-blue-500" />
+                        <div className="columns-1 gap-4 px-4 pt-4 sm:px-5 md:columns-2 xl:columns-3 [&>*]:mb-4 [&>*]:break-inside-avoid">
+                          <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-4 transition hover:bg-slate-50 dark:hover:bg-slate-800">
+                            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                              <User className="h-4 w-4 text-indigo-500" />
                               Parent Details
                             </h4>
 
@@ -2185,8 +2270,29 @@ export default function AdminDashboard() {
                             </div>
                           </div>
 
-                          <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-5 transition hover:bg-slate-50 dark:hover:bg-slate-800">
-                            <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                          {p.planType && (
+                            <div className="rounded-2xl bg-indigo-50/40 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 p-4 transition hover:bg-indigo-50/60 dark:hover:bg-indigo-950/40">
+                              <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-indigo-500 flex items-center gap-1.5">
+                                <Award className="h-4 w-4 text-indigo-500" />
+                                Selected Plan & Pricing
+                              </h4>
+                              <div className="space-y-1">
+                                <InfoRow icon={Award} label="Plan Type" value={p.planType.charAt(0).toUpperCase() + p.planType.slice(1)} />
+                                <InfoRow icon={Calendar} label="Days / Week" value={p.daysPerWeek ? `${p.daysPerWeek} Days` : "Not specified"} />
+                                <InfoRow icon={Clock} label="Hours / Day" value={p.hoursPerDay ? `${p.hoursPerDay} Hr` : "Not specified"} />
+                                <InfoRow icon={CreditCard} label="Monthly Fee" value={p.monthlyFees ? `₹${p.monthlyFees.toLocaleString('en-IN')}` : "Not specified"} />
+                                {p.totalBaseFee && p.totalBaseFee !== p.monthlyFees && (
+                                  <InfoRow icon={CreditCard} label="Total Base Fee" value={`₹${p.totalBaseFee.toLocaleString('en-IN')}`} />
+                                )}
+                                {p.siblingDiscount > 0 && (
+                                  <InfoRow icon={CreditCard} label="Sibling Concession" value={`-₹${p.siblingDiscount.toLocaleString('en-IN')} (${p.siblingConcessionPercent}%)`} />
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-4 transition hover:bg-slate-50 dark:hover:bg-slate-800">
+                            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                               <Settings className="h-4 w-4 text-purple-500" />
                               Tutor Preference
                             </h4>
@@ -2209,30 +2315,10 @@ export default function AdminDashboard() {
                             </div>
                           </div>
 
-                          {p.planType && (
-                            <div className="rounded-2xl bg-blue-50/40 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 p-5 transition hover:bg-blue-50/60 dark:hover:bg-blue-950/40">
-                              <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-blue-500 flex items-center gap-1.5">
-                                <Award className="h-4 w-4 text-blue-500" />
-                                Selected Plan & Pricing
-                              </h4>
-                              <div className="space-y-1">
-                                <InfoRow icon={Award} label="Plan Type" value={p.planType.charAt(0).toUpperCase() + p.planType.slice(1)} />
-                                <InfoRow icon={Calendar} label="Days / Week" value={p.daysPerWeek ? `${p.daysPerWeek} Days` : "Not specified"} />
-                                <InfoRow icon={Clock} label="Hours / Day" value={p.hoursPerDay ? `${p.hoursPerDay} Hr` : "Not specified"} />
-                                <InfoRow icon={CreditCard} label="Monthly Fee" value={p.monthlyFees ? `₹${p.monthlyFees.toLocaleString('en-IN')}` : "Not specified"} />
-                                {p.totalBaseFee && p.totalBaseFee !== p.monthlyFees && (
-                                  <InfoRow icon={CreditCard} label="Total Base Fee" value={`₹${p.totalBaseFee.toLocaleString('en-IN')}`} />
-                                )}
-                                {p.siblingDiscount > 0 && (
-                                  <InfoRow icon={CreditCard} label="Sibling Concession" value={`-₹${p.siblingDiscount.toLocaleString('en-IN')} (${p.siblingConcessionPercent}%)`} />
-                                )}
-                              </div>
-                            </div>
-                          )}
 
                           {(p.businessName || p.professionType || p.otherOccupation) && (
-                            <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 p-5 transition hover:bg-slate-50 dark:hover:bg-slate-800">
-                              <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                            <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 p-4 transition hover:bg-slate-50 dark:hover:bg-slate-800">
+                              <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                                 <Briefcase className="h-4 w-4 text-indigo-500" />
                                 Dynamic Occupation Info
                               </h4>
@@ -2244,26 +2330,18 @@ export default function AdminDashboard() {
                               </div>
                             </div>
                           )}
-                        </div>
 
-                        <div className="px-5 pb-5">
-                          <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                            <GraduationCap className="h-4.5 w-4.5 text-indigo-500" />
-                            Students / Wards
-                          </h4>
-
-                          <div className="grid gap-4 md:grid-cols-2">
                             {p.wards?.length ? (
                               p.wards.map((ward, index) => (
                                 <div
                                   key={index}
-                                  className="rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800/40 p-5 shadow-sm transition duration-200 hover:shadow"
+                                  className="rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800/40 p-4"
                                 >
-                                  <div className="mb-3.5 flex items-center justify-between">
-                                    <h5 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
-                                      <User className="h-4 w-4 text-slate-400" />
+                                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                                      <GraduationCap className="h-4 w-4 text-indigo-500" />
                                       Student {index + 1}
-                                    </h5>
+                                    </h4>
                                     <span className="rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">
                                       {ward.classGrade ? `Class ${ward.classGrade}` : "Class NA"}
                                     </span>
@@ -2284,20 +2362,19 @@ export default function AdminDashboard() {
                                 No ward data available.
                               </p>
                             )}
-                          </div>
                         </div>
 
                         {/* Expandable Match Tutors Panel */}
-                        <div className="px-5 pb-5 border-t border-slate-100 dark:border-slate-800 pt-5">
+                        <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-4 sm:px-5">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                               {p.requirementId && (
-                                <span className="rounded-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-150 dark:border-indigo-800 px-3 py-1.5 text-xs font-black text-indigo-700 dark:text-indigo-300">
+                                <span className="rounded-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                                   ID: {p.requirementId}
                                 </span>
                               )}
                               {p.assignedTutor && (
-                                <span className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-3 py-1.5 text-xs font-black text-emerald-700 dark:text-emerald-300">
+                                <span className="rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                                   Assigned Tutor: {p.assignedTutor}
                                 </span>
                               )}
@@ -2317,10 +2394,10 @@ export default function AdminDashboard() {
                                   setTutorSearchQuery("");
                                 }
                               }}
-                              className={`h-11 flex items-center justify-center gap-1.5 rounded-2xl px-5 text-xs font-extrabold transition-all duration-200 cursor-pointer ${
+                              className={`h-11 flex items-center justify-center gap-1.5 rounded-2xl px-5 text-xs font-semibold transition-all duration-200 cursor-pointer ${
                                 matchingLeadId === p._id
-                                  ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-lg shadow-slate-950/20"
-                                  : "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                                  ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm"
+                                  : "bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40"
                               }`}
                             >
                               <Search className="h-4 w-4" />
@@ -2332,10 +2409,10 @@ export default function AdminDashboard() {
                             <div className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 p-5 animate-slideFade">
                               <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 dark:border-slate-700 pb-4">
                                 <div>
-                                  <h4 className="text-sm font-black text-slate-800 dark:text-slate-100">
+                                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
                                     Matching Tutors ({matchedTutors.length} found)
                                   </h4>
-                                  <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-0.5">
+                                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5">
                                     Matched on Grade, Timing, Gender, and Locality.
                                   </p>
                                 </div>
@@ -2351,7 +2428,7 @@ export default function AdminDashboard() {
                                           setSelectedTutorIds(matchedTutors.map(t => t._id));
                                         }
                                       }}
-                                      className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-black text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer"
+                                      className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer"
                                     >
                                       {selectedTutorIds.length === matchedTutors.length
                                         ? "Deselect All"
@@ -2369,7 +2446,7 @@ export default function AdminDashboard() {
                                             fetchWhatsAppTemplates();
                                             setShowBroadcastModal(true);
                                           }}
-                                          className="rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-black text-white hover:bg-emerald-700 transition cursor-pointer shadow-sm shadow-emerald-600/10"
+                                          className="rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition cursor-pointer shadow-sm shadow-emerald-600/10"
                                         >
                                           Send WhatsApp ({selectedTutorIds.length})
                                         </button>
@@ -2380,7 +2457,7 @@ export default function AdminDashboard() {
                                               setSelectedTutorIds([]);
                                             }
                                           }}
-                                          className="rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-black text-white hover:bg-blue-700 transition cursor-pointer shadow-sm shadow-blue-600/10"
+                                          className="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition cursor-pointer shadow-sm shadow-indigo-600/10"
                                         >
                                           Send Email ({selectedTutorIds.length})
                                         </button>
@@ -2391,14 +2468,14 @@ export default function AdminDashboard() {
                                                 handleAssignTutor(selectedTutorIds[0]);
                                               }
                                             }}
-                                            className="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-black text-white hover:bg-indigo-700 transition cursor-pointer shadow-sm shadow-indigo-600/10"
+                                            className="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition cursor-pointer shadow-sm shadow-indigo-600/10"
                                           >
                                             Assign Tutor
                                           </button>
                                         )}
                                         <button
                                           onClick={() => setSelectedTutorIds([])}
-                                          className="rounded-xl bg-slate-200 dark:bg-slate-700 px-3 py-2 text-xs font-black text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition cursor-pointer"
+                                          className="rounded-xl bg-slate-200 dark:bg-slate-700 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition cursor-pointer"
                                         >
                                           Clear Selection
                                         </button>
@@ -2409,7 +2486,7 @@ export default function AdminDashboard() {
                               </div>
 
                               {/* Tab selector for Best Matches vs Search All Tutors */}
-                              <div className="mb-4 flex border-b border-slate-200/80 dark:border-slate-700 text-[11px] font-black uppercase tracking-wider">
+                              <div className="mb-4 flex border-b border-slate-200/80 dark:border-slate-700 text-xs font-bold uppercase tracking-wider">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -2417,7 +2494,7 @@ export default function AdminDashboard() {
                                     setSelectedTutorIds([]);
                                   }}
                                   className={`pb-2.5 pr-4 transition-all relative cursor-pointer ${
-                                    tutorPanelTab === "matches" ? "text-indigo-650 dark:text-indigo-400 font-black" : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                    tutorPanelTab === "matches" ? "text-indigo-600 dark:text-indigo-400 font-bold" : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                                   }`}
                                 >
                                   Best Matches ({matchedTutors.length})
@@ -2432,7 +2509,7 @@ export default function AdminDashboard() {
                                     setSelectedTutorIds([]);
                                   }}
                                   className={`pb-2.5 px-4 transition-all relative cursor-pointer ${
-                                    tutorPanelTab === "all" ? "text-indigo-650 dark:text-indigo-400 font-black" : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                                    tutorPanelTab === "all" ? "text-indigo-600 dark:text-indigo-400 font-bold" : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                                   }`}
                                 >
                                   Search Other Tutors
@@ -2443,8 +2520,8 @@ export default function AdminDashboard() {
                               </div>
 
                               {loadingMatches && tutorPanelTab === "matches" ? (
-                                <div className="py-12 text-center text-xs font-bold text-slate-500 flex flex-col items-center justify-center gap-2">
-                                  <RefreshCw className="h-5 w-5 animate-spin text-blue-600" />
+                                <div className="py-12 text-center text-xs font-bold text-slate-500 dark:text-slate-400 flex flex-col items-center justify-center gap-2">
+                                  <RefreshCw className="h-5 w-5 animate-spin text-indigo-600 dark:text-indigo-400" />
                                   Searching Master Tutors at database level...
                                 </div>
                               ) : (() => {
@@ -2524,7 +2601,7 @@ export default function AdminDashboard() {
                                                 setSelectedTutorIds([...selectedTutorIds, t._id]);
                                               }
                                             }}
-                                            className="h-4.5 w-4.5 rounded text-indigo-600 dark:bg-slate-900 border-slate-300 dark:border-slate-600 focus:ring-indigo-500"
+                                            className="h-4.5 w-4.5 rounded text-indigo-600 dark:text-indigo-400 dark:bg-slate-900 border-slate-300 dark:border-slate-600 focus:ring-indigo-500"
                                           />
                                           {t.photo ? (
                                             <img
@@ -2533,57 +2610,57 @@ export default function AdminDashboard() {
                                               className="h-12 w-12 rounded-xl object-cover border border-slate-200 dark:border-slate-700"
                                             />
                                           ) : (
-                                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-blue-100 dark:from-indigo-900 dark:to-blue-900 text-xs font-black text-indigo-600 dark:text-indigo-300">
+                                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-100 dark:from-indigo-900 dark:to-indigo-900 text-xs font-bold text-indigo-600 dark:text-indigo-300">
                                               {t.name?.charAt(0) || "?"}
                                             </div>
                                           )}
 
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                              <p className="font-extrabold text-slate-900 dark:text-white text-sm">{t.name}</p>
+                                              <p className="font-semibold text-slate-900 dark:text-white text-sm">{t.name}</p>
 
                                               {/* Match % badge */}
                                               {t.matchPercentage !== undefined && t.matchPercentage > 0 ? (
-                                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black border ${
+                                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold border ${
                                                   t.matchPercentage >= 80
                                                     ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
                                                     : t.matchPercentage >= 60
-                                                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                                                    ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
                                                     : "bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
                                                 }`}>
                                                   {t.matchPercentage}% Match
                                                 </span>
                                               ) : (
-                                                <span className="inline-flex items-center rounded-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2 py-0.5 text-[10px] font-black text-slate-500 dark:text-slate-300">
+                                                <span className="inline-flex items-center rounded-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2 py-0.5 text-xs font-bold text-slate-500 dark:text-slate-300">
                                                   No Match
                                                 </span>
                                               )}
 
                                               {/* Distance badge */}
                                               {t.distanceTier && t.distanceTier !== "Unknown" && (
-                                                <span className="inline-flex items-center rounded-full bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-800 px-2 py-0.5 text-[10px] font-black text-violet-700 dark:text-violet-300">
+                                                <span className="inline-flex items-center rounded-full bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-800 px-2 py-0.5 text-xs font-bold text-violet-700 dark:text-violet-300">
                                                   📍 {t.distanceTier}
                                                 </span>
                                               )}
 
                                               {/* Onboarding badge */}
                                               {t.onboardingCompleted ? (
-                                                <span className="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-250 dark:border-emerald-800 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-300">
+                                                <span className="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                                                   🟢 Ready to Broadcast
                                                 </span>
                                               ) : t.onboardingMessageSentAt ? (
-                                                <span className="inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-900/30 border border-amber-250 dark:border-amber-800 px-2 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-300">
+                                                <span className="inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300">
                                                   🟡 Onboarding Sent
                                                 </span>
                                               ) : (
-                                                <span className="inline-flex items-center rounded-full bg-orange-50 dark:bg-orange-900/30 border border-orange-250 dark:border-orange-800 px-2 py-0.5 text-[10px] font-black text-orange-700 dark:text-orange-300">
+                                                <span className="inline-flex items-center rounded-full bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800 px-2 py-0.5 text-xs font-bold text-orange-700 dark:text-orange-300">
                                                   🟠 Onboarding Pending
                                                 </span>
                                               )}
 
                                               {/* Broadcast status overlay */}
                                               {t.broadcastStatus && (
-                                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black border ${
+                                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold border ${
                                                   t.broadcastResponseStatus === "Assigned"
                                                     ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
                                                     : t.broadcastResponseStatus === "Interested"
@@ -2602,7 +2679,7 @@ export default function AdminDashboard() {
                                               )}
                                             </div>
 
-                                            <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-bold">
+                                            <div className="mt-1 flex flex-wrap gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-bold">
                                               <span className="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2 py-0.5 rounded-full">
                                                 {t.gender || "N/A"}
                                               </span>
@@ -2663,7 +2740,7 @@ export default function AdminDashboard() {
                                               setAssignDemoDate("");
                                               setAssignDemoTime("");
                                             }}
-                                            className="px-3 py-1.5 text-xs font-black text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-indigo-150 dark:border-indigo-800 rounded-xl transition cursor-pointer"
+                                            className="px-3 py-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-xl transition cursor-pointer"
                                           >
                                             Assign
                                           </button>
@@ -2686,13 +2763,19 @@ export default function AdminDashboard() {
                             </div>
                           )}
                         </div>
+                        </div>
+                        </div>
+                        )}
                       </div>
                     );
                   })}
+                  </div>
                   {filteredParentEnquiries.length > visibleLeadCount && (
-                    <ShowMoreButton onShowMore={() => setVisibleLeadCount((count) => count + CARD_BATCH_SIZE)}>
-                      Show 10 more leads ({filteredParentEnquiries.length - visibleLeadCount} remaining)
-                    </ShowMoreButton>
+                    <div className="border-t border-slate-100 dark:border-slate-800 p-4 text-center">
+                      <ShowMoreButton onShowMore={() => setVisibleLeadCount((count) => count + CARD_BATCH_SIZE)}>
+                        Show 10 more leads ({filteredParentEnquiries.length - visibleLeadCount} remaining)
+                      </ShowMoreButton>
+                    </div>
                   )}
                 </div>
               )
@@ -2704,13 +2787,13 @@ export default function AdminDashboard() {
                   {filteredDrafts.slice(0, visibleDraftCount).map((p) => (
                     <div
                       key={p._id}
-                      className="overflow-hidden rounded-3xl bg-white dark:bg-slate-900 shadow-sm border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-amber-500 transition duration-300 hover:shadow-lg animate-slideFade"
+                      className="overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none border-l-4 border-l-amber-500 transition duration-300 hover:shadow-md animate-slideFade"
                     >
                       <div className="border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-amber-50/20 to-white dark:from-amber-900/10 dark:to-slate-900 p-5">
                         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                                 {p.formData?.parentName || p.formData?.name || "Anonymous Parent"}
                               </h3>
 
@@ -2741,7 +2824,7 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleDeleteDraft(p._id)}
-                              className="h-11 flex items-center justify-center gap-1.5 rounded-2xl bg-rose-500 px-4 text-xs font-bold text-white transition hover:bg-rose-600 cursor-pointer"
+                              className="h-11 flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 px-4 text-xs font-semibold text-rose-700 dark:text-rose-300 transition hover:bg-rose-100 dark:hover:bg-rose-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 cursor-pointer"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                               Delete Draft
@@ -2751,9 +2834,9 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="grid gap-5 p-5 lg:grid-cols-3">
-                        <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700 p-5 transition hover:bg-slate-50 dark:hover:bg-slate-800">
-                          <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
-                            <User className="h-4 w-4 text-blue-500" />
+                        <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700 p-4 transition hover:bg-slate-50 dark:hover:bg-slate-800">
+                          <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                            <User className="h-4 w-4 text-indigo-500" />
                             Contact Details
                           </h4>
 
@@ -2765,8 +2848,8 @@ export default function AdminDashboard() {
                         </div>
 
                         {p.stepReached >= 3 && p.formData?.preferredMode ? (
-                          <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700 p-5 transition hover:bg-slate-50 dark:hover:bg-slate-800">
-                            <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                          <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700 p-4 transition hover:bg-slate-50 dark:hover:bg-slate-800">
+                            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                               <Settings className="h-4 w-4 text-purple-500" />
                               Tutor Preference
                             </h4>
@@ -2782,14 +2865,14 @@ export default function AdminDashboard() {
                           <div className="rounded-2xl bg-slate-50/40 dark:bg-slate-800/20 border border-dashed border-slate-200 dark:border-slate-700 p-5 flex flex-col justify-center items-center text-center">
                             <AlertCircle className="h-5 w-5 text-slate-400 mb-2" />
                             <p className="text-xs font-bold text-slate-400 dark:text-slate-500">Tutor Preferences</p>
-                            <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-1">Not reached/filled yet</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-600 mt-1">Not reached/filled yet</p>
                           </div>
                         )}
 
                         {p.formData?.planType ? (
                           <div className="rounded-2xl bg-amber-50/20 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 p-5 transition hover:bg-amber-50/30 dark:hover:bg-amber-900/20">
-                            <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-500 flex items-center gap-1.5">
-                              <Award className="h-4 w-4 text-amber-700" />
+                            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500 flex items-center gap-1.5">
+                              <Award className="h-4 w-4 text-amber-700 dark:text-amber-400" />
                               Selected Plan & Pricing
                             </h4>
                             <div className="space-y-1">
@@ -2808,8 +2891,8 @@ export default function AdminDashboard() {
                         ) : null}
 
                         {p.geoInfo && Object.keys(p.geoInfo).length > 0 && (
-                          <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700 p-5 transition hover:bg-slate-50 dark:hover:bg-slate-800">
-                            <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                          <div className="rounded-2xl bg-slate-50/60 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700 p-4 transition hover:bg-slate-50 dark:hover:bg-slate-800">
+                            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                               <MapPin className="h-4 w-4 text-emerald-500" />
                               Geolocation Meta
                             </h4>
@@ -2827,7 +2910,7 @@ export default function AdminDashboard() {
 
                       {p.stepReached >= 2 && p.formData?.wards?.length > 0 ? (
                         <div className="px-5 pb-5">
-                          <h4 className="mb-4 text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                          <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                             <GraduationCap className="h-4.5 w-4.5 text-indigo-500" />
                             Wards/Students Details (Incomplete)
                           </h4>
@@ -2839,7 +2922,7 @@ export default function AdminDashboard() {
                                 className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 p-5 shadow-sm"
                               >
                                 <div className="mb-3.5 flex items-center justify-between">
-                                  <h5 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                  <h5 className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
                                     <User className="h-4 w-4 text-slate-400" />
                                     Student {index + 1}
                                   </h5>
@@ -2873,76 +2956,139 @@ export default function AdminDashboard() {
             )}
           </section>
         )}
+          </>
+        )}
 
-        <section className="mb-10 animate-slideFade">
+        {currentMainTab === "enquiries" && (
+        <section className="mb-8 animate-slideFade">
           <SectionHeader icon={Mail} title="Enquiries" subtitle="General website enquiries." />
 
           {enquiries.length === 0 ? (
             <EmptyState text="No enquiries yet." />
           ) : (
-            <div className="grid gap-5 md:grid-cols-2">
-              {enquiries.slice(0, visibleEnquiryCount).map((e) => (
-                <div
-                  key={e._id}
-                  className="rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200/80 dark:border-slate-800 transition duration-300 hover:shadow-lg"
-                >
-                  <p className="text-lg font-black text-slate-900 dark:text-white">
-                    {e.parentName || e.name || "Unnamed"}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                    Student: {e.studentName || "Not provided"}
-                  </p>
-                  <p className="mt-3 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    {e.phone || "No phone"} | {e.email || "No email"}
-                  </p>
-                  <p className="mt-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Subject required: {e.subjectNeeded || e.subject || "Subject not provided"}
-                  </p>
-                </div>
-              ))}
+            <div className="xl:overflow-hidden xl:rounded-2xl xl:bg-white xl:dark:bg-slate-900 xl:shadow-[0_1px_3px_rgba(15,23,42,0.05)] xl:dark:shadow-none">
+              <div className="hidden gap-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 xl:grid xl:grid-cols-[2.25rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,1.3fr)_minmax(0,1.3fr)]">
+                <span>#</span>
+                <span>Parent</span>
+                <span>Student</span>
+                <span>Phone</span>
+                <span>Email</span>
+                <span>Subject Required</span>
+              </div>
+              <div className="space-y-3 xl:space-y-0 xl:divide-y xl:divide-slate-100 xl:dark:divide-slate-800">
+                {enquiries.slice(0, visibleEnquiryCount).map((e, enquiryIndex) => (
+                  <div key={e._id} className="grid grid-cols-2 gap-x-4 gap-y-2 overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none xl:rounded-none xl:shadow-none xl:bg-transparent xl:dark:bg-transparent px-4 py-3.5 text-sm transition hover:bg-slate-50 dark:hover:bg-slate-800/40 sm:px-5 xl:items-center xl:grid-cols-[2.25rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,1.3fr)_minmax(0,1.3fr)]">
+                    <span className="hidden font-medium tabular-nums text-slate-400 xl:block">{String(enquiryIndex + 1).padStart(2, "0")}</span>
+                    <div className="col-span-2 flex min-w-0 items-center gap-3 xl:col-span-1">
+                      <Avatar name={e.parentName || e.name || "Unnamed"} />
+                      <p className="min-w-0 break-words font-semibold text-slate-900 dark:text-white">{e.parentName || e.name || "Unnamed"}</p>
+                    </div>
+                    <div className="min-w-0 break-words text-slate-700 dark:text-slate-200"><CellLabel>Student</CellLabel>{e.studentName || "Not provided"}</div>
+                    <div className="min-w-0 text-slate-700 dark:text-slate-200"><CellLabel>Phone</CellLabel>{e.phone || "No phone"}</div>
+                    <div className="col-span-2 min-w-0 text-slate-700 dark:text-slate-200 [overflow-wrap:anywhere] xl:col-span-1"><CellLabel>Email</CellLabel>{e.email || "No email"}</div>
+                    <div className="col-span-2 min-w-0 xl:col-span-1">
+                      <CellLabel>Subject required</CellLabel>
+                      <span className="inline-flex max-w-full rounded-lg bg-indigo-50 dark:bg-indigo-500/15 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300 break-words">
+                        {e.subjectNeeded || e.subject || "Subject not provided"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
               {enquiries.length > visibleEnquiryCount && (
-                <ShowMoreButton onShowMore={() => setVisibleEnquiryCount((count) => count + CARD_BATCH_SIZE)}>
-                  Show 10 more enquiries ({enquiries.length - visibleEnquiryCount} remaining)
-                </ShowMoreButton>
+                <div className="border-t border-slate-100 dark:border-slate-800 p-4 text-center">
+                  <ShowMoreButton onShowMore={() => setVisibleEnquiryCount((count) => count + CARD_BATCH_SIZE)}>
+                    Show 10 more enquiries ({enquiries.length - visibleEnquiryCount} remaining)
+                  </ShowMoreButton>
+                </div>
               )}
             </div>
           )}
         </section>
+        )}
 
-        <section className="mb-10 animate-slideFade">
+        {currentMainTab === "bookings" && (
+        <section className="mb-8 animate-slideFade">
           <SectionHeader icon={Calendar} title="Bookings" subtitle="Student booking requests." />
 
           {bookings.length === 0 ? (
             <EmptyState text="No bookings yet." />
           ) : (
-            <div className="grid gap-5 md:grid-cols-2">
-              {bookings.slice(0, visibleBookingCount).map((b) => (
-                <div
-                  key={b._id}
-                  className="rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200/80 dark:border-slate-800 transition duration-300 hover:shadow-lg"
-                >
-                  <p className="text-lg font-black text-slate-900 dark:text-white">
-                    Tutor: {b.tutorName || "Tutor not provided"}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-400">
-                    Learner: {b.learnerName || "Learner not provided"} | Phone: {b.phone || "No phone"}
-                  </p>
-                  <p className="mt-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Slot: {b.preferredDate || "Date not provided"} - {b.preferredSlot || "Slot not provided"}
-                  </p>
-                </div>
-              ))}
+            <div className="xl:overflow-hidden xl:rounded-2xl xl:bg-white xl:dark:bg-slate-900 xl:shadow-[0_1px_3px_rgba(15,23,42,0.05)] xl:dark:shadow-none">
+              <div className="hidden gap-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 xl:grid xl:grid-cols-[2.25rem_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                <span>#</span>
+                <span>Tutor</span>
+                <span>Learner</span>
+                <span>Phone</span>
+                <span>Preferred Date</span>
+                <span>Preferred Slot</span>
+              </div>
+              <div className="space-y-3 xl:space-y-0 xl:divide-y xl:divide-slate-100 xl:dark:divide-slate-800">
+                {bookings.slice(0, visibleBookingCount).map((b, bookingIndex) => (
+                  <div key={b._id} className="grid grid-cols-2 gap-x-4 gap-y-2 overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none xl:rounded-none xl:shadow-none xl:bg-transparent xl:dark:bg-transparent px-4 py-3.5 text-sm transition hover:bg-slate-50 dark:hover:bg-slate-800/40 sm:px-5 xl:items-center xl:grid-cols-[2.25rem_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                    <span className="hidden font-medium tabular-nums text-slate-400 xl:block">{String(bookingIndex + 1).padStart(2, "0")}</span>
+                    <div className="col-span-2 flex min-w-0 items-center gap-3 xl:col-span-1">
+                      <Avatar name={b.tutorName || "Tutor"} />
+                      <p className="min-w-0 break-words font-semibold text-slate-900 dark:text-white">{b.tutorName || "Tutor not provided"}</p>
+                    </div>
+                    <div className="min-w-0 break-words text-slate-700 dark:text-slate-200"><CellLabel>Learner</CellLabel>{b.learnerName || "Learner not provided"}</div>
+                    <div className="min-w-0 text-slate-700 dark:text-slate-200"><CellLabel>Phone</CellLabel>{b.phone || "No phone"}</div>
+                    <div className="min-w-0 text-slate-700 dark:text-slate-200"><CellLabel>Preferred date</CellLabel>{b.preferredDate || "Date not provided"}</div>
+                    <div className="min-w-0">
+                      <CellLabel>Preferred slot</CellLabel>
+                      <span className="inline-flex rounded-lg bg-emerald-50 dark:bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                        {b.preferredSlot || "Slot not provided"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
               {bookings.length > visibleBookingCount && (
-                <ShowMoreButton onShowMore={() => setVisibleBookingCount((count) => count + CARD_BATCH_SIZE)}>
-                  Show 10 more bookings ({bookings.length - visibleBookingCount} remaining)
-                </ShowMoreButton>
+                <div className="border-t border-slate-100 dark:border-slate-800 p-4 text-center">
+                  <ShowMoreButton onShowMore={() => setVisibleBookingCount((count) => count + CARD_BATCH_SIZE)}>
+                    Show 10 more bookings ({bookings.length - visibleBookingCount} remaining)
+                  </ShowMoreButton>
+                </div>
               )}
             </div>
           )}
         </section>
+        )}
+
+        {currentMainTab === "tutors" && (
+          <>
+        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+          <MiniStat title="Pending Tutors" value={pendingTutors} color="yellow" icon={Clock} />
+          <MiniStat title="Approved Tutors" value={approvedTutors} color="green" icon={CheckCircle2} />
+          <MiniStat title="Rejected Tutors" value={rejectedTutors} color="red" icon={XCircle} />
+        </div>
+
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none sm:flex-row sm:items-center">
+          <label className="relative flex-1">
+            <span className="sr-only">Search tutors</span>
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search tutors by name, subject, location, email or phone..."
+              className="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-4 text-sm font-medium text-slate-800 dark:text-white outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowTutors(!showTutors)}
+            aria-pressed={!showTutors}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-50 dark:hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+          >
+            {showTutors ? "Hide Tutors" : "Show Tutors"}
+          </button>
+        </div>
+
+        {!showTutors && <EmptyState text="The tutor list is hidden. Use Show Tutors to display it again." />}
 
         {showTutors && (
-          <section className="mb-10 animate-slideFade">
+          <section className="mb-8 animate-slideFade">
             <SectionHeader
               icon={Award}
               title="Tutors"
@@ -2951,9 +3097,21 @@ export default function AdminDashboard() {
 
             {tutors.length === 0 ? (
               <EmptyState text="No tutors yet." />
+            ) : filteredTutors.length === 0 ? (
+              <EmptyState text="No tutors match your search." />
             ) : (
-              <div className="grid gap-5">
-                {filteredTutors.slice(0, visibleTutorCount).map((t) => {
+              <div className="xl:overflow-hidden xl:rounded-2xl xl:bg-white xl:dark:bg-slate-900 xl:shadow-[0_1px_3px_rgba(15,23,42,0.05)] xl:dark:shadow-none">
+                <div className="hidden gap-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 xl:grid xl:grid-cols-[2.25rem_minmax(0,1.6fr)_minmax(0,0.95fr)_minmax(0,0.7fr)_minmax(0,1.3fr)_10.5rem_14rem]">
+                  <span>#</span>
+                  <span>Tutor</span>
+                  <span>Phone</span>
+                  <span>Experience</span>
+                  <span>Locations</span>
+                  <span>Status</span>
+                  <span className="text-right">Action</span>
+                </div>
+                <div className="space-y-3 xl:space-y-0 xl:divide-y xl:divide-slate-100 xl:dark:divide-slate-800">
+                {filteredTutors.slice(0, visibleTutorCount).map((t, tutorIndex) => {
                   const statusBorderColors = {
                     approved: "border-l-4 border-l-emerald-500",
                     rejected: "border-l-4 border-l-rose-500",
@@ -2961,12 +3119,109 @@ export default function AdminDashboard() {
                   };
                   const tStatus = t.status || "pending";
                   const tBorderClass = statusBorderColors[tStatus] || "border-l-4 border-l-slate-400";
+                  const isTutorExpanded = expandedTutorIds.includes(t._id);
+                  const markOnboarded = async () => {
+                    if (!window.confirm(`Mark ${t.name} as Onboarding Completed? This will also set status to Approved.`)) return;
+                    try {
+                      const token = localStorage.getItem("adminToken");
+                      const res = await fetch(`${API_BASE}/tutors/${t._id}/mark-onboarded`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ onboardingCompleted: true }),
+                      });
+                      if (res.ok) { alert("✅ Tutor marked as Onboarding Completed!"); fetchData(); }
+                      else { const d = await res.json(); alert(`Failed: ${d.message}`); }
+                    } catch (err) { console.error(err); alert("Error updating tutor onboarding."); }
+                  };
+                  const resetOnboarding = async () => {
+                    if (!window.confirm(`Reset onboarding for ${t.name}?`)) return;
+                    try {
+                      const token = localStorage.getItem("adminToken");
+                      const res = await fetch(`${API_BASE}/tutors/${t._id}/mark-onboarded`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ onboardingCompleted: false }),
+                      });
+                      if (res.ok) { alert("✅ Onboarding reset to Pending."); fetchData(); }
+                      else { const d = await res.json(); alert(`Failed: ${d.message}`); }
+                    } catch (err) { console.error(err); alert("Error resetting onboarding."); }
+                  };
+                  const onboardingBadge = t.onboardingCompleted
+                    ? { text: "Onboarded", color: "emerald" }
+                    : t.onboardingMessageSentAt
+                    ? { text: "Onboarding Sent", color: "orange" }
+                    : { text: "Onboarding Pending", color: "slate" };
 
                   return (
-                    <div
-                      key={t._id}
-                      className={`rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200/80 dark:border-slate-800 transition duration-300 hover:shadow-lg ${tBorderClass} animate-slideFade`}
-                    >
+                    <div key={t._id} className={`overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none xl:rounded-none xl:shadow-none ${tBorderClass} ${isTutorExpanded ? "xl:bg-slate-50/70 xl:dark:bg-slate-800/25" : "xl:bg-transparent xl:dark:bg-transparent"}`}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={isTutorExpanded}
+                        onClick={() => toggleExpanded(setExpandedTutorIds, t._id)}
+                        onKeyDown={(e) => {
+                          if (e.target !== e.currentTarget) return;
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleExpanded(setExpandedTutorIds, t._id);
+                          }
+                        }}
+                        className="grid cursor-pointer grid-cols-2 gap-x-4 gap-y-3 px-4 py-3.5 transition hover:bg-slate-50 dark:hover:bg-slate-800/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 sm:px-5 xl:items-center xl:gap-4 xl:grid-cols-[2.25rem_minmax(0,1.6fr)_minmax(0,0.95fr)_minmax(0,0.7fr)_minmax(0,1.3fr)_10.5rem_14rem]"
+                      >
+                        <span className="hidden text-sm font-medium tabular-nums text-slate-400 xl:block">
+                          {String(tutorIndex + 1).padStart(2, "0")}
+                        </span>
+
+                        <div className="col-span-2 flex min-w-0 items-center gap-3 xl:col-span-1">
+                          <span className="shrink-0"><Avatar name={t.name} src={t.photo} /></span>
+                          <div className="min-w-0">
+                            <p className="flex items-center gap-1.5 text-[15px] font-semibold text-slate-900 dark:text-white">
+                              <span className="min-w-0 break-words">{t.name || "Unnamed Tutor"}</span>
+                              {t.odooSyncStatus === "failed" && (
+                                <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" aria-label="Odoo sync failed" />
+                              )}
+                            </p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">{t.email || "No email"}</p>
+                          </div>
+                        </div>
+
+                        <div className="order-last col-span-2 flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-slate-800 pt-3 xl:order-none xl:col-span-1 xl:col-start-7 xl:row-start-1 xl:flex-nowrap xl:justify-end xl:gap-1.5 xl:border-0 xl:pt-0">
+                          <IconAction label={isTutorExpanded ? "Hide details" : "View details"} icon={isTutorExpanded ? ChevronUp : Eye} tone="indigo" compact onClick={() => toggleExpanded(setExpandedTutorIds, t._id)} />
+                          <IconAction label="Approve" icon={Check} tone="emerald" compact onClick={() => approveTutor(t._id)} />
+                          <IconAction label="Reject" icon={X} tone="rose" compact onClick={() => rejectTutor(t._id)} />
+                          <IconAction label="Edit" icon={Edit} tone="slate" compact onClick={() => startEditTutor(t)} />
+                          {!t.onboardingCompleted ? (
+                            <IconAction label="Mark Onboarded" icon={UserCheck} tone="amber" compact onClick={markOnboarded} />
+                          ) : (
+                            <IconAction label="Reset Onboarding" icon={XCircle} tone="slate" compact onClick={resetOnboarding} />
+                          )}
+                          <IconAction label="Delete" icon={Trash2} tone="rose" compact onClick={() => deleteTutor(t._id)} />
+                        </div>
+
+                        <div className="min-w-0 text-sm tabular-nums text-slate-700 dark:text-slate-200 [overflow-wrap:anywhere] xl:col-start-3 xl:row-start-1 xl:whitespace-nowrap">
+                          <CellLabel>Phone</CellLabel>
+                          {t.phone || "—"}
+                        </div>
+
+                        <div className="min-w-0 text-sm text-slate-700 dark:text-slate-200 xl:col-start-4 xl:row-start-1">
+                          <CellLabel>Experience</CellLabel>
+                          {t.experience || "—"}
+                        </div>
+
+                        <div className="col-span-2 min-w-0 break-words text-sm text-slate-700 dark:text-slate-200 xl:col-span-1 xl:col-start-5 xl:row-start-1">
+                          <CellLabel>Locations</CellLabel>
+                          {t.locations?.length ? t.locations.join(", ") : "—"}
+                        </div>
+
+                        <div className="col-span-2 flex flex-wrap items-center gap-1.5 xl:col-span-1 xl:col-start-6 xl:row-start-1 xl:flex-col xl:items-start [&>span]:whitespace-nowrap">
+                          <Badge text={tStatus.charAt(0).toUpperCase() + tStatus.slice(1)} color={tStatus === "approved" ? "emerald" : tStatus === "rejected" ? "red" : "yellow"} />
+                          <Badge text={onboardingBadge.text} color={onboardingBadge.color} />
+                        </div>
+                      </div>
+
+                      {isTutorExpanded && (
+                      <div className="px-3 pb-4 sm:px-5 animate-slideFade">
+                      <div className="rounded-2xl bg-white dark:bg-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none p-5 ring-1 ring-slate-200/70 dark:ring-slate-800">
                       <div className="flex flex-col justify-between gap-6 lg:flex-row">
                         <div className="flex flex-col gap-6 sm:flex-row items-start">
                           {t.photo ? (
@@ -2977,17 +3232,17 @@ export default function AdminDashboard() {
                               )}
                               alt={t.name}
                               loading="lazy"
-                              className="h-28 w-28 rounded-3xl object-cover border border-slate-200 dark:border-slate-700 shadow-sm"
+                              className="h-28 w-28 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shadow-sm"
                             />
                           ) : (
-                            <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-400">
+                            <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-400">
                               No Image
                             </div>
                           )}
 
                           <div className="flex-1">
                             <div className="mb-3.5 flex flex-wrap items-center gap-2">
-                              <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                                 {t.name || "Unnamed Tutor"}
                               </h3>
 
@@ -3057,7 +3312,7 @@ export default function AdminDashboard() {
                             </div>
 
                             <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
-                              <p className="mb-2.5 text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                              <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                                 <FileText className="h-4 w-4" />
                                 Verification Documents
                               </p>
@@ -3080,38 +3335,38 @@ export default function AdminDashboard() {
 
                             {t.performanceStats && (
                               <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 animate-slideFade">
-                                <p className="mb-3 text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                                   <Activity className="h-4 w-4 text-indigo-500" />
                                   CRM Performance Statistics
                                 </p>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50/50 dark:bg-slate-800/30 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
                                   <div className="text-center p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700">
-                                    <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">Total Assignments</span>
-                                    <span className="block text-lg font-black text-slate-800 dark:text-white mt-0.5">{t.performanceStats.totalAssignments}</span>
+                                    <span className="block text-xs font-bold uppercase text-slate-400 dark:text-slate-500">Total Assignments</span>
+                                    <span className="block text-lg font-bold text-slate-800 dark:text-white mt-0.5">{t.performanceStats.totalAssignments}</span>
                                   </div>
                                   <div className="text-center p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700">
-                                    <span className="block text-[10px] font-black uppercase text-amber-500">Demo Scheduled</span>
-                                    <span className="block text-lg font-black text-amber-600 dark:text-amber-400 mt-0.5">{t.performanceStats.demoScheduled}</span>
+                                    <span className="block text-xs font-bold uppercase text-amber-500">Demo Scheduled</span>
+                                    <span className="block text-lg font-bold text-amber-600 dark:text-amber-400 mt-0.5">{t.performanceStats.demoScheduled}</span>
                                   </div>
                                   <div className="text-center p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700">
-                                    <span className="block text-[10px] font-black uppercase text-rose-500">Demo Cancelled</span>
-                                    <span className="block text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5">{t.performanceStats.demoCancelled}</span>
+                                    <span className="block text-xs font-bold uppercase text-rose-500">Demo Cancelled</span>
+                                    <span className="block text-lg font-bold text-rose-600 dark:text-rose-400 mt-0.5">{t.performanceStats.demoCancelled}</span>
                                   </div>
                                   <div className="text-center p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700">
-                                    <span className="block text-[10px] font-black uppercase text-red-500">Rejected</span>
-                                    <span className="block text-lg font-black text-red-650 dark:text-red-400 mt-0.5">{t.performanceStats.rejected}</span>
+                                    <span className="block text-xs font-bold uppercase text-red-500">Rejected</span>
+                                    <span className="block text-lg font-bold text-red-600 dark:text-red-400 mt-0.5">{t.performanceStats.rejected}</span>
                                   </div>
                                   <div className="text-center p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700">
-                                    <span className="block text-[10px] font-black uppercase text-emerald-500">Enrolled</span>
-                                    <span className="block text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{t.performanceStats.successfullyEnrolled}</span>
+                                    <span className="block text-xs font-bold uppercase text-emerald-500">Enrolled</span>
+                                    <span className="block text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{t.performanceStats.successfullyEnrolled}</span>
                                   </div>
                                   <div className="text-center p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700">
-                                    <span className="block text-[10px] font-black uppercase text-indigo-500">Active Tuitions</span>
-                                    <span className="block text-lg font-black text-indigo-600 dark:text-indigo-400 mt-0.5">{t.performanceStats.activeTuitionCount}</span>
+                                    <span className="block text-xs font-bold uppercase text-indigo-500">Active Tuitions</span>
+                                    <span className="block text-lg font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">{t.performanceStats.activeTuitionCount}</span>
                                   </div>
-                                  <div className="col-span-2 text-center p-2 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/40 dark:to-purple-900/40 border border-indigo-150 dark:border-indigo-800 flex flex-col justify-center">
-                                    <span className="block text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-300">Success Rate</span>
-                                    <span className="block text-xl font-black text-indigo-700 dark:text-indigo-200">{t.performanceStats.successPercentage}%</span>
+                                  <div className="col-span-2 text-center p-2 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/40 dark:to-purple-900/40 border border-indigo-200 dark:border-indigo-800 flex flex-col justify-center">
+                                    <span className="block text-xs font-bold uppercase text-indigo-600 dark:text-indigo-300">Success Rate</span>
+                                    <span className="block text-xl font-bold text-indigo-700 dark:text-indigo-200">{t.performanceStats.successPercentage}%</span>
                                   </div>
                                 </div>
                               </div>
@@ -3119,89 +3374,20 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        <div className="flex flex-row flex-wrap items-center gap-2 lg:flex-col lg:items-stretch lg:justify-start lg:w-32 shrink-0 border-t border-slate-100 dark:border-slate-800 pt-4 lg:border-t-0 lg:pt-0 lg:pl-4 lg:border-l lg:border-slate-105">
-                          <button
-                            onClick={() => approveTutor(t._id)}
-                            className="flex-1 flex items-center justify-center gap-1 rounded-2xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition duration-200 hover:bg-emerald-700 hover:scale-[1.02] cursor-pointer"
-                          >
-                            <Check className="h-3.5 w-3.5 stroke-[2.5]" />
-                            Approve
-                          </button>
-
-                          <button
-                            onClick={() => rejectTutor(t._id)}
-                            className="flex-1 flex items-center justify-center gap-1 rounded-2xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white transition duration-200 hover:bg-rose-700 hover:scale-[1.02] cursor-pointer"
-                          >
-                            <X className="h-3.5 w-3.5 stroke-[2.5]" />
-                            Reject
-                          </button>
-
-                          <button
-                            onClick={() => startEditTutor(t)}
-                            className="flex-1 flex items-center justify-center gap-1 rounded-2xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition duration-200 hover:bg-blue-700 hover:scale-[1.02] cursor-pointer"
-                          >
-                            <Edit className="h-3.5 w-3.5 stroke-[2.5]" />
-                            Edit
-                          </button>
-
-                          {!t.onboardingCompleted ? (
-                            <button
-                              onClick={async () => {
-                                if (!window.confirm(`Mark ${t.name} as Onboarding Completed? This will also set status to Approved.`)) return;
-                                try {
-                                  const token = localStorage.getItem("adminToken");
-                                  const res = await fetch(`${API_BASE}/tutors/${t._id}/mark-onboarded`, {
-                                    method: "PUT",
-                                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                                    body: JSON.stringify({ onboardingCompleted: true }),
-                                  });
-                                  if (res.ok) { alert("✅ Tutor marked as Onboarding Completed!"); fetchData(); }
-                                  else { const d = await res.json(); alert(`Failed: ${d.message}`); }
-                                } catch (err) { console.error(err); alert("Error updating tutor onboarding."); }
-                              }}
-                              className="flex-1 flex items-center justify-center gap-1 rounded-2xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white transition duration-200 hover:bg-indigo-700 hover:scale-[1.02] cursor-pointer"
-                            >
-                              <UserCheck className="h-3.5 w-3.5 stroke-[2.5]" />
-                              Mark Onboarded
-                            </button>
-                          ) : (
-                            <button
-                              onClick={async () => {
-                                if (!window.confirm(`Reset onboarding for ${t.name}?`)) return;
-                                try {
-                                  const token = localStorage.getItem("adminToken");
-                                  const res = await fetch(`${API_BASE}/tutors/${t._id}/mark-onboarded`, {
-                                    method: "PUT",
-                                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                                    body: JSON.stringify({ onboardingCompleted: false }),
-                                  });
-                                  if (res.ok) { alert("✅ Onboarding reset to Pending."); fetchData(); }
-                                  else { const d = await res.json(); alert(`Failed: ${d.message}`); }
-                                } catch (err) { console.error(err); alert("Error resetting onboarding."); }
-                              }}
-                              className="flex-1 flex items-center justify-center gap-1 rounded-2xl bg-slate-500 px-4 py-2.5 text-xs font-bold text-white transition duration-200 hover:bg-slate-600 hover:scale-[1.02] cursor-pointer"
-                            >
-                              <XCircle className="h-3.5 w-3.5 stroke-[2.5]" />
-                              Reset Onboarding
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => deleteTutor(t._id)}
-                            className="flex-1 flex items-center justify-center gap-1 rounded-2xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white transition duration-200 hover:bg-black hover:scale-[1.02] cursor-pointer"
-                          >
-                            <Trash2 className="h-3.5 w-3.5 stroke-[2.5]" />
-                            Delete
-                          </button>
-                        </div>
                       </div>
+                      </div>
+                      </div>
+                      )}
                     </div>
                   );
                 })}
+                </div>
                 {filteredTutors.length > visibleTutorCount && (
-                  <ShowMoreButton onShowMore={() => setVisibleTutorCount((count) => count + CARD_BATCH_SIZE)}>
-                    Show 10 more tutors ({filteredTutors.length - visibleTutorCount} remaining)
-                  </ShowMoreButton>
+                  <div className="border-t border-slate-100 dark:border-slate-800 p-4 text-center">
+                    <ShowMoreButton onShowMore={() => setVisibleTutorCount((count) => count + CARD_BATCH_SIZE)}>
+                      Show 10 more tutors ({filteredTutors.length - visibleTutorCount} remaining)
+                    </ShowMoreButton>
+                  </div>
                 )}
               </div>
             )}
@@ -3257,10 +3443,10 @@ export default function AdminDashboard() {
         {/* Broadcast Confirm + Results Modal */}
         {showBroadcastModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-slideFade">
-            <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl flex flex-col relative z-50 max-h-[85vh]">
+            <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl flex flex-col relative z-50 max-h-[85vh]">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-4 mb-4">
                 <div>
-                  <h3 className="text-lg font-black text-slate-800 dark:text-white">
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-white">
                     WhatsApp Broadcast
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
@@ -3269,7 +3455,7 @@ export default function AdminDashboard() {
                 </div>
                 <button
                   onClick={() => { setShowBroadcastModal(false); setBroadcastResults([]); }}
-                  className="rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 p-2 text-slate-500 transition cursor-pointer"
+                  className="rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 p-2 text-slate-500 dark:text-slate-400 transition cursor-pointer"
                 >
                   <X className="h-4.5 w-4.5" />
                 </button>
@@ -3285,7 +3471,7 @@ export default function AdminDashboard() {
               {/* Template Picker */}
               {broadcastResults.length === 0 && (
                 <div className="mb-4">
-                  <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                     WhatsApp Template {loadingTemplates && <span className="font-normal text-slate-400">(loading...)</span>}
                   </label>
                   {whatsappTemplates.length > 0 ? (
@@ -3302,7 +3488,7 @@ export default function AdminDashboard() {
                       ))}
                     </select>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                    <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs font-semibold text-slate-400 dark:text-slate-500">
                       {loadingTemplates ? "Fetching approved templates from Odoo…" : "No approved templates found — using environment default."}
                     </div>
                   )}
@@ -3312,7 +3498,7 @@ export default function AdminDashboard() {
               {/* Pre-broadcast Preview list */}
               {broadcastResults.length === 0 && (
                 <div className="flex-1 overflow-y-auto space-y-2 mb-4 max-h-[260px] border border-slate-100 dark:border-slate-700 p-2 rounded-2xl bg-slate-50/50 dark:bg-slate-800/50">
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Tutor Workflow Breakdown:</p>
+                  <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Tutor Workflow Breakdown:</p>
                   {selectedTutorIds.map((tId) => {
                     const tutor = matchedTutors.find(t => t._id === tId);
                     if (!tutor) return null;
@@ -3322,11 +3508,11 @@ export default function AdminDashboard() {
                         <span className="text-slate-800 dark:text-slate-200">{tutor.name}</span>
                         <span>
                           {isNewTutorWorkflow ? (
-                            <span className="inline-flex items-center rounded-full bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800 px-2 py-0.5 text-[10px] font-black text-orange-700 dark:text-orange-300">
+                            <span className="inline-flex items-center rounded-full bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800 px-2 py-0.5 text-xs font-bold text-orange-700 dark:text-orange-300">
                               🔐 Onboarding Msg (Odoo ID 72)
                             </span>
                           ) : (
-                            <span className="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-300">
+                            <span className="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                               📋 Requirement Msg
                             </span>
                           )}
@@ -3355,7 +3541,7 @@ export default function AdminDashboard() {
                             {r.status === "Sent" ? "✅ Sent" : r.status === "Suppressed" ? "⚠ Suppressed" : `❌ ${r.failureReason || "Failed"}`}
                           </span>
                         </div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-semibold">
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-semibold">
                           Workflow: {isNewTutorWorkflow ? "🔐 Onboarding Message" : "📋 Requirement Notification"}
                         </div>
                       </div>
@@ -3375,7 +3561,7 @@ export default function AdminDashboard() {
                   <button
                     onClick={handleSendBroadcast}
                     disabled={sendingBroadcast}
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-xs font-black rounded-xl transition cursor-pointer text-white shadow-lg shadow-emerald-600/25 disabled:opacity-50 flex items-center gap-2"
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-xs font-bold rounded-xl transition cursor-pointer text-white shadow-sm disabled:opacity-50 flex items-center gap-2"
                   >
                     {sendingBroadcast ? (
                       <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Sending...</>
@@ -3392,14 +3578,14 @@ export default function AdminDashboard() {
         {/* Assign Demo Modal */}
         {assignModalTutorId && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-slideFade">
-            <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl">
-              <h3 className="text-lg font-black text-slate-800 dark:text-white mb-1">Assign & Schedule Demo</h3>
+            <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-1">Assign & Schedule Demo</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mb-5">
                 Parent contact details will be sent to the tutor automatically via WhatsApp after assignment.
               </p>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">Demo Date <span className="text-slate-400 font-semibold">(optional)</span></label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Demo Date <span className="text-slate-400 font-semibold">(optional)</span></label>
                   <input
                     type="date"
                     value={assignDemoDate}
@@ -3408,7 +3594,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">Demo Time <span className="text-slate-400 font-semibold">(optional)</span></label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Demo Time <span className="text-slate-400 font-semibold">(optional)</span></label>
                   <input
                     type="time"
                     value={assignDemoTime}
@@ -3429,7 +3615,7 @@ export default function AdminDashboard() {
                     handleAssignTutor(assignModalTutorId, assignDemoDate, assignDemoTime);
                     setAssignModalTutorId(null);
                   }}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-black rounded-xl transition cursor-pointer text-white shadow-lg shadow-indigo-600/20"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold rounded-xl transition cursor-pointer text-white shadow-sm"
                 >
                   Confirm Assignment
                 </button>
@@ -3441,10 +3627,10 @@ export default function AdminDashboard() {
         {/* Broadcast Logs Modal */}
         {showLogsModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-slideFade">
-            <div className="max-h-[85vh] w-full max-w-5xl overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl flex flex-col relative z-50">
+            <div className="max-h-[85vh] w-full max-w-5xl overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl flex flex-col relative z-50">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-4 mb-4">
                 <div>
-                  <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     <Users className="h-5 w-5 text-indigo-500" />
                     Broadcast History Logs
                   </h3>
@@ -3454,7 +3640,7 @@ export default function AdminDashboard() {
                 </div>
                 <button
                   onClick={() => setShowLogsModal(false)}
-                  className="rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 p-2 text-slate-500 transition cursor-pointer"
+                  className="rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 p-2 text-slate-500 dark:text-slate-400 transition cursor-pointer"
                 >
                   <X className="h-4.5 w-4.5" />
                 </button>
@@ -3467,7 +3653,7 @@ export default function AdminDashboard() {
                   <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
                     <table className="w-full text-xs font-semibold text-slate-700 dark:text-slate-300">
                       <thead>
-                        <tr className="text-left border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900 text-[10px] text-slate-500 uppercase tracking-wider">
+                        <tr className="text-left border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900 text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                           <th className="p-3">Time</th>
                           <th className="p-3">Tutor</th>
                           <th className="p-3">Req ID</th>
@@ -3483,27 +3669,27 @@ export default function AdminDashboard() {
                           const timeStr = formatSubmittedDate(log.time || log.createdAt);
                           return (
                             <tr key={log._id} className="border-b border-slate-200/70 dark:border-slate-700 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
-                              <td className="p-3 text-slate-500 dark:text-slate-400 text-[10px]">{timeStr}</td>
+                              <td className="p-3 text-slate-500 dark:text-slate-400 text-xs">{timeStr}</td>
                               <td className="p-3 text-slate-900 dark:text-white font-bold">
                                 <span className="block">{log.tutorName}</span>
-                                {log.tutorCode && <span className="text-[10px] text-indigo-500 dark:text-indigo-400 font-black">{log.tutorCode}</span>}
+                                {log.tutorCode && <span className="text-xs text-indigo-500 dark:text-indigo-400 font-bold">{log.tutorCode}</span>}
                               </td>
-                              <td className="p-3 text-indigo-600 dark:text-indigo-400 font-black text-[10px]">{log.requirementId}</td>
+                              <td className="p-3 text-indigo-600 dark:text-indigo-400 font-bold text-xs">{log.requirementId}</td>
                               <td className="p-3">
                                 {log.matchPercentage != null ? (
-                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${
                                     log.matchPercentage >= 80 ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
-                                    : log.matchPercentage >= 60 ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                                    : log.matchPercentage >= 60 ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
                                     : "bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
                                   }`}>{log.matchPercentage}%</span>
                                 ) : <span className="text-slate-400">—</span>}
                               </td>
                               <td className="p-3">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${
                                   log.status === "Delivered" || log.status === "Read" || log.status === "Replied"
                                     ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
                                     : log.status === "Sent"
-                                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                                    ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
                                     : log.status === "Failed"
                                     ? "bg-rose-50 dark:bg-rose-900/30 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300"
                                     : log.status === "Suppressed"
@@ -3513,14 +3699,14 @@ export default function AdminDashboard() {
                                   {log.status}
                                 </span>
                               </td>
-                              <td className="p-3 text-[10px] text-rose-600 dark:text-rose-400 font-semibold max-w-[120px] truncate">
+                              <td className="p-3 text-xs text-rose-600 dark:text-rose-400 font-semibold max-w-[120px] truncate">
                                 {log.failureReason || "—"}
                               </td>
                               <td className="p-3">
                                 <select
                                   value={log.responseStatus || "No Response"}
                                   onChange={(e) => handleUpdateResponseStatus(log._id, e.target.value)}
-                                  className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[10px] font-black text-slate-700 dark:text-slate-300 rounded-lg p-1.5 outline-none focus:border-indigo-500 cursor-pointer"
+                                  className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 rounded-lg p-1.5 outline-none focus:border-indigo-500 cursor-pointer"
                                 >
                                   <option value="No Response">No Response</option>
                                   <option value="Interested">Interested</option>
@@ -3544,7 +3730,7 @@ export default function AdminDashboard() {
                                       alert(data.message);
                                       fetchBroadcastLogs();
                                     }}
-                                    className="px-2.5 py-1 text-[10px] font-black bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-lg hover:bg-rose-100 transition cursor-pointer"
+                                    className="px-2.5 py-1 text-xs font-bold bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-lg hover:bg-rose-100 transition cursor-pointer"
                                   >
                                     Retry
                                   </button>
@@ -3571,7 +3757,7 @@ export default function AdminDashboard() {
               <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
                 <button
                   onClick={() => setShowLogsModal(false)}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-black rounded-xl transition cursor-pointer text-white shadow-lg shadow-indigo-600/20"
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold rounded-xl transition cursor-pointer text-white shadow-sm"
                 >
                   Close Logs
                 </button>
@@ -3579,8 +3765,7 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </AdminLayout>
   );
 }
 
@@ -3603,7 +3788,7 @@ function ShowMoreButton({ onShowMore, children }) {
     <button
       type="button"
       onClick={onShowMore}
-      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-3 text-sm font-extrabold text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
     >
       {children}
       <ChevronDown className="h-4 w-4" aria-hidden="true" />
@@ -3613,17 +3798,19 @@ function ShowMoreButton({ onShowMore, children }) {
 
 function StatCard({ title, value, subtitle, icon: Icon, gradientClass }) {
   return (
-    <div className="rounded-3xl p-6 shadow-sm border border-slate-200/60 dark:border-slate-800 transition duration-300 hover:-translate-y-1 hover:shadow-md glass-card bg-white dark:bg-slate-900 flex items-center justify-between">
-      <div>
-        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{title}</p>
-        <p className="mt-2 text-4xl font-black text-slate-900 dark:text-white tracking-tight">{value}</p>
-        <p className="mt-1.5 text-xs font-bold text-slate-500 dark:text-slate-400">{subtitle}</p>
-      </div>
+    <div className="flex min-w-0 items-center gap-3.5 rounded-2xl bg-white dark:bg-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none p-4">
       {Icon && (
-        <div className={`p-3.5 rounded-2xl ${gradientClass || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
-          <Icon className="h-5 w-5 stroke-[2.5]" />
+        <div className={`hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${gradientClass || "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"}`}>
+          <Icon className="h-5 w-5" />
         </div>
       )}
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium leading-snug text-slate-500 dark:text-slate-400">{title}</p>
+        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
+          <span className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white tabular-nums">{value}</span>
+          {subtitle && <span className="text-xs font-medium text-indigo-600 dark:text-indigo-300">{subtitle}</span>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -3663,6 +3850,18 @@ function AdminAttendanceConsole({
   fetchData,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Width of the scrollable table area. The expanded row panel is sized to it and
+  // pinned left, so on narrow screens it stays fully visible while the table scrolls.
+  const tableWrapRef = useRef(null);
+  const [tableWrapWidth, setTableWrapWidth] = useState(0);
+  useEffect(() => {
+    const el = tableWrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(([entry]) => setTableWrapWidth(Math.floor(entry.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Rows are drawn in batches; search still runs over every student
   const [visibleRowCount, setVisibleRowCount] = useState(CARD_BATCH_SIZE);
@@ -3970,17 +4169,17 @@ function AdminAttendanceConsole({
   };
 
   return (
-    <div className="rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200/80 dark:border-slate-800">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div className="rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-800 dark:text-white">Attendance & Class Tracking Dashboard</h2>
+          <h2 className="text-xl font-semibold text-slate-800 dark:text-white">Attendance & Class Tracking Dashboard</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Centralized monitoring of teacher logs, completed classes, remaining classes, and topics covered.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative w-full sm:w-80">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full xl:w-auto">
+          <div className="relative w-full basis-full sm:basis-auto sm:flex-1 xl:w-80 xl:flex-none">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
               <Search className="h-4 w-4" />
             </div>
@@ -3997,10 +4196,10 @@ function AdminAttendanceConsole({
             type="button"
             onClick={handleSyncAllToOdoo}
             disabled={syncingOdoo}
-            className="flex items-center gap-1.5 px-3.5 h-11 rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 text-xs font-black text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition cursor-pointer shrink-0 shadow-sm disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3.5 h-11 rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition cursor-pointer shrink-0 shadow-sm disabled:opacity-50"
             title="Sync all student attendance metrics and class logs to Odoo CRM"
           >
-            <RefreshCw className={`h-4 w-4 ${syncingOdoo ? "animate-spin text-indigo-600" : "text-indigo-500"}`} />
+            <RefreshCw className={`h-4 w-4 ${syncingOdoo ? "animate-spin text-indigo-600 dark:text-indigo-400" : "text-indigo-500"}`} />
             {syncingOdoo ? "Syncing Odoo..." : "Sync Odoo"}
           </button>
 
@@ -4010,7 +4209,7 @@ function AdminAttendanceConsole({
               fetchData();
               if (expandedId) fetchLeadAttendanceLogs(expandedId);
             }}
-            className="flex items-center gap-1.5 px-3.5 h-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer shrink-0 shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 h-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer shrink-0 shadow-sm"
           >
             <RefreshCw className="h-4 w-4 text-slate-500 dark:text-slate-400" />
             Refresh
@@ -4019,7 +4218,7 @@ function AdminAttendanceConsole({
           <button
             type="button"
             onClick={() => setShowCustomizeModal(true)}
-            className="flex items-center gap-1.5 px-3.5 h-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer shrink-0 shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 h-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer shrink-0 shadow-sm"
           >
             <Settings className="h-4 w-4 text-slate-500 dark:text-slate-400" />
             Columns
@@ -4027,10 +4226,10 @@ function AdminAttendanceConsole({
         </div>
       </div>
 
-      <div className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-x-auto xl:overflow-x-hidden">
+      <div ref={tableWrapRef} className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-x-auto xl:overflow-x-hidden">
         <table className="w-full text-left border-collapse table-auto text-xs">
           <thead>
-            <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               {attendanceColumns.filter(c => c.enabled).map(c => (
                 <th
                   key={c.key}
@@ -4071,7 +4270,7 @@ function AdminAttendanceConsole({
                     <tr
                       onClick={() => handleToggleExpand(p)}
                       className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-all cursor-pointer border-b border-slate-100 dark:border-slate-800 ${
-                        isExpanded ? "bg-slate-50/40 dark:bg-slate-800/40 font-extrabold" : ""
+                        isExpanded ? "bg-slate-50/40 dark:bg-slate-800/40 font-semibold" : ""
                       }`}
                     >
                       {attendanceColumns.filter(c => c.enabled).map(c => {
@@ -4079,7 +4278,7 @@ function AdminAttendanceConsole({
                           return (
                             <td key={c.key} className="py-2.5 px-2">
                               <div className="flex items-center gap-1 flex-wrap">
-                                <span className="bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded text-[10px] font-black font-mono whitespace-nowrap">
+                                <span className="bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded text-xs font-bold font-mono whitespace-nowrap">
                                   {p.requirementId || "REQ-N/A"}
                                 </span>
                                 {p.odooLeadId && (
@@ -4088,7 +4287,7 @@ function AdminAttendanceConsole({
                                     target="_blank"
                                     rel="noreferrer"
                                     onClick={(e) => e.stopPropagation()}
-                                    className="text-[9px] font-black text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 px-1 py-0.2 rounded hover:underline inline-flex items-center"
+                                    className="text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 px-1 py-0.2 rounded hover:underline inline-flex items-center"
                                     title={`Linked to Odoo Lead #${p.odooLeadId} — Click to view in Odoo`}
                                   >
                                     Odoo
@@ -4101,8 +4300,8 @@ function AdminAttendanceConsole({
                         if (c.key === "studentName") {
                           return (
                             <td key={c.key} className="py-2.5 px-2">
-                              <div className="font-extrabold text-slate-800 dark:text-slate-100 truncate max-w-[130px]" title={studentName}>{studentName}</div>
-                              <div className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold truncate max-w-[130px]">{p.classDuration || "1 hr"}</div>
+                              <div className="font-semibold text-slate-800 dark:text-slate-100 truncate max-w-[130px]" title={studentName}>{studentName}</div>
+                              <div className="text-xs text-slate-400 dark:text-slate-500 font-semibold truncate max-w-[130px]">{p.classDuration || "1 hr"}</div>
                             </td>
                           );
                         }
@@ -4128,7 +4327,7 @@ function AdminAttendanceConsole({
                           const cycle = p.currentPackageCycle || 1;
                           return (
                             <td key={c.key} className="py-2.5 px-1.5 text-center whitespace-nowrap">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 whitespace-nowrap">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 whitespace-nowrap">
                                 Month {cycle}
                               </span>
                             </td>
@@ -4136,7 +4335,7 @@ function AdminAttendanceConsole({
                         }
                         if (c.key === "cycleDates") {
                           return (
-                            <td key={c.key} className="py-2.5 px-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap text-center">
+                            <td key={c.key} className="py-2.5 px-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap text-center">
                               {formatCycleDateRange(p)}
                             </td>
                           );
@@ -4148,17 +4347,17 @@ function AdminAttendanceConsole({
                         }
                         if (c.key === "completedClasses") {
                           return (
-                            <td key={c.key} className="py-2.5 px-1 text-center text-emerald-600 dark:text-emerald-400 font-black">{completed}</td>
+                            <td key={c.key} className="py-2.5 px-1 text-center text-emerald-600 dark:text-emerald-400 font-bold">{completed}</td>
                           );
                         }
                         if (c.key === "missedClasses") {
                           return (
-                            <td key={c.key} className="py-2.5 px-1 text-center text-rose-500 dark:text-rose-400 font-black">{missedCount}</td>
+                            <td key={c.key} className="py-2.5 px-1 text-center text-rose-500 dark:text-rose-400 font-bold">{missedCount}</td>
                           );
                         }
                         if (c.key === "remainingClasses") {
                           return (
-                            <td key={c.key} className="py-2.5 px-1 text-center text-indigo-600 dark:text-indigo-400 font-black">{remainingDisplay}</td>
+                            <td key={c.key} className="py-2.5 px-1 text-center text-indigo-600 dark:text-indigo-400 font-bold">{remainingDisplay}</td>
                           );
                         }
                         return null;
@@ -4166,7 +4365,7 @@ function AdminAttendanceConsole({
                       <td className="py-2.5 px-2 text-right whitespace-nowrap">
                         <button
                           type="button"
-                          className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-black bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 transition cursor-pointer"
+                          className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 transition cursor-pointer"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleToggleExpand(p);
@@ -4179,29 +4378,32 @@ function AdminAttendanceConsole({
 
                     {isExpanded && (
                       <tr className="bg-slate-50/30 dark:bg-slate-800/30">
-                        <td colSpan={attendanceColumns.filter(c => c.enabled).length + 1} className="p-5 border-t border-slate-100 dark:border-slate-800">
-                          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-inner">
+                        <td colSpan={attendanceColumns.filter(c => c.enabled).length + 1} className="p-3 sm:p-5 border-t border-slate-100 dark:border-slate-800">
+                          <div
+                            className="sticky left-3 sm:left-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 sm:p-5 shadow-inner"
+                            style={tableWrapWidth ? { width: Math.max(260, tableWrapWidth - (tableWrapWidth < 640 ? 24 : 40)) } : undefined}
+                          >
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                               
                               {/* Left Columns: Timeline and Logs */}
                               <div className="lg:col-span-2 space-y-4">
                                 <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Class Logs & Topics History</h4>
+                                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Class Logs & Topics History</h4>
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <button
                                       type="button"
                                       onClick={() => handleSyncSingleLeadToOdoo(p._id)}
                                       disabled={syncingLeadId === p._id}
-                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-xs font-black rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-50"
                                       title="Sync this student's attendance metrics and logs to Odoo CRM"
                                     >
-                                      <RefreshCw className={`h-3.5 w-3.5 ${syncingLeadId === p._id ? "animate-spin text-purple-600" : "text-purple-500"}`} />
+                                      <RefreshCw className={`h-3.5 w-3.5 ${syncingLeadId === p._id ? "animate-spin text-purple-600 dark:text-purple-400" : "text-purple-500"}`} />
                                       {syncingLeadId === p._id ? "Syncing..." : "Push to Odoo"}
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => window.open(`${API_BASE}/attendance/download-history/${p._id}?cycle=all`, "_blank")}
-                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-black rounded-xl transition-all cursor-pointer shadow-xs"
+                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs"
                                     >
                                       <FileDown className="h-3.5 w-3.5" /> Download History CSV
                                     </button>
@@ -4209,15 +4411,15 @@ function AdminAttendanceConsole({
                                 </div>
 
                                 {fetchingLogsLeadId === p._id ? (
-                                  <p className="text-xs font-bold text-slate-500 animate-pulse text-center py-4">
+                                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 animate-pulse text-center py-4">
                                     Loading attendance history...
                                   </p>
                                 ) : !attendanceLogs[p._id] ? (
-                                  <p className="text-xs font-bold text-slate-500 text-center py-4">
+                                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 text-center py-4">
                                     Failed to fetch logs. Click view again.
                                   </p>
                                 ) : attendanceLogs[p._id].length === 0 ? (
-                                  <p className="text-xs font-bold text-slate-500 text-center py-4">
+                                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 text-center py-4">
                                     No classes logged for this requirement yet.
                                   </p>
                                 ) : (() => {
@@ -4245,7 +4447,7 @@ function AdminAttendanceConsole({
                                     <div className="space-y-4">
                                       {/* Month / Cycle Selection Tabs */}
                                       <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-700 pb-2.5 overflow-x-auto">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase mr-1 shrink-0">Month / Cycle:</span>
+                                        <span className="text-xs font-bold text-slate-400 uppercase mr-1 shrink-0">Month / Cycle:</span>
                                         {availableCycles.map((cyc) => {
                                           const isSelected = currentSelectedCycle === cyc;
                                           const isCurrent = (p.currentPackageCycle || 1) === cyc;
@@ -4254,15 +4456,15 @@ function AdminAttendanceConsole({
                                               key={cyc}
                                               type="button"
                                               onClick={() => setActiveCycleFilter(prev => ({ ...prev, [p._id]: cyc }))}
-                                              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
                                                 isSelected
                                                   ? "bg-indigo-600 text-white shadow-sm"
-                                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                                               }`}
                                             >
                                               Month {cyc} (Cycle {cyc})
                                               {isCurrent && (
-                                                <span className={`text-[9px] px-1.5 py-0.2 rounded font-extrabold ${isSelected ? "bg-indigo-800 text-white" : "bg-emerald-100 text-emerald-700"}`}>
+                                                <span className={`text-xs px-1.5 py-0.2 rounded font-semibold ${isSelected ? "bg-indigo-800 text-white" : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"}`}>
                                                   Active
                                                 </span>
                                               )}
@@ -4272,10 +4474,10 @@ function AdminAttendanceConsole({
                                         <button
                                           type="button"
                                           onClick={() => setActiveCycleFilter(prev => ({ ...prev, [p._id]: "all" }))}
-                                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 ${
+                                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
                                             currentSelectedCycle === "all"
                                               ? "bg-indigo-600 text-white shadow-sm"
-                                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                                           }`}
                                         >
                                           All Cycles ({allLogs.length})
@@ -4284,48 +4486,48 @@ function AdminAttendanceConsole({
 
                                       {/* Cycle Summary Card */}
                                       {currentSelectedCycle !== "all" && (
-                                        <div className="bg-gradient-to-r from-indigo-50/80 via-slate-50 to-white rounded-2xl border border-indigo-100 p-4 shadow-xs">
+                                        <div className="bg-gradient-to-r from-indigo-50/80 via-slate-50 to-white rounded-2xl border border-indigo-100 dark:border-indigo-900/60 p-4 shadow-xs">
                                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                                             <div>
                                               <div className="flex items-center gap-2">
-                                                <h5 className="text-sm font-black text-indigo-950">Month {currentSelectedCycle} (Cycle {currentSelectedCycle})</h5>
-                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                                                <h5 className="text-sm font-bold text-indigo-950">Month {currentSelectedCycle} (Cycle {currentSelectedCycle})</h5>
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                                                   (p.currentPackageCycle || 1) === currentSelectedCycle 
-                                                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200" 
-                                                    : "bg-slate-200 text-slate-700"
+                                                    ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60" 
+                                                    : "bg-slate-200 text-slate-700 dark:text-slate-200"
                                                 }`}>
                                                   {(p.currentPackageCycle || 1) === currentSelectedCycle ? "Current Active Cycle" : "Archived Cycle"}
                                                 </span>
                                               </div>
-                                              <p className="text-xs font-bold text-slate-500 mt-0.5">Cycle Dates: {cycleDates}</p>
+                                              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5">Cycle Dates: {cycleDates}</p>
                                             </div>
-                                            <div className="text-xs font-bold text-slate-600">
+                                            <div className="text-xs font-bold text-slate-600 dark:text-slate-300">
                                               Current Assigned: <strong className="text-slate-800 dark:text-slate-100">{p.assignedTutor || "Not Assigned"}</strong>
                                             </div>
                                           </div>
 
-                                          <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
                                             <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
-                                              <span className="text-[9px] font-black uppercase text-slate-400 block">Total</span>
-                                              <strong className="text-sm font-black text-slate-800 dark:text-slate-100">
+                                              <span className="text-xs font-bold uppercase text-slate-400 block">Total</span>
+                                              <strong className="text-sm font-bold text-slate-800 dark:text-slate-100">
                                                 {selectedCycleObj?.totalClasses ?? (p.totalClasses || 12)}
                                               </strong>
                                             </div>
                                             <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
-                                              <span className="text-[9px] font-black uppercase text-slate-400 block">Completed</span>
-                                              <strong className="text-sm font-black text-emerald-600">
+                                              <span className="text-xs font-bold uppercase text-slate-400 block">Completed</span>
+                                              <strong className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
                                                 {selectedCycleObj?.completedClasses ?? filteredLogs.filter(l => l.status === "Done").length}
                                               </strong>
                                             </div>
                                             <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
-                                              <span className="text-[9px] font-black uppercase text-slate-400 block">Missed</span>
-                                              <strong className="text-sm font-black text-rose-500">
+                                              <span className="text-xs font-bold uppercase text-slate-400 block">Missed</span>
+                                              <strong className="text-sm font-bold text-rose-500">
                                                 {selectedCycleObj?.missedClasses ?? filteredLogs.filter(l => l.status === "Missed").length}
                                               </strong>
                                             </div>
                                             <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
-                                              <span className="text-[9px] font-black uppercase text-slate-400 block">Remaining</span>
-                                              <strong className="text-sm font-black text-indigo-600">
+                                              <span className="text-xs font-bold uppercase text-slate-400 block">Remaining</span>
+                                              <strong className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
                                                 {selectedCycleObj?.remainingClasses ?? Math.max(0, (selectedCycleObj?.totalClasses ?? p.totalClasses ?? 12) - filteredLogs.filter(l => l.status === "Done").length)}
                                               </strong>
                                             </div>
@@ -4349,14 +4551,14 @@ function AdminAttendanceConsole({
                                                 <form
                                                   key={log._id}
                                                   onSubmit={(e) => handleUpdateLogInline(e, log._id, p._id)}
-                                                  className="bg-slate-55 rounded-xl border border-indigo-200 p-4 space-y-3 shadow-sm"
+                                                  className="bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-indigo-200 dark:border-indigo-900/60 p-4 space-y-3 shadow-sm"
                                                 >
-                                                  <p className="text-[10px] font-black text-indigo-700 uppercase tracking-wider">Editing Class {logIndex} log (Month {log.packageCycle || 1})</p>
-                                                  {logError && <p className="text-xs text-rose-600 font-bold">{logError}</p>}
+                                                  <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Editing Class {logIndex} log (Month {log.packageCycle || 1})</p>
+                                                  {logError && <p className="text-xs text-rose-600 dark:text-rose-400 font-bold">{logError}</p>}
                                                   
                                                   <div className="grid grid-cols-2 gap-3">
                                                     <div>
-                                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Status</label>
+                                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Status</label>
                                                       <select
                                                         value={logStatus}
                                                         onChange={(e) => setLogStatus(e.target.value)}
@@ -4367,7 +4569,7 @@ function AdminAttendanceConsole({
                                                       </select>
                                                     </div>
                                                     <div>
-                                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Date</label>
+                                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Date</label>
                                                       <input
                                                         type="date"
                                                         required
@@ -4380,7 +4582,7 @@ function AdminAttendanceConsole({
 
                                                   {logStatus === "Done" ? (
                                                     <div>
-                                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Topics Covered</label>
+                                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Topics Covered</label>
                                                       <textarea
                                                         rows="2"
                                                         required
@@ -4391,16 +4593,16 @@ function AdminAttendanceConsole({
                                                     </div>
                                                   ) : (
                                                     <div className="space-y-2">
-                                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Missed Reason</label>
+                                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Missed Reason</label>
                                                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                                                         {missedReasons.map((reason) => (
                                                           <button
                                                             key={reason}
                                                             type="button"
                                                             onClick={() => setLogMissedReason(reason)}
-                                                            className={`px-2 py-1.5 rounded-lg border text-[10px] font-bold text-center transition-all cursor-pointer ${
+                                                            className={`px-2 py-1.5 rounded-lg border text-xs font-bold text-center transition-all cursor-pointer ${
                                                               logMissedReason === reason
-                                                                ? "border-rose-500 bg-rose-50 text-rose-700"
+                                                                ? "border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400"
                                                                 : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                                                             }`}
                                                           >
@@ -4425,14 +4627,14 @@ function AdminAttendanceConsole({
                                                     <button
                                                       type="button"
                                                       onClick={() => setEditingLogId(null)}
-                                                      className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 cursor-pointer"
+                                                      className="px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
                                                     >
                                                       Cancel
                                                     </button>
                                                     <button
                                                       type="submit"
                                                       disabled={logUpdating}
-                                                      className="px-3.5 py-1.5 rounded-lg text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 transition cursor-pointer"
+                                                      className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition cursor-pointer"
                                                     >
                                                       {logUpdating ? "Saving..." : "Save Log"}
                                                     </button>
@@ -4445,14 +4647,14 @@ function AdminAttendanceConsole({
                                               <div key={log._id} className="bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700 p-3.5 flex justify-between gap-4 text-xs font-semibold">
                                                 <div className="space-y-1">
                                                   <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="font-extrabold text-slate-800 dark:text-slate-100">Class {logIndex} ({log.date})</span>
-                                                    <span className="bg-indigo-50 border border-indigo-150 text-indigo-700 text-[10px] font-black px-2 py-0.5 rounded">
+                                                    <span className="font-semibold text-slate-800 dark:text-slate-100">Class {logIndex} ({log.date})</span>
+                                                    <span className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 text-indigo-700 dark:text-indigo-400 text-xs font-bold px-2 py-0.5 rounded">
                                                       Month {log.packageCycle || 1}
                                                     </span>
-                                                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                                                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
                                                       log.status === "Done"
-                                                        ? "bg-emerald-50 border border-emerald-100 text-emerald-700"
-                                                        : "bg-rose-50 border border-rose-100 text-rose-700"
+                                                        ? "bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-400"
+                                                        : "bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/60 text-rose-700 dark:text-rose-400"
                                                     }`}>
                                                       {log.status === "Done" ? "Done" : "Missed"}
                                                     </span>
@@ -4460,7 +4662,7 @@ function AdminAttendanceConsole({
                                                     {/* Odoo Community Sync Status Badge */}
                                                     {log.odooSyncStatus === "synced" ? (
                                                       <span
-                                                        className="inline-flex items-center gap-1 text-[10px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                        className="inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/60"
                                                         title={log.odooAttendanceId ? `Synchronized to Odoo (Attendance #${log.odooAttendanceId})` : "Synchronized to Odoo Community"}
                                                       >
                                                         <Check className="h-2.5 w-2.5" />
@@ -4468,7 +4670,7 @@ function AdminAttendanceConsole({
                                                       </span>
                                                     ) : log.odooSyncStatus === "failed" ? (
                                                       <span
-                                                        className="inline-flex items-center gap-1 text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200"
+                                                        className="inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60"
                                                         title={log.odooSyncError ? `Odoo Sync Error: ${log.odooSyncError}` : "Odoo synchronization failed"}
                                                       >
                                                         <X className="h-2.5 w-2.5" />
@@ -4476,7 +4678,7 @@ function AdminAttendanceConsole({
                                                       </span>
                                                     ) : (
                                                       <span
-                                                        className="inline-flex items-center gap-1 text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200"
+                                                        className="inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60"
                                                         title="Odoo synchronization pending or retrying"
                                                       >
                                                         <Clock className="h-2.5 w-2.5" />
@@ -4486,12 +4688,12 @@ function AdminAttendanceConsole({
                                                   </div>
 
                                                   {log.status === "Done" ? (
-                                                    <p className="text-slate-600 mt-1">
-                                                      <strong className="text-slate-700 font-extrabold">Topics Covered:</strong> {log.topicsCovered}
+                                                    <p className="text-slate-600 dark:text-slate-300 mt-1">
+                                                      <strong className="text-slate-700 dark:text-slate-200 font-semibold">Topics Covered:</strong> {log.topicsCovered}
                                                     </p>
                                                   ) : (
-                                                    <p className="text-slate-600 mt-1">
-                                                      <strong className="text-slate-700 font-extrabold">Reason:</strong> {log.missedReason === "Other" ? log.customReason : log.missedReason}
+                                                    <p className="text-slate-600 dark:text-slate-300 mt-1">
+                                                      <strong className="text-slate-700 dark:text-slate-200 font-semibold">Reason:</strong> {log.missedReason === "Other" ? log.customReason : log.missedReason}
                                                     </p>
                                                   )}
 
@@ -4499,14 +4701,14 @@ function AdminAttendanceConsole({
                                                     <button
                                                       type="button"
                                                       onClick={() => startEditLogInline(log)}
-                                                      className="text-[10px] font-black text-indigo-600 hover:underline cursor-pointer"
+                                                      className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                                                     >
                                                       Edit Log
                                                     </button>
                                                     <button
                                                       type="button"
                                                       onClick={() => handleDeleteLog(p._id, log._id)}
-                                                      className="text-[10px] font-black text-rose-600 hover:underline cursor-pointer"
+                                                      className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
                                                     >
                                                       Delete Log
                                                     </button>
@@ -4515,17 +4717,17 @@ function AdminAttendanceConsole({
                                                         type="button"
                                                         disabled={retryingLogId === log._id}
                                                         onClick={() => handleRetryLogSync(log._id, p._id)}
-                                                        className="text-[10px] font-black text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-md cursor-pointer inline-flex items-center gap-1 transition"
+                                                        className="text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 border border-amber-200 dark:border-amber-900/60 px-2 py-0.5 rounded-md cursor-pointer inline-flex items-center gap-1 transition"
                                                         title="Retry synchronizing this attendance record to Odoo Community"
                                                       >
-                                                        <RefreshCw className={`h-2.5 w-2.5 ${retryingLogId === log._id ? "animate-spin text-amber-700" : ""}`} />
+                                                        <RefreshCw className={`h-2.5 w-2.5 ${retryingLogId === log._id ? "animate-spin text-amber-700 dark:text-amber-400" : ""}`} />
                                                         {retryingLogId === log._id ? "Retrying..." : "Retry Odoo Sync"}
                                                       </button>
                                                     )}
                                                   </div>
                                                 </div>
 
-                                                <div className="text-right text-[10px] font-bold text-slate-400 shrink-0 self-center">
+                                                <div className="text-right text-xs font-bold text-slate-400 shrink-0 self-center">
                                                   <span>By {log.tutorName || p.assignedTutor || "Teacher"}</span>
                                                   <span className="block mt-0.5">{new Date(log.timestamp).toLocaleDateString()}</span>
                                                 </div>
@@ -4541,17 +4743,17 @@ function AdminAttendanceConsole({
 
                               {/* Right Column: Inline Edit Tuition Details */}
                               <div className="border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700 pt-5 lg:pt-0 lg:pl-6 space-y-4">
-                                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Edit Tuition Details</h4>
+                                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-2">Edit Tuition Details</h4>
                                 
                                 <form onSubmit={(e) => handleUpdateTuitionInline(e, p._id)} className="space-y-3.5">
                                   {tuitionError && (
-                                    <div className="p-2.5 bg-rose-50 border border-rose-100 rounded-xl text-rose-700 text-xs font-bold">
+                                    <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/60 rounded-xl text-rose-700 dark:text-rose-400 text-xs font-bold">
                                       {tuitionError}
                                     </div>
                                   )}
 
                                   <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Class Duration</label>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Class Duration</label>
                                     <input
                                       type="text"
                                       required
@@ -4564,7 +4766,7 @@ function AdminAttendanceConsole({
 
                                   <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Total Classes</label>
+                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Total Classes</label>
                                       <input
                                         type="number"
                                         required
@@ -4575,7 +4777,7 @@ function AdminAttendanceConsole({
                                       />
                                     </div>
                                     <div>
-                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Completed</label>
+                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Completed</label>
                                       <input
                                         type="number"
                                         required
@@ -4588,7 +4790,7 @@ function AdminAttendanceConsole({
                                   </div>
 
                                   <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Class Schedule</label>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Class Schedule</label>
                                     <input
                                       type="text"
                                       placeholder="e.g. Mon, Wed, Fri @ 5 PM"
@@ -4598,15 +4800,15 @@ function AdminAttendanceConsole({
                                     />
                                   </div>
 
-                                  <div className="flex items-center gap-2 py-1.5 px-3 bg-indigo-50/70 border border-indigo-100 rounded-xl">
+                                  <div className="flex items-center gap-2 py-1.5 px-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 rounded-xl">
                                     <input
                                       type="checkbox"
                                       id={`startNewCycle-${p._id}`}
                                       checked={startNewCycle}
                                       onChange={(e) => setStartNewCycle(e.target.checked)}
-                                      className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                                      className="w-4 h-4 text-indigo-600 dark:text-indigo-400 rounded focus:ring-indigo-500 border-slate-300 dark:border-slate-700 cursor-pointer"
                                     />
-                                    <label htmlFor={`startNewCycle-${p._id}`} className="text-xs font-bold text-indigo-900 cursor-pointer">
+                                    <label htmlFor={`startNewCycle-${p._id}`} className="text-xs font-bold text-indigo-900 dark:text-indigo-300 cursor-pointer">
                                       Start New Package Cycle #{ (p.currentPackageCycle || 1) + 1 } (Resets counter to 0, keeps history)
                                     </label>
                                   </div>
@@ -4614,7 +4816,7 @@ function AdminAttendanceConsole({
                                   <button
                                     type="submit"
                                     disabled={tuitionUpdating}
-                                    className="w-full h-10 rounded-xl text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 transition cursor-pointer shadow-sm disabled:opacity-50"
+                                    className="w-full h-10 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition cursor-pointer shadow-sm disabled:opacity-50"
                                   >
                                     {tuitionUpdating ? "Saving Changes..." : "Save Tuition Config"}
                                   </button>
@@ -4646,26 +4848,26 @@ function AdminAttendanceConsole({
 
       {showCustomizeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-fadeIn">
-          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col max-h-[85vh] z-50">
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col max-h-[85vh] z-50">
             <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
-              <h3 className="text-sm font-black uppercase tracking-wider">Customize Attendance Columns</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wider">Customize Attendance Columns</h3>
               <button 
                 type="button"
                 onClick={() => setShowCustomizeModal(false)}
-                className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-black/5 text-slate-500 cursor-pointer"
+                className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-black/5 text-slate-500 dark:text-slate-400 cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4">
-              <p className="text-xs font-semibold text-slate-500 mb-2">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
                 Enable/disable columns and change their order. These settings are saved in your browser.
               </p>
               <div className="space-y-2">
                 {attendanceColumns.map((col, idx) => (
                   <div key={col.key} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-xl p-3 border border-slate-200 dark:border-slate-700">
-                    <label className="flex items-center gap-3 cursor-pointer text-xs font-bold text-slate-700">
+                    <label className="flex items-center gap-3 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-200">
                       <input
                         type="checkbox"
                         checked={col.enabled}
@@ -4675,7 +4877,7 @@ function AdminAttendanceConsole({
                           setAttendanceColumns(updated);
                           localStorage.setItem("attendanceColumnsConfig", JSON.stringify(updated));
                         }}
-                        className="rounded border-slate-300 accent-indigo-600"
+                        className="rounded border-slate-300 dark:border-slate-700 accent-indigo-600"
                       />
                       {col.label}
                     </label>
@@ -4692,7 +4894,7 @@ function AdminAttendanceConsole({
                           setAttendanceColumns(updated);
                           localStorage.setItem("attendanceColumnsConfig", JSON.stringify(updated));
                         }}
-                        className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition cursor-pointer disabled:opacity-30 disabled:hover:bg-transparent"
+                        className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer disabled:opacity-30 disabled:hover:bg-transparent"
                       >
                         ▲
                       </button>
@@ -4707,7 +4909,7 @@ function AdminAttendanceConsole({
                           setAttendanceColumns(updated);
                           localStorage.setItem("attendanceColumnsConfig", JSON.stringify(updated));
                         }}
-                        className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition cursor-pointer disabled:opacity-30 disabled:hover:bg-transparent"
+                        className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer disabled:opacity-30 disabled:hover:bg-transparent"
                       >
                         ▼
                       </button>
@@ -4724,14 +4926,14 @@ function AdminAttendanceConsole({
                   setAttendanceColumns(DEFAULT_ATTENDANCE_COLUMNS);
                   localStorage.removeItem("attendanceColumnsConfig");
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
               >
                 Reset Default
               </button>
               <button
                 type="button"
                 onClick={() => setShowCustomizeModal(false)}
-                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black transition cursor-pointer shadow-md"
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer shadow-md"
               >
                 Done
               </button>
@@ -4743,57 +4945,51 @@ function AdminAttendanceConsole({
   );
 }
 
-function MiniStat({ title, value, color, icon: Icon }) {
+function MiniStat({ title, value, color, icon }) {
   const colors = {
-    yellow: "bg-amber-50 text-amber-700 border-amber-200/60 ring-amber-100",
-    green: "bg-emerald-50 text-emerald-700 border-emerald-200/60 ring-emerald-100",
-    red: "bg-rose-50 text-rose-700 border-rose-200/60 ring-rose-100",
+    yellow: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/15",
+    green: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/15",
+    red: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/15",
   };
-
-  return (
-    <div className={`rounded-3xl p-5 border flex items-center justify-between shadow-sm transition hover:shadow-md ${colors[color]}`}>
-      <div>
-        <p className="text-xs font-bold uppercase tracking-wider opacity-85">{title}</p>
-        <p className="mt-2 text-3xl font-black tracking-tight">{value}</p>
-      </div>
-      {Icon && (
-        <div className="p-3 bg-white/60 dark:bg-slate-800/60 rounded-xl shadow-sm">
-          <Icon className="h-5 w-5 stroke-[2.5]" />
-        </div>
-      )}
-    </div>
-  );
+  return <StatCard title={title} value={value} icon={icon} gradientClass={colors[color]} />;
 }
 
 function SectionHeader({ title, subtitle, icon: Icon }) {
   return (
-    <div className="mb-6 border-b border-slate-200/80 dark:border-slate-700 pb-4">
-      <div className="flex items-center gap-2.5">
-        {Icon && <Icon className="h-6 w-6 text-slate-700" />}
-        <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+    <div className="mb-5 flex items-center gap-3.5">
+      {Icon && (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-300">
+          <Icon className="h-5 w-5" />
+        </div>
+      )}
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
           {title}
         </h2>
+        {subtitle && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
       </div>
-      {subtitle && <p className="mt-1.5 text-sm text-slate-500 pl-8 font-semibold">{subtitle}</p>}
     </div>
   );
 }
 
 function EmptyState({ text }) {
   return (
-    <div className="rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 p-8 text-center text-sm font-bold text-slate-400 dark:text-slate-500">
-      {text}
+    <div className="flex flex-col items-center rounded-2xl bg-white dark:bg-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none px-6 py-12 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+        <Inbox className="h-7 w-7 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+      </div>
+      <p className="mt-4 text-sm font-medium text-slate-500 dark:text-slate-400">{text}</p>
     </div>
   );
 }
 
 function InfoRow({ label, value, icon: Icon }) {
   return (
-    <div className="flex items-start gap-2 py-1.5 text-xs font-bold text-slate-600">
+    <div className="flex items-start gap-2 py-1 text-sm font-semibold text-slate-600 dark:text-slate-300">
       {Icon && <Icon className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />}
       <div className="min-w-0 flex-1">
         <span className="text-slate-800 dark:text-slate-100">{label}: </span>
-        <span className="text-slate-600 font-semibold break-words leading-relaxed">
+        <span className="text-slate-600 dark:text-slate-300 font-normal break-words leading-relaxed">
           {value || value === 0 ? value : <span className="text-slate-400 italic font-medium">Not provided</span>}
         </span>
       </div>
@@ -4801,20 +4997,93 @@ function InfoRow({ label, value, icon: Icon }) {
   );
 }
 
+const AVATAR_TONES = [
+  "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
+  "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+  "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300",
+  "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300",
+  "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300",
+];
+
+// Round avatar: photo when available, otherwise initials on a colour picked from the name
+function Avatar({ name, src }) {
+  const label = (name || "?").trim();
+  if (src) {
+    return (
+      <img
+        src={src.includes("/upload/") ? src.replace("/upload/", "/upload/f_auto,q_auto,w_96/") : src}
+        alt=""
+        loading="lazy"
+        className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white dark:ring-slate-900"
+      />
+    );
+  }
+  const initials = label.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
+  const tone = AVATAR_TONES[[...label].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % AVATAR_TONES.length];
+  return (
+    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${tone}`} aria-hidden="true">
+      {initials}
+    </span>
+  );
+}
+
+const ICON_ACTION_TONES = {
+  indigo: "bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-300 dark:hover:bg-indigo-500/25",
+  emerald: "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25",
+  rose: "bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25",
+  amber: "bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25",
+  slate: "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700",
+  dark: "bg-slate-900 text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white",
+};
+
+// Round icon-only action button (label is shown as a tooltip and read by screen readers)
+function IconAction({ label, icon: Icon, tone = "indigo", onClick, compact = false }) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.(e);
+      }}
+      className={`flex ${compact ? "h-8 w-8" : "h-9 w-9"} shrink-0 items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer ${ICON_ACTION_TONES[tone] || ICON_ACTION_TONES.slate}`}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+}
+
+const STATUS_SELECT_TONES = {
+  blue: "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300",
+  purple: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-500/30 dark:bg-purple-500/15 dark:text-purple-300",
+  yellow: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-300",
+  orange: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/15 dark:text-orange-300",
+  emerald: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300",
+  red: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-300",
+  slate: "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+};
+
+// Label shown above a table cell's value when the table collapses into cards (below xl)
+function CellLabel({ children }) {
+  return <span className="mb-0.5 block text-xs font-medium text-slate-400 dark:text-slate-500 xl:hidden">{children}</span>;
+}
+
 function Badge({ text, color = "slate" }) {
   const colors = {
-    blue: "bg-blue-50 text-blue-700 border-blue-200/50",
-    purple: "bg-purple-50 text-purple-700 border-purple-200/50",
-    orange: "bg-orange-50 text-orange-700 border-orange-200/50",
-    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200/50",
-    red: "bg-rose-50 text-rose-700 border-rose-200/50",
-    yellow: "bg-amber-50 text-amber-700 border-amber-200/50",
+    blue: "bg-indigo-50 text-indigo-700 border-indigo-200/50 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900/60",
+    purple: "bg-purple-50 text-purple-700 border-purple-200/50 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/60",
+    orange: "bg-orange-50 text-orange-700 border-orange-200/50 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900/60",
+    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200/50 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60",
+    red: "bg-rose-50 text-rose-700 border-rose-200/50 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/60",
+    yellow: "bg-amber-50 text-amber-700 border-amber-200/50 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60",
     slate: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700",
   };
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black ${
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-bold ${
         colors[color] || colors.slate
       }`}
     >
@@ -4826,7 +5095,7 @@ function Badge({ text, color = "slate" }) {
 function DocumentLink({ href, label }) {
   if (!href) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200/50 px-3 py-1.5 text-xs font-bold text-rose-600">
+      <span className="inline-flex items-center gap-1 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/50 dark:border-rose-900/60 px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-300">
         <XCircle className="h-3.5 w-3.5" />
         {label} Missing
       </span>
@@ -4838,7 +5107,7 @@ function DocumentLink({ href, label }) {
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center gap-1 rounded-xl bg-blue-50 border border-blue-200/50 px-3 py-1.5 text-xs font-bold text-blue-700 transition duration-200 hover:bg-blue-100 hover:border-blue-300"
+      className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/50 dark:border-indigo-900/60 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 transition duration-200 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 hover:border-indigo-300"
     >
       <FileDown className="h-3.5 w-3.5" />
       {label}
@@ -4860,7 +5129,7 @@ function ProfilePhotoLink({ href }) {
       download
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center gap-1 rounded-xl bg-blue-50 border border-blue-200/50 px-3 py-1.5 text-xs font-bold text-blue-700 transition duration-200 hover:bg-blue-100 hover:border-blue-300"
+      className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/50 dark:border-indigo-900/60 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 transition duration-200 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 hover:border-indigo-300"
     >
       <FileDown className="h-3.5 w-3.5" />
       Profile Picture
@@ -4886,7 +5155,7 @@ function ProtectedDocumentLink({ href, label, password }) {
 
   if (!href) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-xl bg-rose-50 border border-rose-200/50 px-3 py-1.5 text-xs font-bold text-rose-600">
+      <span className="inline-flex items-center gap-1 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/50 dark:border-rose-900/60 px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-300">
         <XCircle className="h-3.5 w-3.5" />
         {label} Missing
       </span>
@@ -4897,10 +5166,10 @@ function ProtectedDocumentLink({ href, label, password }) {
     <button
       type="button"
       onClick={handleOpen}
-      className="inline-flex items-center gap-1 rounded-xl bg-purple-50 border border-purple-200/50 px-3 py-1.5 text-xs font-bold text-purple-700 transition duration-200 hover:bg-purple-100 hover:border-purple-300 cursor-pointer"
+      className="inline-flex items-center gap-1 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200/50 dark:border-purple-900/60 px-3 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-300 transition duration-200 hover:bg-purple-100 dark:hover:bg-purple-900/50 hover:border-purple-300 cursor-pointer"
     >
       <Lock className="h-3.5 w-3.5" />
-      🔒 {label}
+      {label}
     </button>
   );
 }
@@ -4917,16 +5186,16 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-slideFade">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-200 dark:border-slate-700 md:p-8">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-200 dark:border-slate-700 md:p-8">
         <div className="mb-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-4">
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Edit className="h-6 w-6 text-slate-800 dark:text-slate-200" />
             {title}
           </h2>
 
           <button
             onClick={onClose}
-            className="rounded-full bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200 cursor-pointer"
+            className="rounded-full bg-slate-100 dark:bg-slate-800 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 transition hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
           >
             Close
           </button>
@@ -4934,7 +5203,7 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
 
         {/* Section 1: Personal & Contact Details */}
         <div className="mb-6">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 border-b border-slate-100 dark:border-slate-700 pb-1">Personal & Contact Info</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 border-b border-slate-100 dark:border-slate-700 pb-1">Personal & Contact Info</h3>
           <div className="grid gap-4 md:grid-cols-2">
             <ModalInput
               placeholder="Name"
@@ -4961,7 +5230,7 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
             />
 
             <div className="flex flex-col">
-              <label className="text-[10px] font-black uppercase text-slate-400 mb-1 ml-2">Gender</label>
+              <label className="text-xs font-bold uppercase text-slate-400 mb-1 ml-2">Gender</label>
               <ModalSelect
                 placeholder="Gender"
                 value={form.gender}
@@ -4971,7 +5240,7 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
             </div>
 
             <div className="flex flex-col">
-              <label className="text-[10px] font-black uppercase text-slate-400 mb-1 ml-2">Date of Birth</label>
+              <label className="text-xs font-bold uppercase text-slate-400 mb-1 ml-2">Date of Birth</label>
               <ModalDateInput
                 placeholder="Date of Birth"
                 value={form.dob}
@@ -4989,7 +5258,7 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
 
         {/* Section 2: Professional & Address Info */}
         <div className="mb-6">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 border-b border-slate-100 dark:border-slate-700 pb-1">Professional & Address Info</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 border-b border-slate-100 dark:border-slate-700 pb-1">Professional & Address Info</h3>
           <div className="grid gap-4 md:grid-cols-2">
             <ModalInput
               placeholder="Qualification"
@@ -5010,7 +5279,7 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
             />
 
             <div className="flex flex-col">
-              <label className="text-[10px] font-black uppercase text-slate-400 mb-1 ml-2">City</label>
+              <label className="text-xs font-bold uppercase text-slate-400 mb-1 ml-2">City</label>
               <ModalSelect
                 placeholder="City"
                 value={form.city}
@@ -5043,10 +5312,10 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
 
         {/* Section 3: Teaching Preferences & Availability */}
         <div className="mb-6">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 border-b border-slate-100 dark:border-slate-700 pb-1">Teaching Preferences & Availability</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 border-b border-slate-100 dark:border-slate-700 pb-1">Teaching Preferences & Availability</h3>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col">
-              <label className="text-[10px] font-black uppercase text-slate-400 mb-1 ml-2">Max Travel Distance</label>
+              <label className="text-xs font-bold uppercase text-slate-400 mb-1 ml-2">Max Travel Distance</label>
               <ModalSelect
                 placeholder="Max Travel Distance"
                 value={form.maxTravelDistance}
@@ -5056,7 +5325,7 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
             </div>
 
             <div className="flex flex-col">
-              <label className="text-[10px] font-black uppercase text-slate-400 mb-1 ml-2">Availability Status</label>
+              <label className="text-xs font-bold uppercase text-slate-400 mb-1 ml-2">Availability Status</label>
               <ModalSelect
                 placeholder="Availability Status"
                 value={form.availabilityStatus}
@@ -5096,7 +5365,7 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
         </div>
 
         <textarea
-          className="mt-4 min-h-[120px] w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 text-sm font-semibold"
+          className="mt-4 min-h-[120px] w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-3 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-semibold"
           placeholder="About tutor..."
           value={form.about}
           onChange={(e) => setForm({ ...form, about: e.target.value })}
@@ -5105,7 +5374,7 @@ function TutorModal({ title, form, setForm, primaryText, onPrimary, onClose }) {
         <div className="mt-6 flex gap-3 border-t border-slate-100 dark:border-slate-700 pt-4">
           <button
             onClick={onPrimary}
-            className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-blue-700 cursor-pointer"
+            className="rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-indigo-700 cursor-pointer"
           >
             {primaryText}
           </button>
@@ -5127,7 +5396,7 @@ function ModalSelect({ placeholder, value, onChange, options }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 px-4 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 text-sm font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 cursor-pointer"
+      className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 px-4 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 cursor-pointer"
     >
       <option value="" disabled>{placeholder}</option>
       {options.map((opt) => (
@@ -5141,7 +5410,7 @@ function ModalDateInput({ placeholder, value, onChange }) {
   return (
     <input
       type="date"
-      className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 px-4 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 text-sm font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+      className="h-12 w-full rounded-2xl border border-slate-200 dark:border-slate-700 px-4 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
       placeholder={placeholder}
       value={value ? value.substring(0, 10) : ""}
       onChange={(e) => onChange(e.target.value)}
@@ -5152,7 +5421,7 @@ function ModalDateInput({ placeholder, value, onChange }) {
 function CheckboxGroup({ label, options, selectedValues, onChange }) {
   return (
     <div className="col-span-2 mt-2">
-      <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-2">{label}</label>
+      <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">{label}</label>
       <div className="flex flex-wrap gap-2">
         {options.map((option) => {
           const isChecked = selectedValues?.includes(option);
@@ -5161,7 +5430,7 @@ function CheckboxGroup({ label, options, selectedValues, onChange }) {
               key={option}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition cursor-pointer select-none ${
                 isChecked
-                  ? "bg-indigo-50 border-indigo-300 text-indigo-700 font-extrabold shadow-sm"
+                  ? "bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-900/60 text-indigo-700 dark:text-indigo-400 font-semibold shadow-sm"
                   : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
               }`}
             >
@@ -5189,7 +5458,7 @@ function CheckboxGroup({ label, options, selectedValues, onChange }) {
 function ModalInput({ value, onChange, placeholder }) {
   return (
     <input
-      className="h-12 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 text-sm font-semibold"
+      className="h-12 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-semibold"
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -5199,7 +5468,7 @@ function ModalInput({ value, onChange, placeholder }) {
 
 // Premium Analytics & Visitor Insights Component
 function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
-  const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#94a3b8"];
+  const PIE_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#94a3b8"];
 
   // 1. Auto-Refresh Logic
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -5327,7 +5596,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
       }
 
       const colors = [
-        "bg-blue-500", "bg-sky-500", "bg-indigo-500", "bg-violet-500",
+        "bg-indigo-500", "bg-sky-500", "bg-indigo-500", "bg-violet-500",
         "bg-fuchsia-500", "bg-pink-500", "bg-rose-500", "bg-red-500",
         "bg-orange-500", "bg-amber-500", "bg-emerald-500"
       ];
@@ -5424,8 +5693,8 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
   // Compute scroll color
   const getScrollColor = (depth) => {
     if (depth >= 75) return "text-emerald-400";
-    if (depth >= 45) return "text-blue-400";
-    return "text-slate-400";
+    if (depth >= 45) return "text-indigo-400";
+    return "text-slate-500 dark:text-slate-400";
   };
 
   // Compute time format
@@ -5463,29 +5732,29 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
   };
 
   return (
-    <div className="animate-slideFade rounded-3xl bg-[#090e1a] border border-slate-800/80 p-6 text-white shadow-2xl relative overflow-hidden">
+    <div className="animate-slideFade rounded-2xl bg-white dark:bg-[#090e1a] border border-slate-200 dark:border-slate-800/80 p-4 sm:p-6 text-slate-900 dark:text-white shadow-2xl relative overflow-hidden">
       {/* Background radial overlays */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.15),transparent_45%)] pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(99,102,241,0.1),transparent_40%)] pointer-events-none" />
 
       {/* Header section */}
-      <div className="relative z-10 flex flex-col justify-between gap-6 border-b border-slate-800/80 pb-6 md:flex-row md:items-center">
+      <div className="relative z-10 flex flex-col justify-between gap-6 border-b border-slate-200 dark:border-slate-800/80 pb-6 md:flex-row md:items-center">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-400">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-400">
               Visitor Insights Console
             </p>
           </div>
 
-          <h2 className="text-3xl font-black tracking-tight">
+          <h2 className="text-3xl font-bold tracking-tight">
             Web Traffic & Action Analytics
           </h2>
 
-          <p className="mt-1 text-xs text-slate-400 font-semibold">
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-semibold">
             Real-time user sessions, conversion funnel, devices, and Microsoft Clarity integration.
           </p>
         </div>
@@ -5496,8 +5765,8 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
             onClick={() => setAutoRefresh(prev => !prev)}
             className={`flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold transition duration-200 cursor-pointer ${
               autoRefresh
-                ? "bg-emerald-600/90 text-white shadow-lg shadow-emerald-500/20 border border-emerald-500/30"
-                : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+                ? "bg-emerald-600/90 text-white shadow-sm border border-emerald-500/30"
+                : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <span className={`h-2 w-2 rounded-full ${autoRefresh ? "bg-emerald-400 animate-pulse" : "bg-slate-500"}`} />
@@ -5505,15 +5774,15 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
           </button>
 
           {/* Period Selector */}
-          <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-1 flex">
+          <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-1 flex">
             {["24h", "7d", "30d"].map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
                 className={`px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
                   period === p
-                    ? "bg-blue-600 text-white shadow-lg"
-                    : "text-slate-400 hover:text-white"
+                    ? "bg-indigo-600 text-white shadow-lg"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 {p === "24h" ? "24 Hours" : p === "7d" ? "7 Days" : "30 Days"}
@@ -5524,102 +5793,102 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
           {/* Refresh Action */}
           <button
             onClick={refresh}
-            className="flex items-center justify-center p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:bg-slate-800 transition cursor-pointer"
+            className="flex items-center justify-center p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
             title="Refresh statistics"
           >
-            <RefreshCw className={`h-4.5 w-4.5 text-slate-300 ${loading ? "animate-spin text-blue-400" : ""}`} />
+            <RefreshCw className={`h-4.5 w-4.5 text-slate-600 dark:text-slate-300 ${loading ? "animate-spin text-indigo-400" : ""}`} />
           </button>
         </div>
       </div>
 
       {loading ? (
         <div className="min-h-[500px] flex flex-col items-center justify-center relative z-10 gap-3">
-          <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
-          <p className="text-slate-400 text-sm font-semibold">Compiling latest visitor metrics...</p>
+          <RefreshCw className="h-8 w-8 animate-spin text-indigo-500" />
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-semibold">Compiling latest visitor metrics...</p>
         </div>
       ) : (
         <div className="mt-8 relative z-10 space-y-8">
 
           {/* Summary Metric Cards */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7">
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 hover:border-blue-900/50 transition animate-slideFade">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Visitors</span>
-              <p className="mt-2 text-3xl font-black text-white tracking-tight">{data?.summary?.totalVisitors || 0}</p>
-              <span className="mt-1 text-[10px] text-emerald-400 font-semibold block">Unique users</span>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7">
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 hover:border-indigo-900/50 transition animate-slideFade">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Visitors</span>
+              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{data?.summary?.totalVisitors || 0}</p>
+              <span className="mt-1 text-xs text-emerald-400 font-semibold block">Unique users</span>
             </div>
 
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 border-l-2 border-l-emerald-500 animate-slideFade">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active Users</span>
-              <p className="mt-2 text-3xl font-black text-emerald-400 tracking-tight">{data?.summary?.activeUsers || 0}</p>
-              <span className="mt-1 text-[10px] text-slate-400 font-medium block">Active (last 5 min)</span>
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 border-l-2 border-l-emerald-500 animate-slideFade">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Active Users</span>
+              <p className="mt-2 text-3xl font-bold text-emerald-400 tracking-tight">{data?.summary?.activeUsers || 0}</p>
+              <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium block">Active (last 5 min)</span>
             </div>
 
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 hover:border-indigo-900/50 transition animate-slideFade">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">New Visitors</span>
-              <p className="mt-2 text-3xl font-black text-white tracking-tight">{data?.summary?.newVisitors || 0}</p>
-              <span className="mt-1 text-[10px] text-blue-400 font-semibold block">First sessions</span>
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 hover:border-indigo-900/50 transition animate-slideFade">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">New Visitors</span>
+              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{data?.summary?.newVisitors || 0}</p>
+              <span className="mt-1 text-xs text-indigo-400 font-semibold block">First sessions</span>
             </div>
 
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 hover:border-slate-800 transition animate-slideFade">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Returning Users</span>
-              <p className="mt-2 text-3xl font-black text-white tracking-tight">{data?.summary?.returningVisitors || 0}</p>
-              <span className="mt-1 text-[10px] text-slate-400 font-medium block">Recurring visits</span>
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 hover:border-slate-800 transition animate-slideFade">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Returning Users</span>
+              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{data?.summary?.returningVisitors || 0}</p>
+              <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium block">Recurring visits</span>
             </div>
 
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 hover:border-slate-800 transition animate-slideFade">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Session Duration</span>
-              <p className="mt-2 text-3xl font-black text-white tracking-tight">{formatTimeSpent(data?.summary?.avgSessionDuration || 0)}</p>
-              <span className="mt-1 text-[10px] text-slate-400 font-medium block">Avg time spent</span>
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 hover:border-slate-800 transition animate-slideFade">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Session Duration</span>
+              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{formatTimeSpent(data?.summary?.avgSessionDuration || 0)}</p>
+              <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium block">Avg time spent</span>
             </div>
 
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 hover:border-slate-800 transition animate-slideFade">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bounce Rate</span>
-              <p className="mt-2 text-3xl font-black text-white tracking-tight">{data?.summary?.avgBounceRate || 0}%</p>
-              <span className="mt-1 text-[10px] text-slate-400 font-medium block">Single page views</span>
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 hover:border-slate-800 transition animate-slideFade">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Bounce Rate</span>
+              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{data?.summary?.avgBounceRate || 0}%</p>
+              <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium block">Single page views</span>
             </div>
 
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 hover:border-slate-800 transition animate-slideFade">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Scroll Depth</span>
-              <p className="mt-2 text-3xl font-black text-white tracking-tight">{data?.summary?.avgScrollDepth || 0}%</p>
-              <span className="mt-1 text-[10px] text-slate-400 font-medium block">Average depth</span>
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 hover:border-slate-800 transition animate-slideFade">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Scroll Depth</span>
+              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{data?.summary?.avgScrollDepth || 0}%</p>
+              <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium block">Average depth</span>
             </div>
           </div>
 
           {/* Visual Conversion Funnel */}
-          <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-6 animate-slideFade">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
+          <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-4 sm:p-6 animate-slideFade">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-4">
               <Award className="h-4 w-4 text-emerald-400" />
               Complete Admissions Lead Conversion Funnel
             </span>
             <div className="space-y-3">
               {funnelSteps.map((step, idx) => (
-                <div key={step.label} className="bg-slate-950/40 border border-slate-800/80 p-3.5 px-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 min-w-[250px]">
-                    <span className="text-xs font-bold text-slate-500">{String(idx + 1).padStart(2, "0")}</span>
+                <div key={step.label} className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 p-3.5 px-4 sm:px-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                  <div className="flex min-w-0 items-center gap-3 sm:gap-4 sm:min-w-[250px]">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{String(idx + 1).padStart(2, "0")}</span>
                     <div>
-                      <h4 className="text-sm font-black text-white">{step.label.replace(/^\d+\.\s*/, '')}</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">{step.count} Visitors</p>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">{step.label.replace(/^\d+\.\s*/, '')}</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">{step.count} Visitors</p>
                     </div>
                   </div>
 
                   <div className="flex-1 max-w-md">
-                    <div className="flex justify-between text-[10px] text-slate-400 font-bold mb-1">
+                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 font-bold mb-1">
                       <span>Funnel Rate</span>
                       <span>{step.pct}%</span>
                     </div>
-                    <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
+                    <div className="w-full bg-white dark:bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-200 dark:border-slate-800">
                       <div className={`h-full ${step.color}`} style={{ width: `${step.pct}%` }} />
                     </div>
                   </div>
 
-                  <div className="flex gap-6 text-right sm:min-w-[150px] justify-end">
+                  <div className="flex gap-6 text-right sm:min-w-[150px] justify-between sm:justify-end">
                     <div>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Conversion</p>
-                      <p className="text-sm font-extrabold text-white">{step.pct}%</p>
+                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Conversion</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{step.pct}%</p>
                     </div>
                     <div>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Drop-off</p>
-                      <p className={`text-sm font-extrabold ${idx === 0 ? "text-slate-500" : "text-rose-400"}`}>
+                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Drop-off</p>
+                      <p className={`text-sm font-semibold ${idx === 0 ? "text-slate-500 dark:text-slate-400" : "text-rose-400"}`}>
                         {idx === 0 ? "0%" : `-${step.dropoff}%`}
                       </p>
                     </div>
@@ -5632,15 +5901,15 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
           {/* Primary Graphs Row */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Daily Visitors Line Chart */}
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 lg:col-span-2">
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 lg:col-span-2">
               <div className="mb-4 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <Activity className="h-4 w-4 text-blue-500" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <Activity className="h-4 w-4 text-indigo-500" />
                   Visitor Traffic Trend
                 </span>
               </div>
 
-              <div className="h-72 w-full text-slate-400">
+              <div className="h-72 w-full text-slate-500 dark:text-slate-400">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={data?.dailyVisitors || []}
@@ -5648,11 +5917,11 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                   >
                     <defs>
                       <linearGradient id="visitorColor" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.06)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
                     <XAxis
                       dataKey="date"
                       stroke="#64748b"
@@ -5673,7 +5942,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                       type="monotone"
                       dataKey="count"
                       name="Unique Visitors"
-                      stroke="#3b82f6"
+                      stroke="#6366f1"
                       strokeWidth={2}
                       fillOpacity={1}
                       fill="url(#visitorColor)"
@@ -5684,14 +5953,14 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
             </div>
 
             {/* Traffic Sources Pie Chart */}
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 flex flex-col justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 flex flex-col justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-4">
                 <Globe className="h-4 w-4 text-emerald-500" />
                 Traffic Referral Sources
               </span>
 
               {pieData.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center text-xs text-slate-500 font-semibold">
+                <div className="flex-1 flex items-center justify-center text-xs text-slate-500 dark:text-slate-400 font-semibold">
                   No source data available
                 </div>
               ) : (
@@ -5719,7 +5988,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                     </ResponsiveContainer>
                   </div>
 
-                  <div className="flex flex-col gap-1.5 text-xs text-slate-300 w-full sm:w-auto">
+                  <div className="flex flex-col gap-1.5 text-xs text-slate-600 dark:text-slate-300 w-full sm:w-auto">
                     {pieData.map((entry, index) => (
                       <div key={entry.name} className="flex items-center gap-2">
                         <span
@@ -5727,7 +5996,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                           style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
                         />
                         <span className="font-semibold">{entry.name}</span>
-                        <span className="text-slate-500">({entry.value})</span>
+                        <span className="text-slate-500 dark:text-slate-400">({entry.value})</span>
                       </div>
                     ))}
                   </div>
@@ -5737,12 +6006,12 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
           </div>
 
           {/* Marketing Lead Generation Breakdown (UTM Sources) */}
-          <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-6 animate-slideFade">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
+          <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-6 animate-slideFade">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-4">
               <Award className="h-4 w-4 text-emerald-400" />
               Marketing Lead Generation Acquisition (UTM Sources)
             </span>
-            <p className="text-xs text-slate-400 mb-4 font-semibold">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 font-semibold">
               Breakdown of successfully created parent enquiry leads grouped by marketing acquisition channels (UTM source).
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
@@ -5751,7 +6020,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                 const pct = Math.round((src.count / totalLeads) * 100);
 
                 const sourceColors = {
-                  Google: "bg-blue-500",
+                  Google: "bg-indigo-500",
                   WhatsApp: "bg-green-500",
                   Instagram: "bg-pink-500",
                   Facebook: "bg-indigo-500",
@@ -5762,17 +6031,17 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                 const colorClass = sourceColors[src.name] || "bg-slate-600";
 
                 return (
-                  <div key={src.name} className="relative bg-slate-950/40 border border-slate-800 p-4 rounded-2xl flex flex-col justify-between overflow-hidden">
+                  <div key={src.name} className="relative bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex flex-col justify-between overflow-hidden">
                     <div>
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{src.name} Leads</span>
-                      <p className="mt-2 text-3xl font-black text-white tracking-tight">{src.count}</p>
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{src.name} Leads</span>
+                      <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{src.count}</p>
                     </div>
                     <div className="mt-4">
-                      <div className="flex justify-between text-[10px] text-slate-400 font-bold mb-1">
+                      <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 font-bold mb-1">
                         <span>Share</span>
                         <span>{pct}%</span>
                       </div>
-                      <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                         <div className={`h-full ${colorClass}`} style={{ width: `${pct}%` }} />
                       </div>
                     </div>
@@ -5785,15 +6054,15 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
           {/* Locations & Devices Row */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Top Cities Bar Chart */}
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 lg:col-span-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 lg:col-span-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-4">
                 <MapPin className="h-4 w-4 text-rose-500" />
                 Top Cities Geolocation
               </span>
 
               <div className="h-64 w-full">
                 {!Array.isArray(data?.locationStats) || data.locationStats.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-500 font-semibold">
+                  <div className="h-full flex items-center justify-center text-xs text-slate-500 dark:text-slate-400 font-semibold">
                     No location data available
                   </div>
                 ) : (
@@ -5802,7 +6071,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                       data={data.locationStats.slice(0, 10)}
                       margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.06)" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
                       <XAxis
                         dataKey="city"
                         stroke="#64748b"
@@ -5827,8 +6096,8 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
             </div>
 
             {/* Devices and Tech Specs */}
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 flex flex-col justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 flex flex-col justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-4">
                 <Laptop className="h-4 w-4 text-purple-500" />
                 Devices & Technology Specs
               </span>
@@ -5836,7 +6105,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
               <div className="space-y-4 flex-1 flex flex-col justify-around">
                 {/* Device Breakdown */}
                 <div>
-                  <div className="flex justify-between text-xs font-bold text-slate-400 mb-2">
+                  <div className="flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
                     <span>DEVICE CATEGORY</span>
                     <span>VISITORS</span>
                   </div>
@@ -5847,14 +6116,14 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                       const totalDevices = data?.devices?.reduce((sum, d) => sum + d.count, 0) || 1;
                       const pct = Math.round((count / totalDevices) * 100);
 
-                      const barColors = { Mobile: "bg-emerald-500", Desktop: "bg-blue-500", Tablet: "bg-amber-500" };
+                      const barColors = { Mobile: "bg-emerald-500", Desktop: "bg-indigo-500", Tablet: "bg-amber-500" };
                       const Icon = dev === "Mobile" ? Smartphone : dev === "Desktop" ? Laptop : Tablet;
 
                       return (
                         <div key={dev} className="flex items-center gap-3">
-                          <Icon className="h-4 w-4 text-slate-400 shrink-0" />
+                          <Icon className="h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0" />
                           <span className="text-xs font-semibold w-16">{dev}</span>
-                          <div className="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden">
+                          <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                             <div className={`h-full ${barColors[dev]}`} style={{ width: `${pct}%` }} />
                           </div>
                           <span className="text-xs font-bold w-12 text-right">{pct}%</span>
@@ -5865,19 +6134,19 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                 </div>
 
                 {/* Top Browser and Top OS */}
-                <div className="grid grid-cols-2 gap-4 border-t border-slate-800 pt-4">
+                <div className="grid grid-cols-2 gap-4 border-t border-slate-200 dark:border-slate-800 pt-4">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Top Operating System</span>
-                    <p className="mt-1 text-sm font-bold text-slate-200">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Top Operating System</span>
+                    <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">
                       {data?.operatingSystems?.[0]?._id || "Unknown"}
-                      <span className="text-xs text-slate-400 font-medium ml-1">({data?.operatingSystems?.[0]?.count || 0})</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium ml-1">({data?.operatingSystems?.[0]?.count || 0})</span>
                     </p>
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Top Browser</span>
-                    <p className="mt-1 text-sm font-bold text-slate-200">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Top Browser</span>
+                    <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">
                       {data?.browsers?.[0]?._id || "Unknown"}
-                      <span className="text-xs text-slate-400 font-medium ml-1">({data?.browsers?.[0]?.count || 0})</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium ml-1">({data?.browsers?.[0]?.count || 0})</span>
                     </p>
                   </div>
                 </div>
@@ -5888,16 +6157,16 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
           {/* Plan Analytics & Custom Actions Row */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Plans Conversion Performance */}
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 lg:col-span-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 lg:col-span-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-4">
                 <Award className="h-4 w-4 text-indigo-400" />
                 Plans Carousel Conversion Funnel
               </span>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-xs font-semibold text-slate-300">
+                <table className="w-full text-xs font-semibold text-slate-600 dark:text-slate-300">
                   <thead>
-                    <tr className="text-left border-b border-slate-800/80 text-[10px] text-slate-500 uppercase tracking-wider">
+                    <tr className="text-left border-b border-slate-200 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                       <th className="pb-3">PLAN NAME</th>
                       <th className="pb-3 text-center">VIEWS</th>
                       <th className="pb-3 text-center">EXPLORE CLICKS</th>
@@ -5909,15 +6178,15 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                   </thead>
                   <tbody>
                     {Array.isArray(data?.plans) && data.plans.map((plan) => (
-                      <tr key={plan.name} className="border-b border-slate-800/50 last:border-0">
-                        <td className="py-4 font-bold text-white text-sm">{plan.name}</td>
-                        <td className="py-4 text-center font-bold text-slate-400">{plan.views || 0}</td>
-                        <td className="py-4 text-center font-bold text-slate-400">{plan.exploreClicks || 0}</td>
+                      <tr key={plan.name} className="border-b border-slate-200 dark:border-slate-800/50 last:border-0">
+                        <td className="py-4 font-bold text-slate-900 dark:text-white text-sm">{plan.name}</td>
+                        <td className="py-4 text-center font-bold text-slate-500 dark:text-slate-400">{plan.views || 0}</td>
+                        <td className="py-4 text-center font-bold text-slate-500 dark:text-slate-400">{plan.exploreClicks || 0}</td>
                         <td className="py-4 text-center font-bold text-emerald-400">{plan.selections || 0}</td>
                         <td className="py-4 text-center font-bold text-indigo-400">{plan.enquiries || 0}</td>
                         <td className="py-4 text-center font-bold text-purple-400">{plan.demos || 0}</td>
                         <td className="py-4 text-right">
-                          <span className="bg-emerald-950/60 border border-emerald-900/60 text-emerald-400 font-black rounded-lg px-2.5 py-1">
+                          <span className="bg-emerald-950/60 border border-emerald-900/60 text-emerald-400 font-bold rounded-lg px-2.5 py-1">
                             {plan.conversionRate || 0}%
                           </span>
                         </td>
@@ -5929,42 +6198,42 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
             </div>
 
             {/* Custom Interactive Action Events */}
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 flex flex-col justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-4">
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 flex flex-col justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-4">
                 <MousePointerClick className="h-4 w-4 text-amber-500" />
                 Key CTA Button Clicks
               </span>
 
               <div className="space-y-2 flex-1 flex flex-col justify-around">
-                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-800/60 py-2">
-                  <span className="text-slate-400">Explore Plans</span>
-                  <span className="bg-slate-800 px-2 py-0.5 rounded text-white font-bold">{actionCounts.explore_plan}</span>
+                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-200 dark:border-slate-800/60 py-2">
+                  <span className="text-slate-500 dark:text-slate-400">Explore Plans</span>
+                  <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-900 dark:text-white font-bold">{actionCounts.explore_plan}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-800/60 py-2">
-                  <span className="text-slate-400">Book Demo CTA</span>
-                  <span className="bg-slate-800 px-2 py-0.5 rounded text-white font-bold">{actionCounts.book_demo}</span>
+                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-200 dark:border-slate-800/60 py-2">
+                  <span className="text-slate-500 dark:text-slate-400">Book Demo CTA</span>
+                  <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-900 dark:text-white font-bold">{actionCounts.book_demo}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-800/60 py-2">
-                  <span className="text-slate-400">Plan Selected</span>
-                  <span className="bg-slate-800 px-2 py-0.5 rounded text-white font-bold">{actionCounts.choose_plan}</span>
+                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-200 dark:border-slate-800/60 py-2">
+                  <span className="text-slate-500 dark:text-slate-400">Plan Selected</span>
+                  <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-900 dark:text-white font-bold">{actionCounts.choose_plan}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-800/60 py-2">
-                  <span className="text-slate-400">Become a Tutor CTA</span>
-                  <span className="bg-slate-800 px-2 py-0.5 rounded text-white font-bold">{actionCounts.become_tutor}</span>
+                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-200 dark:border-slate-800/60 py-2">
+                  <span className="text-slate-500 dark:text-slate-400">Become a Tutor CTA</span>
+                  <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-900 dark:text-white font-bold">{actionCounts.become_tutor}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-800/60 py-2">
-                  <span className="text-slate-400">WhatsApp Button Clicks</span>
+                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-200 dark:border-slate-800/60 py-2">
+                  <span className="text-slate-500 dark:text-slate-400">WhatsApp Button Clicks</span>
                   <span className="bg-emerald-950/40 border border-emerald-900/60 text-emerald-400 px-2 py-0.5 rounded font-bold">{actionCounts.whatsapp_click}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-800/60 py-2">
-                  <span className="text-slate-400">Phone Call Clicks</span>
-                  <span className="bg-blue-950/40 border border-blue-900/60 text-blue-400 px-2 py-0.5 rounded font-bold">{actionCounts.call_click}</span>
+                <div className="flex justify-between items-center text-xs font-semibold border-b border-slate-200 dark:border-slate-800/60 py-2">
+                  <span className="text-slate-500 dark:text-slate-400">Phone Call Clicks</span>
+                  <span className="bg-indigo-950/40 border border-indigo-900/60 text-indigo-400 px-2 py-0.5 rounded font-bold">{actionCounts.call_click}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs font-semibold py-2">
-                  <span className="text-slate-400">Enquiry Started vs Submitted</span>
-                  <span className="text-slate-300 font-bold">
-                    <span className="text-slate-400">{actionCounts.form_started}</span>
-                    <span className="mx-1 text-slate-600">/</span>
+                  <span className="text-slate-500 dark:text-slate-400">Enquiry Started vs Submitted</span>
+                  <span className="text-slate-600 dark:text-slate-300 font-bold">
+                    <span className="text-slate-500 dark:text-slate-400">{actionCounts.form_started}</span>
+                    <span className="mx-1 text-slate-600 dark:text-slate-300">/</span>
                     <span className="text-emerald-400">{actionCounts.form_submitted}</span>
                   </span>
                 </div>
@@ -5973,9 +6242,9 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
           </div>
 
           {/* Page Analytics Table with Search and Sort */}
-          <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5">
+          <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <Eye className="h-4 w-4 text-emerald-400" />
                 Most Visited Pages & Engagement Metrics
               </span>
@@ -5986,12 +6255,12 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                   placeholder="Filter pages..."
                   value={pageSearch}
                   onChange={(e) => setPageSearch(e.target.value)}
-                  className="bg-slate-950/80 border border-slate-800 px-3 py-1.5 text-xs rounded-xl text-white font-semibold outline-none focus:border-blue-500 max-w-[200px]"
+                  className="bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-xs rounded-xl text-slate-900 dark:text-white font-semibold outline-none focus:border-indigo-500 max-w-[200px]"
                 />
 
                 <button
                   onClick={handleExportPages}
-                  className="flex items-center gap-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs text-white font-bold px-3 py-1.5 rounded-xl cursor-pointer transition"
+                  className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-900 dark:text-white font-bold px-3 py-1.5 rounded-xl cursor-pointer transition"
                 >
                   <FileDown className="h-3.5 w-3.5" />
                   Export CSV
@@ -6000,22 +6269,22 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-xs font-semibold text-slate-300">
+              <table className="w-full text-xs font-semibold text-slate-600 dark:text-slate-300">
                 <thead>
-                  <tr className="text-left border-b border-slate-800/80 text-[10px] text-slate-500 uppercase tracking-wider select-none">
-                    <th className="pb-3 cursor-pointer hover:text-white transition" onClick={() => togglePageSort("page")}>
+                  <tr className="text-left border-b border-slate-200 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider select-none">
+                    <th className="pb-3 cursor-pointer hover:text-slate-900 dark:hover:text-white transition" onClick={() => togglePageSort("page")}>
                       PAGE PATH {pageSortField === "page" ? (pageSortOrder === "asc" ? "▲" : "▼") : ""}
                     </th>
-                    <th className="pb-3 text-center cursor-pointer hover:text-white transition" onClick={() => togglePageSort("views")}>
+                    <th className="pb-3 text-center cursor-pointer hover:text-slate-900 dark:hover:text-white transition" onClick={() => togglePageSort("views")}>
                       PAGE VIEWS {pageSortField === "views" ? (pageSortOrder === "asc" ? "▲" : "▼") : ""}
                     </th>
-                    <th className="pb-3 text-center cursor-pointer hover:text-white transition" onClick={() => togglePageSort("avgTimeSpent")}>
+                    <th className="pb-3 text-center cursor-pointer hover:text-slate-900 dark:hover:text-white transition" onClick={() => togglePageSort("avgTimeSpent")}>
                       AVG TIME SPENT {pageSortField === "avgTimeSpent" ? (pageSortOrder === "asc" ? "▲" : "▼") : ""}
                     </th>
-                    <th className="pb-3 text-center cursor-pointer hover:text-white transition" onClick={() => togglePageSort("avgScrollDepth")}>
+                    <th className="pb-3 text-center cursor-pointer hover:text-slate-900 dark:hover:text-white transition" onClick={() => togglePageSort("avgScrollDepth")}>
                       MAX SCROLL DEPTH {pageSortField === "avgScrollDepth" ? (pageSortOrder === "asc" ? "▲" : "▼") : ""}
                     </th>
-                    <th className="pb-3 text-right cursor-pointer hover:text-white transition" onClick={() => togglePageSort("bounceRate")}>
+                    <th className="pb-3 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white transition" onClick={() => togglePageSort("bounceRate")}>
                       BOUNCE RATE {pageSortField === "bounceRate" ? (pageSortOrder === "asc" ? "▲" : "▼") : ""}
                     </th>
                   </tr>
@@ -6023,14 +6292,14 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                 <tbody>
                   {sortedAndFilteredPages.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-6 text-slate-500 italic">No matching pages found</td>
+                      <td colSpan={5} className="text-center py-6 text-slate-500 dark:text-slate-400 italic">No matching pages found</td>
                     </tr>
                   ) : (
                     sortedAndFilteredPages.slice(0, visiblePageCount).map((page) => (
-                      <tr key={page.page} className="border-b border-slate-800/50 last:border-0 hover:bg-slate-900/20 transition">
-                        <td className="py-4 font-mono font-bold text-blue-400 text-xs break-all pr-4">{page.page}</td>
-                        <td className="py-4 text-center font-bold text-white">{page.views}</td>
-                        <td className="py-4 text-center font-bold text-slate-400">{formatTimeSpent(page.avgTimeSpent)}</td>
+                      <tr key={page.page} className="border-b border-slate-200 dark:border-slate-800/50 last:border-0 hover:bg-slate-900/20 transition">
+                        <td className="py-4 font-mono font-bold text-indigo-400 text-xs break-all pr-4">{page.page}</td>
+                        <td className="py-4 text-center font-bold text-slate-900 dark:text-white">{page.views}</td>
+                        <td className="py-4 text-center font-bold text-slate-500 dark:text-slate-400">{formatTimeSpent(page.avgTimeSpent)}</td>
                         <td className="py-4 text-center font-bold">
                           <span className={getScrollColor(page.avgScrollDepth)}>{page.avgScrollDepth}%</span>
                         </td>
@@ -6059,16 +6328,16 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
           {/* Real-time activity & Clarity Integration Cards */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Real-time Activity feed with timeline modal hooks */}
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 lg:col-span-2">
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 lg:col-span-2">
               <div className="flex justify-between items-center mb-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <Activity className="h-4 w-4 text-blue-400 animate-pulse" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <Activity className="h-4 w-4 text-indigo-400 animate-pulse" />
                   Live Visitor Event Log (Click to view session timeline)
                 </span>
 
                 <button
                   onClick={handleExportActivity}
-                  className="flex items-center gap-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs text-white font-bold px-3 py-1.5 rounded-xl cursor-pointer transition"
+                  className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-900 dark:text-white font-bold px-3 py-1.5 rounded-xl cursor-pointer transition"
                 >
                   <FileDown className="h-3.5 w-3.5" />
                   Export CSV
@@ -6077,7 +6346,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
 
               <div className="max-h-80 overflow-y-auto space-y-3.5 pr-2 no-scrollbar">
                 {!Array.isArray(data?.recentActivity) || data.recentActivity.length === 0 ? (
-                  <div className="text-center py-10 text-xs text-slate-500 font-semibold">
+                  <div className="text-center py-10 text-xs text-slate-500 dark:text-slate-400 font-semibold">
                     No recent activities recorded.
                   </div>
                 ) : (
@@ -6109,46 +6378,46 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                       form_abandoned: "bg-rose-950/40 border-rose-900/50 text-rose-400",
                       form_started: "bg-indigo-950/40 border-indigo-900/50 text-indigo-400",
                       whatsapp_click: "bg-emerald-950/40 border-emerald-900/50 text-emerald-400",
-                      page_view: "bg-slate-800 border-slate-800 text-slate-400"
+                      page_view: "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400"
                     };
 
-                    const actionClass = actionColors[act.action] || "bg-blue-950/40 border-blue-900/50 text-blue-400";
+                    const actionClass = actionColors[act.action] || "bg-indigo-950/40 border-indigo-900/50 text-indigo-400";
 
                     return (
                       <div
                         key={act._id}
                         onClick={() => handleOpenSession(act.session_id)}
-                        className="flex gap-4 items-start border-b border-slate-800/50 pb-3 last:border-0 last:pb-0 cursor-pointer hover:bg-slate-800/30 transition p-2.5 rounded-2xl"
+                        className="flex gap-4 items-start border-b border-slate-200 dark:border-slate-800/50 pb-3 last:border-0 last:pb-0 cursor-pointer hover:bg-slate-800/30 transition p-2.5 rounded-2xl"
                       >
-                        <span className="text-[10px] font-bold text-slate-500 w-14 shrink-0 mt-1">{timeStr}</span>
+                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 w-14 shrink-0 mt-1">{timeStr}</span>
                         <div className="flex-1">
-                          <p className="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap animate-fadeIn">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap animate-fadeIn">
                             {act.identity ? (
-                              <span className="text-emerald-400 font-extrabold flex items-center gap-1">
+                              <span className="text-emerald-400 font-semibold flex items-center gap-1">
                                 {act.identity.name} {act.identity.phone ? `(${act.identity.phone})` : ""}
                                 {act.identity.isDraft ? (
-                                  <span className="ml-1 text-[8px] bg-amber-500/10 text-amber-300 font-medium px-1 rounded border border-amber-500/20">Draft</span>
+                                  <span className="ml-1 text-xs bg-amber-500/10 text-amber-300 font-medium px-1 rounded border border-amber-500/20">Draft</span>
                                 ) : (
-                                  <span className="ml-1 text-[8px] bg-emerald-500/10 text-emerald-300 font-medium px-1 rounded border border-emerald-500/20">Lead</span>
+                                  <span className="ml-1 text-xs bg-emerald-500/10 text-emerald-300 font-medium px-1 rounded border border-emerald-500/20">Lead</span>
                                 )}
                               </span>
                             ) : (
                               <span>User</span>
                             )}
-                            <span>from</span> <span className="text-blue-400 font-black">{act.city || "Unknown City"}</span>
-                            <span className="text-slate-700">•</span>
-                            Source: <span className="text-slate-400 font-semibold">{formatSourceName(act.source)}</span>
-                            <span className="text-slate-700">•</span>
-                            Device: <span className="text-slate-400 font-semibold">{act.device || "Desktop"}{act.os ? ` (${act.os})` : ""}</span>
+                            <span>from</span> <span className="text-indigo-400 font-bold">{act.city || "Unknown City"}</span>
+                            <span className="text-slate-700 dark:text-slate-200">•</span>
+                            Source: <span className="text-slate-500 dark:text-slate-400 font-semibold">{formatSourceName(act.source)}</span>
+                            <span className="text-slate-700 dark:text-slate-200">•</span>
+                            Device: <span className="text-slate-500 dark:text-slate-400 font-semibold">{act.device || "Desktop"}{act.os ? ` (${act.os})` : ""}</span>
                             {act.ipAddress && (
                               <>
-                                <span className="text-slate-700">•</span>
-                                IP: <span className="text-slate-400 font-mono font-semibold">{act.ipAddress}</span>
+                                <span className="text-slate-700 dark:text-slate-200">•</span>
+                                IP: <span className="text-slate-500 dark:text-slate-400 font-mono font-semibold">{act.ipAddress}</span>
                               </>
                             )}
                           </p>
                           <div className="mt-1.5 flex items-center gap-2">
-                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${actionClass}`}>
+                            <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded border ${actionClass}`}>
                               {actionLabels[act.action] || act.action}
                             </span>
                           </div>
@@ -6168,24 +6437,24 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
             </div>
 
             {/* Microsoft Clarity Project Widget */}
-            <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-md rounded-3xl p-5 flex flex-col justify-between">
+            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 backdrop-blur-md rounded-2xl p-5 flex flex-col justify-between">
               <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-3">
-                  <Activity className="h-4 w-4 text-blue-400" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-3">
+                  <Activity className="h-4 w-4 text-indigo-400" />
                   Session Recordings & Heatmaps
                 </span>
 
-                <p className="text-xs leading-relaxed text-slate-400 mt-2 font-medium">
+                <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400 mt-2 font-medium">
                   We have integrated Microsoft Clarity to enable advanced heatmaps, mouse click records, scroll depth tracking, and user session replay recordings.
                 </p>
 
-                <div className="mt-4 p-3 bg-blue-950/20 border border-blue-900/30 rounded-2xl flex flex-col gap-2">
+                <div className="mt-4 p-3 bg-indigo-950/20 border border-indigo-900/30 rounded-2xl flex flex-col gap-2">
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Integrate Mode:</span>
+                    <span className="text-slate-500 dark:text-slate-400">Integrate Mode:</span>
                     <span className="text-emerald-400 font-bold">Active</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Project ID:</span>
+                    <span className="text-slate-500 dark:text-slate-400">Project ID:</span>
                     <span className="font-mono font-bold">{clarityProjectId}</span>
                   </div>
                 </div>
@@ -6196,13 +6465,13 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                   href={`https://clarity.microsoft.com/projects/view/${clarityProjectId}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 transition font-black text-xs text-white shadow-lg cursor-pointer"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 transition font-bold text-xs text-white shadow-lg cursor-pointer"
                 >
                   Watch Session Replays
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
 
-                <p className="text-[10px] text-center text-slate-500 font-semibold leading-normal">
+                <p className="text-xs text-center text-slate-500 dark:text-slate-400 font-semibold leading-normal">
                   * Note: You must log into your Microsoft Clarity account in this browser to open recordings directly.
                 </p>
               </div>
@@ -6214,36 +6483,36 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
 
       {/* 5. Timeline Journey Modal popup */}
       {selectedSessionId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-slideFade">
-          <div className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-3xl bg-[#090e1a] border border-slate-800 p-6 text-white shadow-2xl flex flex-col relative z-50">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-slate-950/80 p-4 backdrop-blur-md animate-slideFade">
+          <div className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white dark:bg-[#090e1a] border border-slate-200 dark:border-slate-800 p-6 text-slate-900 dark:text-white shadow-2xl flex flex-col relative z-50">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
               <div>
-                <h3 className="text-xl font-black text-white flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-blue-400 animate-pulse" />
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-indigo-400 animate-pulse" />
                   Chronological Session Timeline
                 </h3>
-                <p className="text-[10px] text-slate-500 font-mono mt-1">Session: {selectedSessionId}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">Session: {selectedSessionId}</p>
               </div>
               <button
                 onClick={() => setSelectedSessionId(null)}
-                className="rounded-full bg-slate-800 hover:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-400 transition cursor-pointer border border-slate-700/50"
+                className="rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 transition cursor-pointer border border-slate-200 dark:border-slate-700/50"
               >
                 Close
               </button>
             </div>
 
             {sessionIdentity && (
-              <div className="bg-[#101726]/85 border border-emerald-500/20 shadow-lg shadow-[#090e1a]/80 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4 animate-slideFade shrink-0">
+              <div className="bg-white dark:bg-[#101726]/85 border border-emerald-500/20 shadow-lg shadow-[#090e1a]/80 rounded-2xl p-4 mb-4 flex items-center justify-between gap-4 animate-slideFade shrink-0">
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-emerald-400">{sessionIdentity.name}</span>
+                    <span className="text-sm font-bold text-emerald-400">{sessionIdentity.name}</span>
                     {sessionIdentity.isDraft ? (
-                      <span className="text-[9px] bg-amber-500/10 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-500/20">Draft Lead</span>
+                      <span className="text-xs bg-amber-500/10 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-500/20">Draft Lead</span>
                     ) : (
-                      <span className="text-[9px] bg-emerald-500/10 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/20">Submitted Lead</span>
+                      <span className="text-xs bg-emerald-500/10 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/20">Submitted Lead</span>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[10px] font-bold text-slate-400">
+                  <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-xs font-bold text-slate-500 dark:text-slate-400">
                     {sessionIdentity.phone && <span className="flex items-center gap-1">📞 {sessionIdentity.phone}</span>}
                     {sessionIdentity.email && <span className="flex items-center gap-1">✉️ {sessionIdentity.email}</span>}
                     {sessionLogs.length > 0 && (
@@ -6255,7 +6524,7 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                   </div>
                 </div>
                 {sessionLogs.length > 0 && (
-                  <div className="text-right text-[10px] text-slate-500 font-mono space-y-0.5 hidden sm:block">
+                  <div className="text-right text-xs text-slate-500 dark:text-slate-400 font-mono space-y-0.5 hidden sm:block">
                     <div>IP: {sessionLogs[0].ipAddress || "Unknown"}</div>
                     <div>Location: {sessionLogs[0].city || "Unknown City"}</div>
                   </div>
@@ -6266,13 +6535,13 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
             <div className="flex-1 overflow-y-auto space-y-4 pr-1 no-scrollbar min-h-60">
               {loadingSession ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-3">
-                  <RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
-                  <p className="text-xs text-slate-400 font-semibold">Retrieving session timeline events...</p>
+                  <RefreshCw className="h-6 w-6 animate-spin text-indigo-500" />
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Retrieving session timeline events...</p>
                 </div>
               ) : sessionLogs.length === 0 ? (
-                <div className="text-center py-20 text-xs text-slate-500 font-semibold italic">No logged events found for this session.</div>
+                <div className="text-center py-20 text-xs text-slate-500 dark:text-slate-400 font-semibold italic">No logged events found for this session.</div>
               ) : (
-                <div className="relative border-l border-slate-800 ml-3 pl-6 space-y-5">
+                <div className="relative border-l border-slate-200 dark:border-slate-800 ml-3 pl-6 space-y-5">
                   {sessionLogs.map((log) => {
                     const dateObj = log.createdAt ? new Date(log.createdAt) : null;
                     const timeStr = dateObj && !isNaN(dateObj.getTime())
@@ -6298,43 +6567,43 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
                     };
 
                     const actionStyles = {
-                      page_view: "border-blue-500/50 bg-blue-950/20 text-blue-400",
+                      page_view: "border-indigo-500/50 bg-indigo-950/20 text-indigo-400",
                       form_started: "border-indigo-500/50 bg-indigo-950/20 text-indigo-400",
                       form_submitted: "border-emerald-500/50 bg-emerald-950/20 text-emerald-400",
                       form_abandoned: "border-rose-500/50 bg-rose-950/20 text-rose-400",
                       whatsapp_click: "border-emerald-500/50 bg-emerald-950/20 text-emerald-400",
-                      call_click: "border-blue-500/50 bg-blue-950/20 text-blue-400"
+                      call_click: "border-indigo-500/50 bg-indigo-950/20 text-indigo-400"
                     };
 
-                    const actionStyle = actionStyles[log.action] || "border-slate-700 bg-slate-900/50 text-slate-400";
+                    const actionStyle = actionStyles[log.action] || "border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400";
 
                     return (
                       <div key={log._id} className="relative">
                         {/* Timeline dot marker */}
                         <span className={`absolute -left-[31px] top-1.5 h-3.5 w-3.5 rounded-full border-2 bg-[#090e1a] ${
-                          log.action === "form_submitted" ? "border-emerald-500" : "border-slate-800"
+                          log.action === "form_submitted" ? "border-emerald-500" : "border-slate-200 dark:border-slate-800"
                         }`} />
 
-                        <div className="bg-slate-950/40 border border-slate-800/80 p-3.5 rounded-2xl">
+                        <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 p-3.5 rounded-2xl">
                           <div className="flex items-center justify-between gap-4 mb-1">
-                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${actionStyle}`}>
+                            <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded border ${actionStyle}`}>
                               {actionLabels[log.action] || log.action.replace("_", " ")}
                             </span>
-                            <span className="text-[10px] text-slate-500 font-bold">{timeStr}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">{timeStr}</span>
                           </div>
 
                           {log.action === "page_view" && (
-                            <p className="text-xs font-mono font-bold text-blue-400 mt-1 break-all">{log.page_visited}</p>
+                            <p className="text-xs font-mono font-bold text-indigo-400 mt-1 break-all">{log.page_visited}</p>
                           )}
 
                           {log.plan_clicked && (
-                            <p className="text-xs font-semibold text-slate-400 mt-1">
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
                               Plan: <span className="text-indigo-400 font-bold">{log.plan_clicked}</span>
                             </p>
                           )}
 
                           {(log.time_spent > 0 || log.scroll_depth > 0) && (
-                            <div className="flex gap-4 mt-2 text-[10px] text-slate-500 font-bold border-t border-slate-900 pt-2">
+                            <div className="flex gap-4 mt-2 text-xs text-slate-500 dark:text-slate-400 font-bold border-t border-slate-200 dark:border-slate-900 pt-2">
                               {log.time_spent > 0 && <span>⏱️ Dwell Time: {log.time_spent}s</span>}
                               {log.scroll_depth > 0 && <span>📜 Scroll Depth: {log.scroll_depth}%</span>}
                             </div>
@@ -6347,10 +6616,10 @@ function AnalyticsConsole({ data, loading, period, setPeriod, refresh }) {
               )}
             </div>
 
-            <div className="mt-4 pt-4 border-t border-slate-800 flex justify-end">
+            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end">
               <button
                 onClick={() => setSelectedSessionId(null)}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-xs font-black rounded-xl transition cursor-pointer text-white shadow-lg shadow-blue-600/20"
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold rounded-xl transition cursor-pointer text-white shadow-sm"
               >
                 Close Session Timeline
               </button>
