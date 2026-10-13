@@ -1116,7 +1116,7 @@ export default function HomePage() {
               Book Demo
             </MotionLink>
             <MotionLink
-              to="/tutor-register"
+              to="/tutor-verification"
               onClick={() => trackEvent("become_tutor")}
               whileHover={{ scale: 1.05, translateY: -2, boxShadow: "0 8px 16px rgba(15,23,42,0.06)" }}
               whileTap={{ scale: 0.97 }}
@@ -1191,7 +1191,7 @@ export default function HomePage() {
                   Book Demo
                 </MotionLink>
                 <MotionLink
-                  to="/tutor-register"
+                  to="/tutor-verification"
                   onClick={() => { setMenuOpen(false); trackEvent("become_tutor"); }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -1995,7 +1995,7 @@ export default function HomePage() {
               <h5 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-xs">Direct Services</h5>
               <ul className="mt-4 space-y-2 text-sm">
                 <li><Link to="/parent-enquiry" className="hover:text-blue-600">Parent Enquiry</Link></li>
-                <li><Link to="/tutor-register" className="hover:text-blue-600">Become a Tutor</Link></li>
+                <li><Link to="/tutor-verification" className="hover:text-blue-600">Become a Tutor</Link></li>
                 <li><a href="https://saraswatitutorial.com/" className="hover:text-blue-600">Home Tuition Services</a></li>
                 <li><a href="https://saraswatitutorial.com/#tutors" className="hover:text-blue-600">Online Tuition</a></li>
               </ul>

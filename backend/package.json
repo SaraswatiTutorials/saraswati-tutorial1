@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test --experimental-test-module-mocks \"tests/**/*.test.js\"",
+    "sync:pricing": "node scripts/syncPricing.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

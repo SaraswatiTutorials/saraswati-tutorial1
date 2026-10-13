@@ -323,12 +323,8 @@ export default function TutorRegistration() {
   const areaGroups = isMumbai ? mumbaiAreaGroups : bangaloreAreaGroups;
 
   const [openGroup, setOpenGroup] = useState(defaultIsMumbai ? "Western Suburbs" : "East Bangalore");
-  const [sameAsMobile, setSameAsMobile] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
-      return saved?.sameAsMobile !== false;
-    } catch { return true; }
-  });
+  // Always starts unticked; the tutor ticks it themselves if WhatsApp = phone
+  const [sameAsMobile, setSameAsMobile] = useState(false);
 
   // Save form progress to localStorage whenever state changes
   useEffect(() => {
@@ -434,7 +430,8 @@ export default function TutorRegistration() {
     }
 
     if (name === "email") {
-      if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()))
+      if (!value || !value.trim()) return "Email address is required";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()))
         return "Enter a valid email address";
     }
 
@@ -521,6 +518,7 @@ export default function TutorRegistration() {
   const validateStep1 = () => {
     const nextErrors = {
       name: validateField("name", formData.name),
+      email: validateField("email", formData.email),
       phone: validateField("phone", formData.phone),
       gender: validateField("gender", formData.gender),
       whatsapp: sameAsMobile ? "" : validateField("whatsapp", formData.whatsapp),
@@ -538,6 +536,7 @@ export default function TutorRegistration() {
     setTouched((prev) => ({
       ...prev,
       name: true,
+      email: true,
       phone: true,
       gender: true,
       whatsapp: true,
@@ -884,10 +883,12 @@ export default function TutorRegistration() {
 
   const isStep1Ready =
     formData.name &&
+    formData.email &&
     formData.phone &&
     formData.gender &&
     (sameAsMobile || formData.whatsapp) &&
     !errors.name &&
+    !errors.email &&
     !errors.phone &&
     !errors.gender &&
     (sameAsMobile || !errors.whatsapp);
@@ -1096,12 +1097,13 @@ export default function TutorRegistration() {
                   <InputField
                     icon={Mail}
                     label="Email Address"
+                    required
                     name="email"
                     type="email"
                     value={formData.email}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    placeholder="your@email.com (optional)"
+                    placeholder="your@email.com"
                     error={touched.email ? errors.email : ""}
                   />
 
@@ -1978,8 +1980,6 @@ function FileUploadCard({
           ? "border-blue-200 dark:border-blue-800/80 bg-blue-50 dark:bg-blue-950/20"
           : done
           ? "border-emerald-200 dark:border-emerald-800/80 bg-emerald-50 dark:bg-emerald-950/20"
-          : required
-          ? "border-red-200 dark:border-red-800/80 bg-red-50 dark:bg-red-950/10"
           : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
       }`}
     >
@@ -2053,7 +2053,7 @@ function FileUploadCard({
           ) : hasFile ? (
             <span className="text-emerald-700 dark:text-emerald-300">? {file.name}</span>
           ) : required ? (
-            <span className="text-red-600 dark:text-red-400">Required — click to upload</span>
+            <span className="text-slate-600 dark:text-slate-300">Required — click to upload</span>
           ) : (
             <span className="text-slate-500 dark:text-slate-400">Optional — click to upload</span>
           )}

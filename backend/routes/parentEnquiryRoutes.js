@@ -6,6 +6,7 @@ import AnalyticsLog from "../models/AnalyticsLog.js";
 import { createLead, updateLead, updateLeadAssignment, syncTutorStats, addOdooChatterMessage } from "../utils/odooService.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
 import { resolveGeo } from "../utils/geoLookup.js";
+import { applyPricingPolicy } from "../utils/pricing/submissionValidation.js";
 import Tutor from "../models/Tutor.js";
 import TutorRegistrationDraft from "../models/TutorRegistrationDraft.js";
 import Enquiry from "../models/Enquiry.js";
@@ -366,6 +367,14 @@ router.delete("/drafts/:id", verifyToken(["admin"]), async (req, res) => {
 // =============================================================
 router.post("/", async (req, res) => {
   try {
+    // Server-side fee check. PRICING_ENFORCEMENT defaults to "off", which saves
+    // the submission exactly as before; "log" only reports problems.
+    const pricing = applyPricingPolicy(req.body, process.env.PRICING_ENFORCEMENT);
+    if (pricing.action === "reject") {
+      return res.status(400).json({ message: pricing.message });
+    }
+    req.body = pricing.body;
+
     let clientIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
     if (clientIp) {
       if (clientIp.includes(",")) clientIp = clientIp.split(",")[0].trim();

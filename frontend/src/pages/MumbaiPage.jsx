@@ -548,7 +548,7 @@ export default function MumbaiPage() {
               Book Demo
             </MotionLink>
             <MotionLink
-              to="/tutor-register"
+              to="/tutor-verification"
               onClick={() => trackEvent("become_tutor")}
               whileHover={{ scale: 1.05, translateY: -2, boxShadow: "0 8px 16px rgba(15,23,42,0.06)" }}
               whileTap={{ scale: 0.97 }}
@@ -622,7 +622,7 @@ export default function MumbaiPage() {
                   Book Demo
                 </MotionLink>
                 <MotionLink
-                  to="/tutor-register"
+                  to="/tutor-verification"
                   onClick={() => { setMenuOpen(false); trackEvent("become_tutor"); }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -1287,7 +1287,7 @@ export default function MumbaiPage() {
               <h5 className="font-bold text-slate-900 dark:text-slate-200 uppercase tracking-wider text-xs">Direct Services</h5>
               <ul className="mt-4 space-y-2 text-sm">
                 <li><Link to="/parent-enquiry" className="hover:text-blue-600 dark:hover:text-blue-400 transition">Parent Enquiry</Link></li>
-                <li><Link to="/tutor-register" className="hover:text-blue-600 dark:hover:text-blue-400 transition">Become a Tutor</Link></li>
+                <li><Link to="/tutor-verification" className="hover:text-blue-600 dark:hover:text-blue-400 transition">Become a Tutor</Link></li>
                 <li><a href="https://saraswatitutorial.com/" className="hover:text-blue-600 dark:hover:text-blue-400 transition">Home Tuition Services</a></li>
                 <li><a href="https://saraswatitutorial.com/#tutors" className="hover:text-blue-600 dark:hover:text-blue-400 transition">Online Tuition</a></li>
               </ul>
