@@ -1,11 +1,16 @@
 import React from "react";
+import { PLANS } from "../data/plansConfig";
 
 const inr = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
+const planTitle = (planType) => PLANS.find((p) => p.id === planType)?.title || planType;
+
+const hoursLabel = (hours) => `${hours} hour${hours === 1 ? "" : "s"}`;
+
 // Parent-facing fee breakdown for a quote from the shared fee engine.
 // Everything shown here is calculated on the fly; only the monthly totals are
-// submitted with the enquiry.
-export default function FeeBreakdown({ quote }) {
+// submitted with the enquiry. showSummary adds the selected plan and schedule.
+export default function FeeBreakdown({ quote, showSummary = false }) {
   if (!quote) return null;
 
   if (!quote.ok) {
@@ -27,6 +32,15 @@ export default function FeeBreakdown({ quote }) {
       <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">
         Fee Breakdown
       </h5>
+
+      {showSummary && (
+        <dl className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 sm:grid-cols-4">
+          <SummaryItem label="Plan" value={planTitle(quote.planType)} />
+          <SummaryItem label="Schedule" value={`${quote.daysPerWeek} days/week × ${hoursLabel(quote.hoursPerDay)}`} />
+          <SummaryItem label="Mode" value={quote.preferredMode || "—"} />
+          <SummaryItem label="Classes / month" value={`${quote.totalClasses} (≈ ${inr(quote.costPerClass)} each)`} />
+        </dl>
+      )}
 
       <div className="space-y-4">
         {quote.students.map((student) => (
@@ -67,8 +81,13 @@ export default function FeeBreakdown({ quote }) {
               </div>
             ) : (
               <p className="font-semibold text-slate-500 dark:text-slate-400">
-                Subjects: {student.subjects.map((s) => s.name).join(", ") || "—"}
-                <span className="block text-[10px] text-slate-400 dark:text-slate-500">Included in one monthly fee</span>
+                Subjects{student.subjects.length > 0 ? ` (${student.subjects.length})` : ""}:{" "}
+                {student.subjects.map((s) => s.name).join(", ") || "—"}
+                <span className="block text-[10px] text-slate-400 dark:text-slate-500">
+                  {student.subjects.length > 1
+                    ? `All ${student.subjects.length} subjects are covered by one monthly fee`
+                    : "Included in one monthly fee"}
+                </span>
               </p>
             )}
 
@@ -145,6 +164,15 @@ export default function FeeBreakdown({ quote }) {
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+function SummaryItem({ label, value }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{label}</dt>
+      <dd className="mt-0.5 font-bold text-slate-800 dark:text-slate-100 break-words">{value}</dd>
     </div>
   );
 }

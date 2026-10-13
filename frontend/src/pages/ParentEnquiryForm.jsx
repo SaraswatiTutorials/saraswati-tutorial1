@@ -764,6 +764,9 @@ export default function ParentEnquiryForm() {
   useEffect(() => {
     if (feeQuote) {
       setForm(prev => ({ ...prev, ...getFeeFields(feeQuote) }));
+    } else {
+      // No complete plan/schedule selection: never keep an earlier selection's totals
+      setForm(prev => (prev.monthlyFees === null && prev.finalPrice === null ? prev : { ...prev, ...EMPTY_FEE_FIELDS }));
     }
   }, [feeQuote]);
 
@@ -1885,7 +1888,7 @@ export default function ParentEnquiryForm() {
                           </div>
                         </div>
                         <div className="mt-5">
-                          <FeeBreakdown quote={feeQuote} />
+                          <FeeBreakdown quote={feeQuote} showSummary />
                         </div>
                       </div>
 

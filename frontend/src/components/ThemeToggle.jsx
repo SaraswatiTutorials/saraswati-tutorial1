@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { Sun, Moon, Monitor } from "lucide-react";
 
-export default function ThemeToggle() {
+// buttonClassName lets a page restyle the trigger; the website keeps the default look
+export default function ThemeToggle({ buttonClassName } = {}) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -30,7 +31,7 @@ export default function ThemeToggle() {
     <div ref={dropdownRef} className="relative z-50 select-none">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 hover:scale-105 cursor-pointer relative"
+        className={buttonClassName || "flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 hover:scale-105 cursor-pointer relative"}
         title={`Theme: ${theme}`}
       >
         <CurrentIcon className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12" />

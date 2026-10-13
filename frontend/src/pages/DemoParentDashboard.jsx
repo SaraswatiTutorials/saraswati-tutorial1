@@ -175,7 +175,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                         : "text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                     }`}
                   >
-                    <ItemIcon className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-500"}`} />
+                    <ItemIcon className={`h-4 w-4 ${isActive ? "text-white" : "text-slate-500 dark:text-slate-400"}`} />
                     <span>{item.label}</span>
                   </button>
                 );
@@ -232,48 +232,48 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Card 1: Total Classes */}
                   <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/90 dark:border-slate-700 p-4.5 flex items-center gap-4 shadow-sm hover:shadow-md transition">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/40 text-blue-600 shrink-0 shadow-inner">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/40 text-blue-600 dark:text-blue-400 shrink-0 shadow-inner">
                       <BookOpen className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Total Classes</p>
-                      <p className="text-2xl font-black text-slate-900 mt-0.5">{DEMO_PACKAGE.totalClasses}</p>
-                      <p className="text-xs font-semibold text-slate-500 mt-0.5">All Scheduled</p>
+                      <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{DEMO_PACKAGE.totalClasses}</p>
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">All Scheduled</p>
                     </div>
                   </div>
 
                   {/* Card 2: Completed */}
                   <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/90 dark:border-slate-700 p-4.5 flex items-center gap-4 shadow-sm hover:shadow-md transition">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 text-emerald-600 shrink-0 shadow-inner">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 text-emerald-600 dark:text-emerald-400 shrink-0 shadow-inner">
                       <CheckCircle2 className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Completed</p>
-                      <p className="text-2xl font-black text-emerald-600 mt-0.5">{DEMO_PACKAGE.completedClasses}</p>
-                      <p className="text-xs font-bold text-emerald-600 mt-0.5">{completedPercent}% Completed</p>
+                      <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{DEMO_PACKAGE.completedClasses}</p>
+                      <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{completedPercent}% Completed</p>
                     </div>
                   </div>
 
                   {/* Card 3: Remaining */}
                   <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/90 dark:border-slate-700 p-4.5 flex items-center gap-4 shadow-sm hover:shadow-md transition">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/40 text-amber-600 shrink-0 shadow-inner">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/40 text-amber-600 dark:text-amber-400 shrink-0 shadow-inner">
                       <Clock className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Remaining</p>
-                      <p className="text-2xl font-black text-amber-600 mt-0.5">{DEMO_PACKAGE.remainingClasses}</p>
-                      <p className="text-xs font-bold text-amber-600 mt-0.5">Upcoming Classes</p>
+                      <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-0.5">{DEMO_PACKAGE.remainingClasses}</p>
+                      <p className="text-xs font-bold text-amber-600 dark:text-amber-400 mt-0.5">Upcoming Classes</p>
                     </div>
                   </div>
 
                   {/* Card 4: Missed */}
                   <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/90 dark:border-slate-700 p-4.5 flex items-center gap-4 shadow-sm hover:shadow-md transition">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-800/40 text-rose-600 shrink-0 shadow-inner">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-800/40 text-rose-600 dark:text-rose-400 shrink-0 shadow-inner">
                       <XCircle className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Missed</p>
-                      <p className="text-2xl font-black text-rose-600 mt-0.5">{DEMO_PACKAGE.missedClasses}</p>
+                      <p className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-0.5">{DEMO_PACKAGE.missedClasses}</p>
                       <p className="text-xs font-bold text-rose-500 mt-0.5">Needs Attention</p>
                     </div>
                   </div>
@@ -284,7 +284,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                   {/* Student Profile Card */}
                   <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200/90 dark:border-slate-700 p-6 shadow-sm relative overflow-hidden">
                     <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3.5 mb-4">
-                      <User className="h-4 w-4 text-blue-600" />
+                      <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Student Profile</h3>
                     </div>
 
@@ -313,7 +313,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                   {/* Assigned Teacher Card */}
                   <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200/90 dark:border-slate-700 p-6 shadow-sm">
                     <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3.5 mb-4">
-                      <User className="h-4 w-4 text-purple-600" />
+                      <User className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                       <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Assigned Teacher</h3>
                     </div>
 
@@ -326,7 +326,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                           <h4 className="text-xl font-black text-slate-900 dark:text-white">{DEMO_TEACHER.name}</h4>
                           <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/40 px-2 py-0.5 rounded-lg">
                             <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                            <span className="text-xs font-black text-amber-600">{DEMO_TEACHER.rating}</span>
+                            <span className="text-xs font-black text-amber-600 dark:text-amber-400">{DEMO_TEACHER.rating}</span>
                           </div>
                         </div>
                         <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{DEMO_TEACHER.qualification}</p>
@@ -345,10 +345,10 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                   <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200/90 dark:border-slate-700 p-6 shadow-sm">
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3.5 mb-4">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-emerald-600" />
+                        <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                         <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Learning Progress</h3>
                       </div>
-                      <span className="text-xs font-black text-emerald-600">{completedPercent}%</span>
+                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{completedPercent}%</span>
                     </div>
 
                     <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
@@ -361,7 +361,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                     {/* 3 Mini Stat Boxes */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl p-3.5 flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-purple-100 dark:bg-purple-950/40 text-purple-600 shrink-0">
+                        <div className="p-2.5 rounded-xl bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 shrink-0">
                           <Target className="h-4 w-4" />
                         </div>
                         <div>
@@ -372,7 +372,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                       </div>
 
                       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl p-3.5 flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-teal-100 dark:bg-teal-950/40 text-teal-600 shrink-0">
+                        <div className="p-2.5 rounded-xl bg-teal-100 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 shrink-0">
                           <FileText className="h-4 w-4" />
                         </div>
                         <div>
@@ -383,12 +383,12 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                       </div>
 
                       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-2xl p-3.5 flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-950/40 text-amber-600 shrink-0">
+                        <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 shrink-0">
                           <TrendingUp className="h-4 w-4" />
                         </div>
                         <div>
                           <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Improvement</p>
-                          <p className="text-base font-black text-amber-600 mt-0.5">+18%</p>
+                          <p className="text-base font-black text-amber-600 dark:text-amber-400 mt-0.5">+18%</p>
                           <p className="text-[10px] text-slate-400 font-semibold">Since Last Month</p>
                         </div>
                       </div>
@@ -400,10 +400,10 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                     <div>
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3.5 mb-4">
                         <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-blue-600" />
+                          <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                           <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Upcoming Class</h3>
                         </div>
-                        <button className="text-xs font-bold text-blue-600 hover:underline cursor-pointer">View All</button>
+                        <button className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">View All</button>
                       </div>
 
                       <div className="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/40 rounded-2xl p-4 space-y-3">
@@ -441,10 +441,10 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                   <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200/90 dark:border-slate-700 p-6 shadow-sm">
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3.5 mb-4">
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-blue-600" />
+                        <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Weekly Schedule</h3>
                       </div>
-                      <button className="text-xs font-bold text-blue-600 hover:underline cursor-pointer">View Full Schedule</button>
+                      <button className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">View Full Schedule</button>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
@@ -465,16 +465,16 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                   <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200/90 dark:border-slate-700 p-6 shadow-sm">
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3.5 mb-4">
                       <div className="flex items-center gap-2">
-                        <Activity className="h-4 w-4 text-indigo-600" />
+                        <Activity className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                         <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Recent Activity</h3>
                       </div>
-                      <button className="text-xs font-bold text-blue-600 hover:underline cursor-pointer">View All</button>
+                      <button className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">View All</button>
                     </div>
 
                     <div className="space-y-3.5">
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2.5">
-                          <div className="p-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600">
+                          <div className="p-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
                             <CheckCircle2 className="h-4 w-4" />
                           </div>
                           <span className="font-bold text-slate-800 dark:text-slate-200">Science assignment submitted</span>
@@ -484,7 +484,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
 
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2.5">
-                          <div className="p-1.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600">
+                          <div className="p-1.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
                             <FileText className="h-4 w-4" />
                           </div>
                           <span className="font-bold text-slate-800 dark:text-slate-200">Maths test conducted</span>
@@ -504,7 +504,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                 {/* Attendance Summary Stat Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/90 dark:border-slate-700 p-4 flex items-center gap-3.5 shadow-sm">
-                    <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600">
+                    <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
                       <Calendar className="h-5 w-5" />
                     </div>
                     <div>
@@ -514,32 +514,32 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                   </div>
 
                   <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/90 dark:border-slate-700 p-4 flex items-center gap-3.5 shadow-sm">
-                    <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600">
+                    <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
                       <CheckCircle2 className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase text-slate-400">Classes Attended</p>
-                      <p className="text-xl font-black text-emerald-600">14</p>
+                      <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">14</p>
                     </div>
                   </div>
 
                   <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/90 dark:border-slate-700 p-4 flex items-center gap-3.5 shadow-sm">
-                    <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600">
+                    <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400">
                       <XCircle className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase text-slate-400">Classes Missed</p>
-                      <p className="text-xl font-black text-rose-600">1</p>
+                      <p className="text-xl font-black text-rose-600 dark:text-rose-400">1</p>
                     </div>
                   </div>
 
                   <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/90 dark:border-slate-700 p-4 flex items-center gap-3.5 shadow-sm">
-                    <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600">
+                    <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
                       <Clock className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase text-slate-400">Upcoming</p>
-                      <p className="text-xl font-black text-amber-600">6</p>
+                      <p className="text-xl font-black text-amber-600 dark:text-amber-400">6</p>
                     </div>
                   </div>
                 </div>
@@ -548,7 +548,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                 <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200/90 dark:border-slate-700 p-6 shadow-sm">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-4 mb-5">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-blue-600" />
+                      <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Class Attendance Log</h3>
                     </div>
                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Jul 2026</span>
@@ -559,7 +559,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                       <div key={idx} className="py-3.5 flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3.5">
                           <div className={`p-2.5 rounded-xl shrink-0 ${
-                            entry.status === "Done" ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-200/60 dark:border-emerald-800/40" : "bg-rose-50 dark:bg-rose-950/40 text-rose-600 border border-rose-200/60 dark:border-rose-800/40"
+                            entry.status === "Done" ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40" : "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/40"
                           }`}>
                             {entry.status === "Done" ? <CheckCircle2 className="h-4.5 w-4.5" /> : <XCircle className="h-4.5 w-4.5" />}
                           </div>
@@ -587,15 +587,15 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                 {/* Subject Progress Card */}
                 <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200/90 dark:border-slate-700 p-6 shadow-sm">
                   <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3.5 mb-5">
-                    <TrendingUp className="h-4 w-4 text-emerald-600" />
+                    <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                     <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Subject-wise Progress</h3>
                   </div>
 
                   <div className="space-y-5">
                     {[
-                      { subject: "Mathematics", percent: 68, color: "bg-blue-600", textColor: "text-blue-600", teacher: "Mrs. Priya Nair" },
-                      { subject: "Science", percent: 75, color: "bg-emerald-500", textColor: "text-emerald-600", teacher: "Mrs. Priya Nair" },
-                      { subject: "English", percent: 85, color: "bg-purple-600", textColor: "text-purple-600", teacher: "Mr. Anish Sen" },
+                      { subject: "Mathematics", percent: 68, color: "bg-blue-600", textColor: "text-blue-600 dark:text-blue-400", teacher: "Mrs. Priya Nair" },
+                      { subject: "Science", percent: 75, color: "bg-emerald-500", textColor: "text-emerald-600 dark:text-emerald-400", teacher: "Mrs. Priya Nair" },
+                      { subject: "English", percent: 85, color: "bg-purple-600", textColor: "text-purple-600 dark:text-purple-400", teacher: "Mr. Anish Sen" },
                     ].map((item) => (
                       <div key={item.subject} className="space-y-1.5">
                         <div className="flex items-center justify-between text-xs">
@@ -614,7 +614,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                 {/* Topics Covered Grid */}
                 <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200/90 dark:border-slate-700 p-6 shadow-sm">
                   <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3.5 mb-5">
-                    <BookOpen className="h-4 w-4 text-blue-600" />
+                    <BookOpen className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                     <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Syllabus & Topics Tracker</h3>
                   </div>
 
@@ -670,7 +670,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                 {/* Teacher Remarks */}
                 <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200/90 dark:border-slate-700 p-6 shadow-sm">
                   <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3.5 mb-4">
-                    <MessageSquare className="h-4 w-4 text-purple-600" />
+                    <MessageSquare className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                     <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Teacher Remarks</h3>
                   </div>
 
@@ -695,7 +695,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
                 <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200/90 dark:border-slate-700 p-6 shadow-sm">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3.5 mb-5">
                     <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-rose-600" />
+                      <FileText className="h-4 w-4 text-rose-600 dark:text-rose-400" />
                       <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Homework & Assignments</h3>
                     </div>
                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400">3 Total Assignments</span>

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { API_BASE } from "../config";
+import ThemeToggle from "../components/ThemeToggle";
+import "@fontsource-variable/inter";
 import { 
   Search, 
   Phone, 
@@ -243,26 +245,29 @@ export default function ParentPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-16 text-slate-800 dark:text-slate-100 transition-colors duration-200">
+    <div data-dashboard className="min-h-screen bg-[#f5f4f0] dark:bg-slate-950 pb-16 text-slate-800 dark:text-slate-100 transition-colors duration-200">
       {/* Brand Header */}
-      <header className="bg-slate-900 dark:bg-slate-950 text-white shadow-md border-b border-slate-800">
+      <header className="sticky top-0 z-30 bg-[#f5f4f0]/85 dark:bg-slate-950/85 backdrop-blur text-slate-900 dark:text-white">
         <div className="mx-auto max-w-3xl px-4 py-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md">
+            <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white">
               S
             </div>
-            <h1 className="text-base font-extrabold tracking-tight">Saraswati Tutorials</h1>
+            <h1 className="text-base font-semibold tracking-tight">Saraswati Tutorials</h1>
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-300">Parent Portal</span>
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Parent Portal</span>
+            <ThemeToggle buttonClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-sm transition hover:text-indigo-600 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer" />
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-3xl px-4 mt-8">
         
         {/* Search Panel */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none">
           <div className="mb-4">
-            <h2 className="text-lg font-extrabold text-slate-800 dark:text-white">Check Class Attendance & Progress</h2>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Check Class Attendance & Progress</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Enter your registered parent phone number to verify class details, timeline logs, and progress.
             </p>
@@ -286,7 +291,7 @@ export default function ParentPortal() {
             <button
               type="submit"
               disabled={loading}
-              className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-extrabold text-white text-xs shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-semibold text-white text-xs shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loading ? "Searching..." : (
                 <>
@@ -298,7 +303,7 @@ export default function ParentPortal() {
           </form>
 
           {error && (
-            <div className="mt-4 rounded-xl bg-rose-50 dark:bg-rose-955/20 border border-rose-100 dark:border-rose-900/60 p-3 text-xs font-bold text-rose-700 dark:text-rose-400">
+            <div className="mt-4 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/60 p-3 text-xs font-bold text-rose-700 dark:text-rose-400">
               {error}
             </div>
           )}
@@ -308,8 +313,8 @@ export default function ParentPortal() {
         {data && (
           <div className="mt-8 space-y-6">
             <div className="flex items-center justify-between px-1">
-              <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200">Active Tuitions ({data.length})</h3>
-              <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Active Tuitions ({data.length})</h3>
+              <p className="text-xs font-bold text-slate-400 flex items-center gap-1">
                 <Info className="h-3 w-3" /> Click cards to show timelines
               </p>
             </div>
@@ -323,7 +328,7 @@ export default function ParentPortal() {
               return (
                 <div 
                   key={card._id} 
-                  className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden"
+                  className="bg-white dark:bg-slate-900 rounded-2xl shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none overflow-hidden"
                 >
                   {/* Summary Card Header */}
                   <div 
@@ -333,29 +338,29 @@ export default function ParentPortal() {
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-black bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-lg">
+                          <span className="text-xs font-bold bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-lg">
                             {card.requirementId}
                           </span>
-                          <span className="text-[10px] font-black bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-2.5 py-0.5 rounded-lg">
+                          <span className="text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-2.5 py-0.5 rounded-lg">
                             {card.currentMonthLabel || `Month ${card.currentPackageCycle || 1} (Cycle ${card.currentPackageCycle || 1})`}
                           </span>
                           {card.cycleDates && (
-                            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">
                               {card.cycleDates}
                             </span>
                           )}
-                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-lg border ${
                             card.currentAttendanceStatus === "Done"
                               ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300"
                               : card.currentAttendanceStatus === "Missed"
-                              ? "bg-rose-50 dark:bg-rose-955/20 border-rose-150 dark:border-rose-900/60 text-rose-700 dark:text-rose-400"
-                              : "bg-amber-50 dark:bg-amber-950/40 border-amber-150 dark:border-amber-900/40 text-amber-700 dark:text-amber-300"
+                              ? "bg-rose-50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/60 text-rose-700 dark:text-rose-400"
+                              : "bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-900/40 text-amber-700 dark:text-amber-300"
                           }`}>
                             {card.currentAttendanceStatus === "Done" ? "Done Today" : card.currentAttendanceStatus === "Missed" ? "Missed Today" : "Pending Today"}
                           </span>
                         </div>
-                        <h4 className="text-base font-black text-slate-800 dark:text-white mt-1">{card.studentName}</h4>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 pt-1">
+                        <h4 className="text-base font-bold text-slate-800 dark:text-white mt-1">{card.studentName}</h4>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-bold text-slate-500 dark:text-slate-400 pt-1">
                           <div className="flex items-center gap-1">
                             <User className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                             <span>Teacher: {card.tutorName}</span>
@@ -370,12 +375,12 @@ export default function ParentPortal() {
                       <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-slate-100 dark:border-slate-800 pt-3 md:pt-0">
                         {/* Counter */}
                         <div className="text-right">
-                          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 block uppercase tracking-wider">Attendance Summary</span>
-                          <strong className="text-sm font-extrabold text-slate-800 dark:text-slate-200">{card.completedClasses} / {card.totalClasses} Classes</strong>
+                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider whitespace-nowrap">Attendance Summary</span>
+                          <strong className="text-sm font-semibold text-slate-800 dark:text-slate-200">{card.completedClasses} / {card.totalClasses} Classes</strong>
                         </div>
                         
                         {/* Chevron Toggle */}
-                        <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-450">
+                        <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400">
                           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </div>
                       </div>
@@ -389,7 +394,7 @@ export default function ParentPortal() {
                           style={{ width: `${percent}%` }}
                         ></div>
                       </div>
-                      <div className="flex justify-between mt-1 text-[9px] font-black text-slate-400 dark:text-slate-500">
+                      <div className="flex justify-between mt-1 text-xs font-bold text-slate-400 dark:text-slate-500">
                         <span>{percent}% Classes Completed</span>
                         <span>Remaining: {card.remainingClasses}</span>
                       </div>
@@ -403,20 +408,20 @@ export default function ParentPortal() {
                       {/* Attendance Grid Summary details */}
                       <div className="grid grid-cols-4 gap-2 mb-6 text-center">
                         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 shadow-sm">
-                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 block uppercase">Total</span>
-                          <strong className="text-base font-black text-slate-800 dark:text-white mt-0.5 block">{card.totalClasses}</strong>
+                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase">Total</span>
+                          <strong className="text-base font-bold text-slate-800 dark:text-white mt-0.5 block">{card.totalClasses}</strong>
                         </div>
                         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 shadow-sm">
-                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 block uppercase">Completed</span>
-                          <strong className="text-base font-black text-emerald-600 mt-0.5 block">{card.completedClasses}</strong>
+                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase">Completed</span>
+                          <strong className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">{card.completedClasses}</strong>
                         </div>
                         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 shadow-sm">
-                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 block uppercase">Missed</span>
-                          <strong className="text-base font-black text-rose-600 mt-0.5 block">{card.missedClasses}</strong>
+                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase">Missed</span>
+                          <strong className="text-base font-bold text-rose-600 dark:text-rose-400 mt-0.5 block">{card.missedClasses}</strong>
                         </div>
                         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 shadow-sm">
-                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 block uppercase">Remaining</span>
-                          <strong className="text-base font-black text-indigo-600 dark:text-indigo-400 mt-0.5 block">{card.remainingClasses}</strong>
+                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase">Remaining</span>
+                          <strong className="text-base font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 block">{card.remainingClasses}</strong>
                         </div>
                       </div>
 
@@ -428,7 +433,7 @@ export default function ParentPortal() {
                             e.stopPropagation();
                             window.open(`${API_BASE}/attendance/download-history/${card._id}?cycle=all`, "_blank");
                           }}
-                          className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow transition-all flex items-center gap-1.5 cursor-pointer"
+                          className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow transition-all flex items-center gap-1.5 cursor-pointer"
                         >
                           <FileDown className="h-4 w-4" />
                           Download History CSV
@@ -440,7 +445,7 @@ export default function ParentPortal() {
                             e.stopPropagation();
                             generatePDFReport(card, logs);
                           }}
-                          className="h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          className="h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                         >
                           <FileDown className="h-4 w-4" />
                           {pdfGeneratingId === card._id ? "Generating PDF..." : "Download Attendance Report (PDF)"}
@@ -448,10 +453,10 @@ export default function ParentPortal() {
                       </div>
 
                       {/* Class Log Timeline */}
-                      <h5 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-4 border-b border-slate-200/80 dark:border-slate-800 pb-2">Class Attendance Timeline</h5>
+                      <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-4 border-b border-slate-200/80 dark:border-slate-800 pb-2">Class Attendance Timeline</h5>
                       
                       {logs.length === 0 ? (
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center gap-2">
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none flex flex-col items-center justify-center gap-2">
                           <Activity className="h-6 w-6 text-slate-300" />
                           <p className="text-xs font-bold text-slate-500 dark:text-slate-400">No classes logged yet for this tuition.</p>
                         </div>
@@ -477,7 +482,7 @@ export default function ParentPortal() {
                           <div className="space-y-4">
                             {/* Cycle Tabs */}
                             <div className="flex items-center gap-1.5 border-b border-slate-200/80 dark:border-slate-800 pb-2.5 overflow-x-auto">
-                              <span className="text-[10px] font-black text-slate-400 uppercase mr-1 shrink-0">Month:</span>
+                              <span className="text-xs font-bold text-slate-400 uppercase mr-1 shrink-0">Month:</span>
                               {availableCycles.map((cyc) => {
                                 const isSelected = currentSelectedCycle === cyc;
                                 const isCurrent = (card.currentPackageCycle || 1) === cyc;
@@ -486,15 +491,15 @@ export default function ParentPortal() {
                                     key={cyc}
                                     type="button"
                                     onClick={() => setParentCycleFilter(prev => ({ ...prev, [card._id]: cyc }))}
-                                    className={`px-3 py-1 rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
                                       isSelected
                                         ? "bg-indigo-600 text-white shadow-sm"
-                                        : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100"
+                                        : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
                                     }`}
                                   >
                                     Month {cyc}
                                     {isCurrent && (
-                                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-extrabold ${isSelected ? "bg-indigo-800 text-white" : "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400"}`}>
+                                      <span className={`text-xs px-1.5 py-0.2 rounded font-semibold ${isSelected ? "bg-indigo-800 text-white" : "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400"}`}>
                                         Active
                                       </span>
                                     )}
@@ -504,10 +509,10 @@ export default function ParentPortal() {
                               <button
                                 type="button"
                                 onClick={() => setParentCycleFilter(prev => ({ ...prev, [card._id]: "all" }))}
-                                className={`px-3 py-1 rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 ${
+                                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
                                   currentSelectedCycle === "all"
                                     ? "bg-indigo-600 text-white shadow-sm"
-                                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100"
+                                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
                                 }`}
                               >
                                 All Months ({logs.length})
@@ -518,12 +523,12 @@ export default function ParentPortal() {
                             {selectedCycleObj && (
                               <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 px-3.5 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800">
                                 <span>Month {selectedCycleObj.cycleNumber} ({selectedCycleObj.dates})</span>
-                                <span className="text-emerald-600 font-extrabold">{selectedCycleObj.completedClasses} / {selectedCycleObj.totalClasses} Completed</span>
+                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{selectedCycleObj.completedClasses} / {selectedCycleObj.totalClasses} Completed</span>
                               </div>
                             )}
 
                             {filteredLogs.length === 0 ? (
-                              <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center gap-2">
+                              <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none flex flex-col items-center justify-center gap-2">
                                 <Activity className="h-6 w-6 text-slate-300" />
                                 <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
                                   No classes logged for Month {currentSelectedCycle}.
@@ -545,28 +550,28 @@ export default function ParentPortal() {
                                             <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                                           </div>
                                         ) : (
-                                          <div className="h-4.5 w-4.5 rounded-full bg-rose-100 dark:bg-rose-955/40 border border-rose-300 dark:border-rose-900/60 flex items-center justify-center">
-                                            <XCircle className="h-3 w-3 text-rose-600 dark:text-rose-450" />
+                                          <div className="h-4.5 w-4.5 rounded-full bg-rose-100 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-900/60 flex items-center justify-center">
+                                            <XCircle className="h-3 w-3 text-rose-600 dark:text-rose-400" />
                                           </div>
                                         )}
                                       </div>
 
                                       {/* Timeline Card */}
-                                      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm">
+                                      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none">
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                                          <h6 className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5 flex-wrap">
+                                          <h6 className="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5 flex-wrap">
                                             <span>Class {classIndex}</span>
                                             <span className="text-slate-300 dark:text-slate-700">•</span>
-                                            <span className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-black px-1.5 py-0.2 rounded">
+                                            <span className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold px-1.5 py-0.2 rounded">
                                               Month {log.packageCycle || 1}
                                             </span>
                                             <span className="text-slate-300 dark:text-slate-700">•</span>
                                             <span className="text-slate-500 dark:text-slate-400 font-bold">{log.date}</span>
                                           </h6>
-                                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
+                                          <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
                                             log.status === "Done" 
                                               ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300" 
-                                              : "bg-rose-50 dark:bg-rose-955/20 border-rose-100 dark:border-rose-900/60 text-rose-700 dark:text-rose-450"
+                                              : "bg-rose-50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/60 text-rose-700 dark:text-rose-400"
                                           }`}>
                                             {log.status === "Done" ? "Completed" : "Missed"}
                                           </span>
@@ -574,21 +579,21 @@ export default function ParentPortal() {
 
                                         {log.status === "Done" ? (
                                           <div className="space-y-1">
-                                            <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 block uppercase tracking-wider">Topics Covered</span>
+                                            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider">Topics Covered</span>
                                             <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950/40 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
                                               {log.topicsCovered}
                                             </p>
                                           </div>
                                         ) : (
                                           <div className="space-y-1">
-                                            <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 block uppercase tracking-wider">Missed Reason</span>
+                                            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider">Missed Reason</span>
                                             <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950/40 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
                                               {log.missedReason === "Other" ? log.customReason : log.missedReason}
                                             </p>
                                           </div>
                                         )}
                                         
-                                        <div className="mt-3 flex justify-between items-center text-[9px] font-bold text-slate-400 dark:text-slate-500">
+                                        <div className="mt-3 flex justify-between items-center text-xs font-bold text-slate-400 dark:text-slate-500">
                                           <span>Logged by: {log.tutorName}</span>
                                           <span>Updated: {new Date(log.timestamp).toLocaleDateString()}</span>
                                         </div>
