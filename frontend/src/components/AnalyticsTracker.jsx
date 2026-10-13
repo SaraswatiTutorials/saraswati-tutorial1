@@ -150,7 +150,7 @@ export default function AnalyticsTracker() {
         trackEvent("call_click", href);
       }
 
-      if (href.includes("tutor-register") || href.includes("become-tutor")) {
+      if (href.includes("tutor-verification") || href.includes("tutor-register") || href.includes("become-tutor")) {
         trackEvent("become_tutor", href);
       }
     };

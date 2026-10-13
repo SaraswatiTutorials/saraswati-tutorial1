@@ -104,7 +104,8 @@ export default function App() {
           <Route path="/blogs/:slug" element={<BlogDetail />} />
           <Route path="/parent-enquiry" element={<ParentEnquiryForm />} />
           <Route path="/thank-you" element={<ThankYou />} />
-          <Route path="/tutor-register" element={<TutorRegistration />} />
+          <Route path="/tutor-verification" element={<TutorRegistration />} />
+          <Route path="/tutor-register" element={<Navigate to="/tutor-verification" replace />} />
           <Route path="/payment" element={<PaymentPage />} />
 
           {/* Teacher & Parent Portal Routes */}

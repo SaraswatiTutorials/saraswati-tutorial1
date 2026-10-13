@@ -335,6 +335,17 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ message: "Phone number is required" });
     }
 
+    // Email is mandatory for new registrations. Checked here instead of in the
+    // Tutor schema so older tutor records without an email can still be saved.
+    const email = String(req.body.email || "").trim();
+    if (!email) {
+      return res.status(400).json({ message: "Email address is required" });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: "Enter a valid email address" });
+    }
+    req.body.email = email;
+
     let odooRes = null;
     let odooSyncStatus = "pending";
     let odooSyncError = "";

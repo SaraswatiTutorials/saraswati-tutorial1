@@ -25,7 +25,9 @@ import {
   Calendar
 } from "lucide-react";
 
-import { PLANS, calculatePrice, calculateEliteHourlyPrice } from "../data/plansConfig";
+import { PLANS } from "../data/plansConfig";
+import { getAvailableOptions, getEliteHourlyRate, isPlanAvailable } from "../pricing/feeEngine";
+import { FEE_CONFIG } from "../pricing/feeConfig";
 import { trackEvent } from "../utils/analytics";
 
 const TIMELINE_STEPS = [
@@ -119,7 +121,16 @@ export default function PlansSection() {
     }
   };
 
-  const activePlanData = PLANS.find((p) => p.id === activePlan);
+  // Same availability rules as the enquiry form (e.g. no Foundation below Class 8).
+  const student = [{ classGrade: selectedClass, curriculum: selectedBoard }];
+  const visiblePlans = PLANS.filter((p) => isPlanAvailable(p.id, student));
+  const activePlanData = visiblePlans.find((p) => p.id === activePlan);
+
+  useEffect(() => {
+    if (activePlan && !visiblePlans.some((p) => p.id === activePlan)) {
+      setActivePlan(null);
+    }
+  }, [activePlan, visiblePlans]);
 
   return (
     <section id="plans" className="relative overflow-hidden bg-slate-950 py-12 text-white border-t border-b border-white/5">
@@ -222,7 +233,8 @@ export default function PlansSection() {
 
         {/* Carousel / Cards Layout Wrapper */}
         <PlanCarousel
-          plans={PLANS}
+          key={visiblePlans.map((p) => p.id).join("-")}
+          plans={visiblePlans}
           activePlan={activePlan}
           onCardClick={handleCardClick}
         />
@@ -1156,8 +1168,9 @@ function PlanDetails({ plan, onCTA, selectedClass, selectedBoard }) {
     }
   };
 
-  // Pricing configuration calculation
-  const pricingOptions = plan.pricingOptions || [];
+  // Schedules offered for the selected class, priced by the shared fee engine
+  const pricingOptions = getAvailableOptions(plan.id, [{ classGrade: selectedClass, curriculum: selectedBoard }]);
+  const perSubject = FEE_CONFIG.subjectPricing.enabled && FEE_CONFIG.subjectPricing.appliesToPlans.includes(plan.id);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr] text-white">
@@ -1220,7 +1233,7 @@ function PlanDetails({ plan, onCTA, selectedClass, selectedBoard }) {
           
           {plan.id === 'elite' && (
             (() => {
-              const hrRate = calculateEliteHourlyPrice(selectedClass, selectedBoard);
+              const hrRate = getEliteHourlyRate(selectedClass, selectedBoard) ?? 0;
               return (
                 <div className="mb-6 bg-slate-900 border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-inner">
                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Hourly Rate</span>
@@ -1238,8 +1251,7 @@ function PlanDetails({ plan, onCTA, selectedClass, selectedBoard }) {
           <table className="w-full text-sm border-collapse text-left">
             <tbody>
               {pricingOptions.map((opt, idx) => {
-                // Dynamically calculate the price on the landing page based on state selectors
-                const calculatedRowPrice = calculatePrice(plan.id, selectedClass, selectedBoard, opt.days, opt.hours);
+                const calculatedRowPrice = opt.price;
                 return (
                   <tr key={idx} className="border-b border-white/5 last:border-0">
                     <td className="py-3.5 font-semibold text-slate-400">
@@ -1247,7 +1259,7 @@ function PlanDetails({ plan, onCTA, selectedClass, selectedBoard }) {
                     </td>
                     <td className="py-3.5 text-right font-black text-white">
                       ₹{calculatedRowPrice.toLocaleString('en-IN')}{" "}
-                      <span className="text-[10px] text-slate-500 font-bold">/ month</span>
+                      <span className="text-[10px] text-slate-500 font-bold">/ month{perSubject ? " per subject" : ""}</span>
                     </td>
                   </tr>
                 );

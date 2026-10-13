@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -35,7 +35,19 @@ import {
   RefreshCw,
   MessageSquare
 } from "lucide-react";
-import { PLANS, calculatePrice, calculateEliteHourlyPrice, calculateEliteMonthlyPrice, getMultipleWardsCalculation } from "../data/plansConfig";
+import { PLANS } from "../data/plansConfig";
+import {
+  calculateListPrice,
+  calculatePlanPrice,
+  calculateQuote,
+  getAvailableOptions,
+  getEffectiveHourlyRate,
+  getStruckListPrice,
+  isPlanAvailable,
+  toEnquiryFields,
+} from "../pricing/feeEngine";
+import { FEE_CONFIG } from "../pricing/feeConfig";
+import FeeBreakdown from "../components/FeeBreakdown";
 import { API_BASE } from "../config";
 import { trackEvent } from "../utils/analytics";
 import DemoParentDashboard from "./DemoParentDashboard";
@@ -292,21 +304,19 @@ const getSlotsForHours = (hours = 1.5) => {
   return ["4:00 PM – 5:30 PM", "5:00 PM – 6:30 PM", "5:30 PM – 7:00 PM", "6:00 PM – 7:30 PM"];
 };
 
-const isClass1to8 = (classGrade) => {
-  return ["1 to 5", "6", "7", "8"].includes(String(classGrade || "").trim());
-};
-
-const isClass1to7 = (classGrade) => {
-  return ["1 to 5", "6", "7"].includes(String(classGrade || "").trim());
-};
-
-const getFilteredPricingOptions = (plan, wards = []) => {
+// Schedules offered to every student on the enquiry (unavailable and
+// price-pending combinations are left out).
+const getFilteredPricingOptions = (plan, wards = [], mode) => {
   if (!plan) return [];
-  const hasClass1to8 = Array.isArray(wards) && wards.some(w => isClass1to8(w.classGrade));
-  if (['foundation', 'advance'].includes(plan.id) && hasClass1to8) {
-    return plan.pricingOptions.filter(opt => opt.hours !== 1);
+  return getAvailableOptions(plan.id, wards, mode);
+};
+
+const safePlanPrice = (...args) => {
+  try {
+    return calculatePlanPrice(...args);
+  } catch {
+    return null;
   }
-  return plan.pricingOptions;
 };
 
 const getDynamicCalculation = (planId, option, classGrade = "6", curriculum = "CBSE", mode = "Home Tuition / In-Person") => {
@@ -314,43 +324,86 @@ const getDynamicCalculation = (planId, option, classGrade = "6", curriculum = "C
 
   const cg = classGrade || "6";
   const curr = curriculum || "CBSE";
+  const finalPrice = safePlanPrice(planId, cg, curr, option.days, option.hours, mode);
+  if (finalPrice === null) return null;
 
   if (planId === 'foundation') {
-    const finalPrice = calculatePrice('foundation', cg, curr, option.days, option.hours, mode);
-    const originalPrice = calculatePrice('board', cg, curr, option.days, option.hours, mode); // base board price
-    const discount = originalPrice - finalPrice;
+    const originalPrice = calculateListPrice(cg, curr, option.days, option.hours, mode); // base board price
     return {
       originalPrice,
       finalPrice,
-      discount,
+      discount: originalPrice - finalPrice,
       discountPercent: 18 // 18% OFF
     };
   }
 
   if (planId === 'advance') {
-    const finalPrice = calculatePrice('advance', cg, curr, option.days, option.hours, mode);
-    const basePrice = calculatePrice('board', cg, curr, option.days, option.hours, mode);
-    const extraCost = finalPrice - basePrice;
-    return {
-      basePrice,
-      extraCost,
-      finalPrice
-    };
+    return { finalPrice };
   }
 
   if (planId === 'elite') {
-    const finalPrice = calculatePrice('elite', cg, curr, option.days, option.hours, mode);
     const totalClasses = option.days * 4;
-    const costPerClass = Math.round(finalPrice / totalClasses);
     return {
       finalPrice,
       totalClasses,
-      costPerClass
+      costPerClass: Math.round(finalPrice / totalClasses)
     };
   }
 
   return null;
 };
+
+const buildQuote = (form, planType, option) =>
+  calculateQuote({
+    planType,
+    daysPerWeek: option.days,
+    hoursPerDay: option.hours,
+    preferredMode: form.preferredMode,
+    wards: form.wards,
+  });
+
+// Foundation "18% applied" savings: board list price total (after the same
+// sibling concession) minus the Foundation total. Single-fee pricing only.
+const getFoundationSavings = (quote) => {
+  if (!quote?.ok || quote.planType !== 'foundation' || quote.rules.subjectPricingEnabled) return null;
+  const listTotal = quote.students.reduce(
+    (sum, s) => sum + (calculateListPrice(s.classGrade, s.curriculum, quote.daysPerWeek, quote.hoursPerDay, quote.preferredMode) ?? s.planPrice),
+    0
+  );
+  const listAfterSibling = listTotal - Math.round(listTotal * (quote.siblingConcessionPercent / 100));
+  return listAfterSibling - quote.monthlyPayable;
+};
+
+const formatFee = (value) =>
+  value === null || value === undefined ? "—" : `₹${Number(value).toLocaleString('en-IN')}`;
+
+// Hourly rate shown to parents: the average implied by the quoted monthly price,
+// so it always follows the selected tuition mode. "≈" marks a rounded average.
+const formatHourlyRate = (monthlyPrice, days, hours) => {
+  const rate = getEffectiveHourlyRate(monthlyPrice, days, hours);
+  if (rate === null) return "—";
+  const exact = monthlyPrice === rate * Number(days) * Number(hours) * 4;
+  return `${exact ? "" : "≈ "}${formatFee(rate)}/hour`;
+};
+
+const subjectPricingOn = (planId) =>
+  FEE_CONFIG.subjectPricing.enabled && FEE_CONFIG.subjectPricing.appliesToPlans.includes(planId);
+
+const EMPTY_FEE_FIELDS = {
+  monthlyFees: null,
+  siblingDiscount: 0,
+  siblingConcessionPercent: 0,
+  totalBaseFee: null,
+  studentFees: [],
+  discount: null,
+  finalPrice: null,
+  costPerClass: null,
+};
+
+// Fee values kept on the form. Only the existing keys are used, so the draft
+// autosave payload and the submitted enquiry keep the same structure.
+const getFeeFields = (quote) =>
+  quote?.ok ? { ...toEnquiryFields(quote), discount: getFoundationSavings(quote) } : EMPTY_FEE_FIELDS;
 
 const SimpleBenefitIcon = ({ title, planTheme }) => {
   const t = String(title || "").trim().toLowerCase();
@@ -634,7 +687,7 @@ export default function ParentEnquiryForm() {
 
   const handleOpenPlanModal = (plan) => {
     setViewingPlanId(plan.id);
-    const allowedOptions = getFilteredPricingOptions(plan, form.wards);
+    const allowedOptions = getFilteredPricingOptions(plan, form.wards, form.preferredMode);
     if (form.planType === plan.id) {
       const matched = allowedOptions.find(
         (opt) => opt.days === form.daysPerWeek && opt.hours === form.hoursPerDay
@@ -647,18 +700,12 @@ export default function ParentEnquiryForm() {
 
   const handleChoosePlan = (plan) => {
     if (!selectedOption) return;
-    const hasClass1to8 = form.wards.some(w => isClass1to8(w.classGrade));
-    if (['foundation', 'advance'].includes(plan.id) && hasClass1to8 && selectedOption.hours === 1) {
-      setMessage("For classes 1 to 8, 1 Hour session is not allowed on this plan. Please select 1.5 or 2 Hours.");
+    const quote = buildQuote(form, plan.id, selectedOption);
+    if (!quote.ok) {
+      setMessage(`${quote.errors[0].message} Please choose another option.`);
       return;
     }
-    const calc = getMultipleWardsCalculation(plan.id, selectedOption, form.wards, form.preferredMode);
-    let discount = null;
-    if (plan.id === 'foundation' && calc) {
-      const calcBase = getMultipleWardsCalculation('board', selectedOption, form.wards, form.preferredMode);
-      discount = calcBase ? (calcBase.finalPrice - calc.finalPrice) : null;
-    }
-    
+
     // Automatically calculate End Time and Slot matching the chosen plan's session hours
     const curStart = form.startTime || "17:00";
     const calculatedEnd = addHoursToTimeStr(curStart, selectedOption.hours);
@@ -670,14 +717,7 @@ export default function ParentEnquiryForm() {
       planType: plan.id,
       daysPerWeek: selectedOption.days,
       hoursPerDay: selectedOption.hours,
-      monthlyFees: calc ? calc.finalPrice : selectedOption.price,
-      siblingDiscount: calc ? calc.siblingDiscount : 0,
-      siblingConcessionPercent: calc ? calc.concessionPercent : 0,
-      totalBaseFee: calc ? calc.totalBaseFee : 0,
-      studentFees: calc ? calc.studentFees : [],
-      discount: discount,
-      finalPrice: calc ? calc.finalPrice : selectedOption.price,
-      costPerClass: calc ? (calc.costPerClass || null) : null,
+      ...getFeeFields(quote),
       preferredDays: [],
       endTime: calculatedEnd,
       classTimingSlot: calculatedSlot,
@@ -713,30 +753,19 @@ export default function ParentEnquiryForm() {
     }));
   };
 
-  useEffect(() => {
-    if (form.planType && form.daysPerWeek && form.hoursPerDay) {
-      const selectedOption = { days: form.daysPerWeek, hours: form.hoursPerDay };
-      const calc = getMultipleWardsCalculation(form.planType, selectedOption, form.wards, form.preferredMode);
-      if (calc) {
-        let discount = null;
-        if (form.planType === 'foundation') {
-          const calcBase = getMultipleWardsCalculation('board', selectedOption, form.wards, form.preferredMode);
-          discount = calcBase ? (calcBase.finalPrice - calc.finalPrice) : null;
-        }
-        setForm(prev => ({
-          ...prev,
-          monthlyFees: calc.finalPrice,
-          siblingDiscount: calc.siblingDiscount,
-          siblingConcessionPercent: calc.concessionPercent,
-          totalBaseFee: calc.totalBaseFee,
-          studentFees: calc.studentFees,
-          discount: discount,
-          finalPrice: calc.finalPrice,
-          costPerClass: calc.costPerClass
-        }));
-      }
-    }
+  // Live fee quote for the selected plan. Calculated on the fly and never stored
+  // as a separate object; only the existing fee fields are kept on the form.
+  const feeQuote = useMemo(() => {
+    if (!form.planType || !form.daysPerWeek || !form.hoursPerDay) return null;
+    return buildQuote(form, form.planType, { days: form.daysPerWeek, hours: form.hoursPerDay });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.wards, form.planType, form.daysPerWeek, form.hoursPerDay, form.preferredMode]);
+
+  useEffect(() => {
+    if (feeQuote) {
+      setForm(prev => ({ ...prev, ...getFeeFields(feeQuote) }));
+    }
+  }, [feeQuote]);
 
   useEffect(() => {
     const prefilledPlan = localStorage.getItem("prefilledPlan");
@@ -766,32 +795,19 @@ export default function ParentEnquiryForm() {
         let newForm = {
           ...prev,
           wards: updatedWards,
-          planType: prefilledPlan || prev.planType,
         };
 
-        if (prefilledPlan) {
-          const planData = PLANS.find(p => p.id === prefilledPlan);
-          if (planData) {
-            const allowedOptions = getFilteredPricingOptions(planData, updatedWards);
-            const selectedOpt = allowedOptions[0];
-            if (selectedOpt) {
-              const calc = getDynamicCalculation(
-                prefilledPlan, 
-                selectedOpt, 
-                updatedWards[0]?.classGrade, 
-                updatedWards[0]?.curriculum
-              );
-              newForm = {
-                ...newForm,
-                daysPerWeek: selectedOpt.days,
-                hoursPerDay: selectedOpt.hours,
-                monthlyFees: calc ? calc.finalPrice : selectedOpt.price,
-                discount: calc ? (calc.discount || null) : null,
-                finalPrice: calc ? calc.finalPrice : selectedOpt.price,
-                costPerClass: calc ? (calc.costPerClass || null) : null,
-              };
-            }
-          }
+        // Only carry the homepage plan over when it is offered for this class.
+        const planData = prefilledPlan && PLANS.find(p => p.id === prefilledPlan);
+        const selectedOpt = planData && getFilteredPricingOptions(planData, updatedWards, prev.preferredMode)[0];
+        if (selectedOpt) {
+          newForm = {
+            ...newForm,
+            planType: prefilledPlan,
+            daysPerWeek: selectedOpt.days,
+            hoursPerDay: selectedOpt.hours,
+            ...getFeeFields(buildQuote(newForm, prefilledPlan, selectedOpt)),
+          };
         }
         return newForm;
       });
@@ -1028,13 +1044,10 @@ export default function ParentEnquiryForm() {
       if (!form.planType) {
         newErrors.planType = "Preferred Plan selection is required";
       } else {
-        const hasClass1to7 = form.wards.some(w => isClass1to7(w.classGrade));
-        if (form.planType === "foundation" && hasClass1to7) {
+        if (form.planType === "foundation" && !isPlanAvailable("foundation", form.wards, form.preferredMode)) {
           newErrors.planType = "Foundation Plan is available from Class 8 onward. Please select another plan.";
-        }
-        const hasClass1to8 = form.wards.some(w => isClass1to8(w.classGrade));
-        if (['foundation', 'advance'].includes(form.planType) && hasClass1to8 && form.hoursPerDay === 1) {
-          newErrors.planType = "For classes 1 to 8, 1 Hour session is not allowed on this plan. Please select 1.5 or 2 Hours.";
+        } else if (feeQuote && !feeQuote.ok) {
+          newErrors.planType = `${feeQuote.errors[0].message} Please choose another plan or schedule.`;
         }
         if (form.preferredDays.length !== form.daysPerWeek) {
           newErrors.preferredDays = `Please select exactly ${form.daysPerWeek} preferred days.`;
@@ -1785,12 +1798,12 @@ export default function ParentEnquiryForm() {
                                     Multiple Student Breakdown
                                   </div>
                                   {form.wards.map((ward, sIdx) => {
-                                    const fee = form.studentFees?.[sIdx] || 0;
+                                    const fee = form.studentFees?.[sIdx] ?? null;
                                     const name = ward.studentName || `Student ${sIdx + 1}`;
                                     return (
                                       <div key={sIdx} className="flex justify-between gap-4 font-semibold text-slate-600">
                                         <span>{name}:</span>
-                                        <span className="font-extrabold text-slate-900 dark:text-white">?{fee.toLocaleString('en-IN')}</span>
+                                        <span className="font-extrabold text-slate-900 dark:text-white">{formatFee(fee)}</span>
                                       </div>
                                     );
                                   })}
@@ -1798,32 +1811,30 @@ export default function ParentEnquiryForm() {
                                     <>
                                       <div className="flex justify-between gap-4 font-semibold text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-slate-700">
                                         <span>Total Base Fee:</span>
-                                        <span>?{form.totalBaseFee?.toLocaleString('en-IN')}</span>
+                                        <span>₹{form.totalBaseFee?.toLocaleString('en-IN')}</span>
                                       </div>
                                       <div className="flex justify-between gap-4 font-bold text-emerald-700">
                                         <span>Sibling Concession ({form.siblingConcessionPercent}%):</span>
-                                        <span>-?{form.siblingDiscount?.toLocaleString('en-IN')}</span>
+                                        <span>-₹{form.siblingDiscount?.toLocaleString('en-IN')}</span>
                                       </div>
                                     </>
                                   )}
                                   <div className="flex justify-between gap-4 pt-1.5 border-t border-slate-200 dark:border-slate-700 font-black text-slate-900 dark:text-white text-sm">
                                     <span>Final Monthly Price:</span>
-                                    <span className="text-base">?{form.monthlyFees?.toLocaleString('en-IN')}</span>
+                                    <span className="text-base">{formatFee(form.monthlyFees)}</span>
                                   </div>
                                 </div>
                               ) : (
                                 <>
                                   {form.planType === 'elite' ? (
                                     (() => {
-                                      const firstWardClass = form.wards[0]?.classGrade || "6";
-                                      const firstWardBoard = form.wards[0]?.curriculum || "CBSE";
-                                      const hrRate = calculateEliteHourlyPrice(firstWardClass, firstWardBoard);
+                                      const planPrice = feeQuote?.ok ? feeQuote.students[0].planPrice : null;
                                       return (
                                         <div className="flex flex-col">
                                           <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Hourly Rate</p>
-                                          <p className="text-2xl font-black text-slate-900 dark:text-white">?{hrRate.toLocaleString('en-IN')}/hour</p>
+                                          <p className="text-2xl font-black text-slate-900 dark:text-white">{formatHourlyRate(planPrice, form.daysPerWeek, form.hoursPerDay)}</p>
                                           <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 block">
-                                            Est: ?{form.monthlyFees?.toLocaleString('en-IN')}/month
+                                            Est: {formatFee(form.monthlyFees)}/month
                                           </span>
                                         </div>
                                       );
@@ -1834,29 +1845,29 @@ export default function ParentEnquiryForm() {
                                       <p className="text-2xl font-black text-slate-900 dark:text-white">
                                         {['foundation', 'advance'].includes(form.planType) ? (
                                           (() => {
-                                            const firstWardClass = form.wards[0]?.classGrade || "6";
-                                            const firstWardBoard = form.wards[0]?.curriculum || "CBSE";
-                                            const basePrice = calculatePrice('board', firstWardClass, firstWardBoard, form.daysPerWeek, form.hoursPerDay, form.preferredMode);
+                                            // Struck-through list price only for a valid Foundation fee (its 18% discount).
+                                            // Advance is never discounted; an invalid plan shows no list price beside "—".
+                                            const basePrice = getStruckListPrice(feeQuote);
                                             return (
                                               <>
-                                                {basePrice !== form.monthlyFees && (
+                                                {basePrice !== null && (
                                                   <span className="line-through text-slate-400 text-lg mr-2 font-black">
-                                                    ?{basePrice.toLocaleString('en-IN')}
+                                                    ₹{basePrice.toLocaleString('en-IN')}
                                                   </span>
                                                 )}
                                                 <span className="text-slate-900 dark:text-white">
-                                                  ?{form.monthlyFees?.toLocaleString('en-IN')}
+                                                  {formatFee(form.monthlyFees)}
                                                 </span>
                                               </>
                                             );
                                           })()
                                         ) : (
-                                          `?${form.monthlyFees?.toLocaleString('en-IN')}`
+                                          formatFee(form.monthlyFees)
                                         )}
                                       </p>
                                       {form.planType === 'foundation' && form.discount && (
                                         <span className="text-[10px] font-black text-emerald-600 block mt-0.5">
-                                          Save ?{form.discount.toLocaleString('en-IN')} (18% applied)
+                                          Save ₹{form.discount.toLocaleString('en-IN')} (18% applied)
                                         </span>
                                       )}
                                     </>
@@ -1872,6 +1883,9 @@ export default function ParentEnquiryForm() {
                               Change Plan
                             </button>
                           </div>
+                        </div>
+                        <div className="mt-5">
+                          <FeeBreakdown quote={feeQuote} />
                         </div>
                       </div>
 
@@ -1925,10 +1939,17 @@ export default function ParentEnquiryForm() {
                         )}
                       </div>
 
+                      {PLANS.every((plan) => !isPlanAvailable(plan.id, form.wards, form.preferredMode)) && (
+                        <p className="text-xs font-bold text-red-500">
+                          No plans match the class details entered. Please check each student's class in the previous step.
+                        </p>
+                      )}
+
                       <div className="flex w-full gap-5 overflow-x-auto pb-4 snap-x md:grid md:grid-cols-3 md:overflow-x-visible md:pb-0 scrollbar-thin">
                         {PLANS.map((plan) => {
-                          const hasClass1to7 = form.wards.some((ward) => isClass1to7(ward.classGrade));
-                          if (plan.id === "foundation" && hasClass1to7) {
+                          // Plans with no schedule available for every student are hidden
+                          // (e.g. Foundation below Class 8).
+                          if (!isPlanAvailable(plan.id, form.wards, form.preferredMode)) {
                             return null;
                           }
                           const isSilver = plan.theme === "silver";
@@ -1985,18 +2006,16 @@ export default function ParentEnquiryForm() {
                                 <div>
                                   {plan.id === "elite" ? (
                                     (() => {
-                                      const firstWardClass = form.wards[0]?.classGrade || "6";
-                                      const firstWardBoard = form.wards[0]?.curriculum || "CBSE";
-                                      const hrRate = calculateEliteHourlyPrice(firstWardClass, firstWardBoard);
-                                      const estMonthly = calculateEliteMonthlyPrice(firstWardClass, firstWardBoard, 3, 1);
+                                      const firstOption = getFilteredPricingOptions(plan, form.wards, form.preferredMode)[0];
+                                      const estMonthly = firstOption?.price ?? null;
                                       return (
                                         <div className="flex flex-col">
                                           <span className="text-[8px] font-black uppercase tracking-wider opacity-60 block">Hourly Rate</span>
                                           <span className="text-lg font-black tracking-tight text-white">
-                                            ?{hrRate.toLocaleString('en-IN')}/hour
+                                            {formatHourlyRate(estMonthly, firstOption?.days, firstOption?.hours)}
                                           </span>
                                           <span className="text-[9px] font-semibold text-slate-300 block mt-0.5">
-                                            Est: ?{estMonthly.toLocaleString('en-IN')}/month
+                                            Est: {formatFee(estMonthly)}/month
                                           </span>
                                         </div>
                                       );
@@ -2005,13 +2024,7 @@ export default function ParentEnquiryForm() {
                                     <div>
                                       <span className="text-[8px] font-bold uppercase tracking-wider opacity-60 block">Starting Price</span>
                                       <span className="text-lg font-extrabold tracking-tight">
-                                        {(() => {
-                                          const firstWardClass = form.wards[0]?.classGrade || "6";
-                                          const firstWardBoard = form.wards[0]?.curriculum || "CBSE";
-                                          const defaultHours = 1.5;
-                                          const cardStartingPrice = calculatePrice(plan.id, firstWardClass, firstWardBoard, 3, defaultHours);
-                                          return `?${cardStartingPrice.toLocaleString('en-IN')}`;
-                                        })()}
+                                        {formatFee(getFilteredPricingOptions(plan, form.wards, form.preferredMode)[0]?.price ?? null)}
                                       </span>
                                     </div>
                                   )}
@@ -2179,19 +2192,11 @@ export default function ParentEnquiryForm() {
                                 <div>
                                   <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Select Pricing Option</h4>
                                   <div className="space-y-2">
-                                    {getFilteredPricingOptions(activePlanData, form.wards).map((opt, idx) => {
+                                    {getFilteredPricingOptions(activePlanData, form.wards, form.preferredMode).map((opt, idx) => {
                                       const isSelected = selectedOption && selectedOption.days === opt.days && selectedOption.hours === opt.hours;
                                       
-                                      const firstWardClass = form.wards[0]?.classGrade || "6";
-                                      const firstWardBoard = form.wards[0]?.curriculum || "CBSE";
-                                      const rowPrice = calculatePrice(
-                                        activePlanData.id,
-                                        firstWardClass,
-                                        firstWardBoard,
-                                        opt.days,
-                                        opt.hours,
-                                        form.preferredMode
-                                      );
+                                      // Plan price for the first student (per subject when subject pricing is on).
+                                      const rowPrice = opt.price;
 
                                       return (
                                         <div
@@ -2220,10 +2225,10 @@ export default function ParentEnquiryForm() {
                                           </div>
                                           <div className="text-right">
                                             <p className="text-[11px] font-black text-slate-900 dark:text-white">
-                                              ?{rowPrice.toLocaleString('en-IN')}
+                                              {formatFee(rowPrice)}
                                             </p>
                                             <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500">
-                                              / month
+                                              / month{subjectPricingOn(activePlanData.id) ? " per subject" : ""}
                                             </p>
                                           </div>
                                         </div>
@@ -2233,54 +2238,17 @@ export default function ParentEnquiryForm() {
 
                                   {/* Dynamic Calculation Summary Card */}
                                   {(() => {
-                                    if (form.wards.length > 1) {
-                                      const calc = getMultipleWardsCalculation(activePlanData.id, selectedOption, form.wards, form.preferredMode);
-                                      if (!calc) return null;
-
+                                    const optionQuote = selectedOption ? buildQuote(form, activePlanData.id, selectedOption) : null;
+                                    if (form.wards.length > 1 || optionQuote?.rules?.subjectPricingEnabled) {
                                       return (
-                                        <div className="mt-4 p-4 rounded-xl border space-y-2.5 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-xs animate-slideFade">
-                                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-700 pb-1.5">
-                                            Fee Summary
-                                          </div>
-                                          <div className="space-y-1.5">
-                                            {form.wards.map((ward, sIdx) => {
-                                              const fee = calc.studentFees[sIdx] || 0;
-                                              const name = ward.studentName || `Student ${sIdx + 1}`;
-                                              return (
-                                                <div key={sIdx} className="flex justify-between items-center text-slate-600 dark:text-slate-300">
-                                                  <span className="font-semibold">{name} Fee:</span>
-                                                  <span className="font-extrabold text-slate-900 dark:text-white">?{fee.toLocaleString('en-IN')}</span>
-                                                </div>
-                                              );
-                                            })}
-                                            {calc.concessionPercent > 0 && (
-                                              <>
-                                                <div className="pt-1.5 border-t border-slate-100/50 dark:border-slate-700 flex justify-between items-center text-slate-500 dark:text-slate-400">
-                                                  <span className="font-semibold">Total Base Fee:</span>
-                                                  <span className="font-extrabold text-slate-700 dark:text-slate-200">?{calc.totalBaseFee.toLocaleString('en-IN')}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center text-emerald-700">
-                                                  <span className="font-semibold flex items-center gap-1.5">
-                                                    Sibling Concession:
-                                                    <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">
-                                                      -{calc.concessionPercent}%
-                                                    </span>
-                                                  </span>
-                                                  <span className="font-black">-?{calc.siblingDiscount.toLocaleString('en-IN')}</span>
-                                                </div>
-                                              </>
-                                            )}
-                                          </div>
-                                          <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                                            <span className="text-slate-900 dark:text-white font-black text-xs">Final Payable Amount:</span>
-                                            <span className="text-slate-900 dark:text-white font-black text-base">?{calc.finalPrice.toLocaleString('en-IN')}</span>
-                                          </div>
+                                        <div className="mt-4 animate-slideFade">
+                                          <FeeBreakdown quote={optionQuote} />
                                         </div>
                                       );
                                     } else {
                                       const firstWardClass = form.wards[0]?.classGrade || "6";
                                       const firstWardBoard = form.wards[0]?.curriculum || "CBSE";
-                                      const calc = getDynamicCalculation(activePlanData.id, selectedOption, firstWardClass, firstWardBoard);
+                                      const calc = getDynamicCalculation(activePlanData.id, selectedOption, firstWardClass, firstWardBoard, form.preferredMode);
                                       if (!calc) return null;
 
                                       if (activePlanData.id === 'foundation') {
@@ -2288,7 +2256,7 @@ export default function ParentEnquiryForm() {
                                           <div className="mt-4 p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-800/50 text-xs space-y-1.5 animate-slideFade">
                                             <div className="flex justify-between items-center">
                                               <span className="text-slate-500 dark:text-slate-400 font-semibold">Original Price:</span>
-                                              <span className="text-slate-400 dark:text-slate-500 line-through font-extrabold">?{calc.originalPrice.toLocaleString('en-IN')}</span>
+                                              <span className="text-slate-400 dark:text-slate-500 line-through font-extrabold">₹{calc.originalPrice.toLocaleString('en-IN')}</span>
                                             </div>
                                             <div className="flex justify-between items-center">
                                               <span className="text-slate-500 font-semibold flex items-center gap-1">
@@ -2297,15 +2265,15 @@ export default function ParentEnquiryForm() {
                                                   -{calc.discountPercent}%
                                                 </span>
                                               </span>
-                                              <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">-?{calc.discount.toLocaleString('en-IN')}</span>
+                                              <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">-₹{calc.discount.toLocaleString('en-IN')}</span>
                                             </div>
                                             <div className="pt-1.5 border-t border-emerald-200/50 dark:border-emerald-800/50 flex justify-between items-center">
                                               <span className="text-slate-900 dark:text-white font-black text-xs">Final Price:</span>
-                                              <span className="text-slate-900 dark:text-white font-black text-base">?{calc.finalPrice.toLocaleString('en-IN')}</span>
+                                              <span className="text-slate-900 dark:text-white font-black text-base">₹{calc.finalPrice.toLocaleString('en-IN')}</span>
                                             </div>
                                             <div className="text-right">
                                               <span className="text-emerald-700 text-[10px] font-black">
-                                                Save ?{calc.discount.toLocaleString('en-IN')} ({calc.discountPercent}%)
+                                                Save ₹{calc.discount.toLocaleString('en-IN')} ({calc.discountPercent}%)
                                               </span>
                                             </div>
                                           </div>
@@ -2317,23 +2285,22 @@ export default function ParentEnquiryForm() {
                                           <div className="mt-4 p-3.5 rounded-xl bg-amber-50/40 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/50 text-xs space-y-1.5 animate-slideFade">
                                             <div className="flex justify-between items-center">
                                               <span className="text-slate-900 dark:text-white font-black text-xs">Total Tuition Investment:</span>
-                                              <span className="text-slate-900 dark:text-white font-black text-base">?{calc.finalPrice.toLocaleString('en-IN')}</span>
+                                              <span className="text-slate-900 dark:text-white font-black text-base">₹{calc.finalPrice.toLocaleString('en-IN')}</span>
                                             </div>
                                           </div>
                                         );
                                       }
 
                                       if (activePlanData.id === 'elite') {
-                                        const hrRate = calculateEliteHourlyPrice(firstWardClass, firstWardBoard);
                                         return (
                                           <div className="mt-4 p-3 rounded-xl bg-slate-900 text-white text-xs space-y-1.5 animate-slideFade">
                                             <div className="flex justify-between items-center">
                                               <span className="text-slate-300 font-semibold">Hourly Rate:</span>
-                                              <span className="font-black text-base text-amber-400">?{hrRate.toLocaleString('en-IN')}/hour</span>
+                                              <span className="font-black text-base text-amber-400">{formatHourlyRate(calc.finalPrice, selectedOption.days, selectedOption.hours)}</span>
                                             </div>
                                             <div className="flex justify-between items-center text-slate-300">
                                               <span className="font-semibold">Estimated Monthly Fee:</span>
-                                              <span className="font-extrabold text-white">?{calc.finalPrice.toLocaleString('en-IN')}/month</span>
+                                              <span className="font-extrabold text-white">₹{calc.finalPrice.toLocaleString('en-IN')}/month</span>
                                             </div>
                                             <div className="flex justify-between items-center text-slate-300">
                                               <span className="font-semibold">Schedules per Month:</span>
@@ -2341,7 +2308,7 @@ export default function ParentEnquiryForm() {
                                             </div>
                                             <div className="pt-1.5 border-t border-slate-800 flex justify-between items-center">
                                               <span className="font-black text-xs">Cost Per Class:</span>
-                                              <span className="font-black text-sm text-slate-300">?{calc.costPerClass} / Class</span>
+                                              <span className="font-black text-sm text-slate-300">₹{calc.costPerClass} / Class</span>
                                             </div>
                                           </div>
                                         );

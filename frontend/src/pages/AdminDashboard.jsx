@@ -1830,7 +1830,7 @@ export default function AdminDashboard() {
 
                             <div className="mt-5 flex justify-end">
                               <a
-                                href="/tutor-register"
+                                href="/tutor-verification"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-violet-500/20 hover:opacity-90 transition cursor-pointer"
@@ -2219,12 +2219,12 @@ export default function AdminDashboard() {
                                 <InfoRow icon={Award} label="Plan Type" value={p.planType.charAt(0).toUpperCase() + p.planType.slice(1)} />
                                 <InfoRow icon={Calendar} label="Days / Week" value={p.daysPerWeek ? `${p.daysPerWeek} Days` : "Not specified"} />
                                 <InfoRow icon={Clock} label="Hours / Day" value={p.hoursPerDay ? `${p.hoursPerDay} Hr` : "Not specified"} />
-                                <InfoRow icon={CreditCard} label="Monthly Fee" value={p.monthlyFees ? `?${p.monthlyFees.toLocaleString('en-IN')}` : "Not specified"} />
+                                <InfoRow icon={CreditCard} label="Monthly Fee" value={p.monthlyFees ? `₹${p.monthlyFees.toLocaleString('en-IN')}` : "Not specified"} />
                                 {p.totalBaseFee && p.totalBaseFee !== p.monthlyFees && (
-                                  <InfoRow icon={CreditCard} label="Total Base Fee" value={`?${p.totalBaseFee.toLocaleString('en-IN')}`} />
+                                  <InfoRow icon={CreditCard} label="Total Base Fee" value={`₹${p.totalBaseFee.toLocaleString('en-IN')}`} />
                                 )}
                                 {p.siblingDiscount > 0 && (
-                                  <InfoRow icon={CreditCard} label="Sibling Concession" value={`-?${p.siblingDiscount.toLocaleString('en-IN')} (${p.siblingConcessionPercent}%)`} />
+                                  <InfoRow icon={CreditCard} label="Sibling Concession" value={`-₹${p.siblingDiscount.toLocaleString('en-IN')} (${p.siblingConcessionPercent}%)`} />
                                 )}
                               </div>
                             </div>
@@ -2796,12 +2796,12 @@ export default function AdminDashboard() {
                               <InfoRow icon={Award} label="Plan Type" value={p.formData.planType.charAt(0).toUpperCase() + p.formData.planType.slice(1)} />
                               <InfoRow icon={Calendar} label="Days / Week" value={p.formData.daysPerWeek ? `${p.formData.daysPerWeek} Days` : "Not specified"} />
                               <InfoRow icon={Clock} label="Hours / Day" value={p.formData.hoursPerDay ? `${p.formData.hoursPerDay} Hr` : "Not specified"} />
-                              <InfoRow icon={CreditCard} label="Monthly Fee" value={p.formData.monthlyFees ? `?${p.formData.monthlyFees.toLocaleString('en-IN')}` : "Not specified"} />
+                              <InfoRow icon={CreditCard} label="Monthly Fee" value={p.formData.monthlyFees ? `₹${p.formData.monthlyFees.toLocaleString('en-IN')}` : "Not specified"} />
                               {p.formData.totalBaseFee && p.formData.totalBaseFee !== p.formData.monthlyFees && (
-                                <InfoRow icon={CreditCard} label="Total Base Fee" value={`?${p.formData.totalBaseFee.toLocaleString('en-IN')}`} />
+                                <InfoRow icon={CreditCard} label="Total Base Fee" value={`₹${p.formData.totalBaseFee.toLocaleString('en-IN')}`} />
                               )}
                               {p.formData.siblingDiscount > 0 && (
-                                <InfoRow icon={CreditCard} label="Sibling Concession" value={`-?${p.formData.siblingDiscount.toLocaleString('en-IN')} (${p.formData.siblingConcessionPercent}%)`} />
+                                <InfoRow icon={CreditCard} label="Sibling Concession" value={`-₹${p.formData.siblingDiscount.toLocaleString('en-IN')} (${p.formData.siblingConcessionPercent}%)`} />
                               )}
                             </div>
                           </div>
@@ -3074,10 +3074,7 @@ export default function AdminDashboard() {
                                   password={EDUCATION_CERT_PASSWORD}
                                 />
 
-                                <DocumentLink
-                                  href={t.documents?.otherDoc}
-                                  label="Experience Certificate"
-                                />
+                                <ProfilePhotoLink href={t.photo} />
                               </div>
                             </div>
 
@@ -4845,6 +4842,28 @@ function DocumentLink({ href, label }) {
     >
       <FileDown className="h-3.5 w-3.5" />
       {label}
+    </a>
+  );
+}
+
+// Cloudinary's fl_attachment flag makes the browser download the photo instead of opening it
+function ProfilePhotoLink({ href }) {
+  if (!href) return <DocumentLink href={href} label="Profile Picture" />;
+
+  const downloadUrl = href.includes("/upload/")
+    ? href.replace("/upload/", "/upload/fl_attachment/")
+    : href;
+
+  return (
+    <a
+      href={downloadUrl}
+      download
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center gap-1 rounded-xl bg-blue-50 border border-blue-200/50 px-3 py-1.5 text-xs font-bold text-blue-700 transition duration-200 hover:bg-blue-100 hover:border-blue-300"
+    >
+      <FileDown className="h-3.5 w-3.5" />
+      Profile Picture
     </a>
   );
 }
