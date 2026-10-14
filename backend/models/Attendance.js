@@ -56,6 +56,17 @@ const attendanceSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // Class time chosen by the tutor, "HH:mm" (24-hour). Empty on records made before this field existed.
+    classStartTime: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    classEndTime: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     timestamp: {
       type: Date,
       default: Date.now,
