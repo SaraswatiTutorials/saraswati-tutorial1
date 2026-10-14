@@ -32,6 +32,7 @@ import {
   GraduationCap,
   Rocket
 } from "lucide-react";
+import BrandLogo from "../components/BrandLogo";
 
 const MotionLink = motion(Link);
 
@@ -473,14 +474,7 @@ export default function MumbaiPage() {
                 transition={{ type: "spring", stiffness: 400, damping: 15 }}
                 className="h-[72px] w-[72px] sm:h-[60px] sm:w-[60px] shrink-0 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex items-center justify-center cursor-pointer"
               >
-                <img
-                  src="/logo.png"
-                  alt="ST"
-                  className="h-[56px] w-[56px] sm:h-[48px] sm:w-[48px] rounded-xl object-contain"
-                  onError={(e) => {
-                    e.target.src = "https://placehold.co/100x100?text=ST";
-                  }}
-                />
+                <BrandLogo alt="ST" className="h-[56px] w-[56px] sm:h-[48px] sm:w-[48px] rounded-xl object-contain" />
               </motion.div>
               <div className="hidden sm:block shrink-0 leading-tight">
                 <motion.div 
@@ -1268,14 +1262,7 @@ export default function MumbaiPage() {
           <div className="grid gap-8 md:grid-cols-4">
             <div>
               <div className="flex items-center gap-3">
-                <img
-                  src="/logo.png"
-                  alt="Saraswati Tutorial Logo"
-                  className="h-10 w-10 rounded-xl object-contain"
-                  onError={(e) => {
-                    e.target.src = "https://placehold.co/100x100?text=ST";
-                  }}
-                />
+                <BrandLogo alt="Saraswati Tutorial Logo" className="h-10 w-10 rounded-xl object-contain" />
                 <span className="text-lg font-black text-slate-950 dark:text-white">Saraswati Tutorial</span>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400">

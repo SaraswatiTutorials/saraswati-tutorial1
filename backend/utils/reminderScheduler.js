@@ -6,6 +6,13 @@ import { sendWhatsAppToTutor } from "./whatsappService.js";
 import { broadcastService, RETRYABLE_FAILURE_REASONS } from "./broadcastService.js";
 import { startSyncScheduler } from "./syncService.js";
 import { syncAttendanceLogToOdoo } from "./odooService.js";
+import {
+  withStudentLock,
+  todayIST,
+  cycleFilterFor,
+  currentCycleEndDate,
+  completeCycle,
+} from "./packageCycle.js";
 
 const MAX_RETRY_COUNT = Number(process.env.RETRY_COUNT || 3);
 
@@ -196,13 +203,19 @@ export async function checkParentRenewalReminders() {
 
     for (const lead of leads) {
       const remaining = lead.totalClasses - lead.completedClasses;
-      if (remaining <= 0) {
-        if (lead.renewalReminderSentForTotal !== lead.totalClasses) {
+      // A completed cycle that auto-started the next one has already reset the counter,
+      // so its numbers come from the archived cycle instead
+      const archived = lead.packageHistory?.[lead.packageHistory.length - 1];
+      const archivedPending = archived?.renewalReminderPending === true;
+      if (remaining <= 0 || archivedPending) {
+        if (archivedPending || lead.renewalReminderSentForTotal !== lead.totalClasses) {
+          const completedClasses = archivedPending ? archived.completedClasses : lead.completedClasses;
+          const totalClasses = archivedPending ? archived.totalClasses : lead.totalClasses;
           const studentName = lead.wards?.map(w => w.studentName).join(", ") || "Unknown Student";
           const parentName = lead.parentName || "Parent";
           const phoneNumber = lead.phone;
 
-          const messageBody = `Dear ${parentName},\n\nThis is a friendly reminder that the current tutoring package for ${studentName} has been completed (${lead.completedClasses}/${lead.totalClasses} classes completed).\n\nTo ensure uninterrupted sessions, please process the package renewal payment. Let us know if you need any assistance.\n\nThank you,\nSaraswati Tutorials`;
+          const messageBody = `Dear ${parentName},\n\nThis is a friendly reminder that the current tutoring package for ${studentName} has been completed (${completedClasses}/${totalClasses} classes completed).\n\nTo ensure uninterrupted sessions, please process the package renewal payment. Let us know if you need any assistance.\n\nThank you,\nSaraswati Tutorials`;
 
           console.log(`[Renewal Reminder] Sending renewal message to Parent: ${parentName} (${phoneNumber})`);
 
@@ -224,13 +237,54 @@ export async function checkParentRenewalReminders() {
             }
           }
 
-          lead.renewalReminderSentForTotal = lead.totalClasses;
+          if (archivedPending) archived.renewalReminderPending = false;
+          else lead.renewalReminderSentForTotal = lead.totalClasses;
           await lead.save({ validateBeforeSave: false });
         }
       }
     }
   } catch (err) {
     console.error(`[Parent Renewal Reminder Error]:`, err.message);
+  }
+}
+
+/**
+ * 1 cycle = 1 month. Once a day, start the next cycle for students whose current
+ * cycle's month is over (cycles that finish early by classes advance in /attendance/mark).
+ */
+let lastCycleRolloverDay = "";
+export async function checkMonthlyCycleRollover() {
+  const today = todayIST();
+  if (lastCycleRolloverDay === today) return;
+  lastCycleRolloverDay = today;
+
+  try {
+    const leads = await ParentEnquiry.find({
+      assignedTutorId: { $ne: null },
+      status: { $nin: ["Lost", "Rejected", "Demo Cancelled", "Cancelled"] },
+    }).select("_id");
+
+    for (const { _id } of leads) {
+      await withStudentLock(String(_id), async () => {
+        const lead = await ParentEnquiry.findById(_id);
+        if (!lead) return;
+        const endedCycle = lead.currentPackageCycle || 1;
+        const doneCount = await Attendance.countDocuments({
+          parentEnquiryId: lead._id,
+          ...cycleFilterFor(endedCycle),
+          status: "Done",
+        });
+        const isFull = doneCount >= (lead.totalClasses || 12);
+        const monthEnd = await currentCycleEndDate(lead);
+        const monthOver = monthEnd && today > monthEnd;
+        if (!isFull && !monthOver) return;
+
+        const nextCycle = await completeCycle(lead, doneCount);
+        console.log(`[Cycle Rollover] Lead ${lead._id}: Month ${endedCycle} ${isFull ? "completed" : `ended on ${monthEnd}`} (${doneCount} classes done) → Month ${nextCycle} started.`);
+      });
+    }
+  } catch (err) {
+    console.error(`[Cycle Rollover Error]:`, err.message);
   }
 }
 
@@ -241,6 +295,7 @@ export function startReminderScheduler() {
     checkAndSendAttendanceReminders();
     checkPackageCompletionAlerts();
     checkParentRenewalReminders();
+    checkMonthlyCycleRollover();
   }, 60 * 1000);
 }
 

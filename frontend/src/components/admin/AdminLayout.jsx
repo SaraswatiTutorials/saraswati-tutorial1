@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Menu, PanelLeftClose, PanelLeftOpen, X, ChevronRight } from "lucide-react";
+import BrandLogo from "../BrandLogo";
 // Inter (as in the reference design), self-hosted and loaded only with the dashboards
 import "@fontsource-variable/inter";
 
@@ -157,7 +158,7 @@ export default function AdminLayout({ navGroups, activeKey, onNavigate, title, b
 function SidebarBrand({ collapsed }) {
   return (
     <div className={`flex h-[76px] shrink-0 items-center gap-3 ${collapsed ? "justify-center px-2" : "px-6"}`}>
-      <img src="/logo.png" alt="" className="h-9 w-9 rounded-xl object-contain" />
+      <BrandLogo alt="" className="h-9 w-9 rounded-xl object-contain" />
       {!collapsed && (
         <div className="min-w-0 leading-tight">
           <p className="truncate text-lg font-bold tracking-tight text-slate-900 dark:text-white">Saraswati</p>

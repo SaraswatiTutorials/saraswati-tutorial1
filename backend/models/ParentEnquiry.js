@@ -349,6 +349,8 @@ const parentEnquirySchema = new mongoose.Schema(
           totalClasses: Number,
           completedClasses: Number,
           completedAt: Date,
+          // Set when a fully completed cycle auto-starts the next one, until the renewal reminder goes out
+          renewalReminderPending: Boolean,
         },
       ],
       default: [],

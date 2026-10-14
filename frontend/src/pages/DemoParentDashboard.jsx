@@ -21,6 +21,7 @@ import {
   Users,
   Activity
 } from "lucide-react";
+import BrandLogo from "../components/BrandLogo";
 
 // ─── Sample Demo Data ────────────────────────────────────────────────────────
 
@@ -185,14 +186,7 @@ export default function DemoParentDashboard({ onClose, selectedPlan = "advance" 
             {/* Sidebar Bottom Promo Card with Saraswati Tutorials Logo */}
             <div className="bg-gradient-to-b from-blue-50/90 dark:from-blue-950/40 to-indigo-50/60 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900/40 rounded-2xl p-4 text-center relative overflow-hidden shadow-sm">
               <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm p-1.5 overflow-hidden">
-                <img
-                  src="/logo.png"
-                  alt="Saraswati Tutorials Logo"
-                  className="h-full w-full object-contain"
-                  onError={(e) => {
-                    e.target.src = "https://placehold.co/100x100?text=ST";
-                  }}
-                />
+                <BrandLogo alt="Saraswati Tutorials Logo" className="h-full w-full object-contain" />
               </div>
               <h4 className="font-extrabold text-slate-900 dark:text-white text-xs mt-2.5">Keep Learning, Keep Growing!</h4>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold mt-1 leading-relaxed">

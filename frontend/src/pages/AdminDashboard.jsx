@@ -55,6 +55,7 @@ import { API_BASE } from "../config";
 import ThemeToggle from "../components/ThemeToggle";
 import AdminLayout from "../components/admin/AdminLayout";
 import { formatClassTimeRange, classTimeError } from "../utils/classTime";
+import TimeInput12 from "../components/TimeInput12";
 import {
   AreaChart,
   Area,
@@ -2405,7 +2406,7 @@ export default function AdminDashboard() {
                             <div className="space-y-1">
                               <InfoRow icon={BookOpen} label="Preferred Mode" value={p.preferredMode} />
                               <InfoRow icon={User} label="Preferred Gender" value={p.preferredGender} />
-                              <InfoRow icon={Clock} label="Preferred Time" value={p.classTimingSlot || (p.startTime && p.endTime ? `${p.startTime} – ${p.endTime}` : (p.preferredTime && !p.preferredTime.includes("Days") ? p.preferredTime : "Flexible / Any Slot"))} />
+                              <InfoRow icon={Clock} label="Preferred Time" value={p.classTimingSlot || (p.startTime && p.endTime ? (formatClassTimeRange(p.startTime, p.endTime) || `${p.startTime} – ${p.endTime}`) : (p.preferredTime && !p.preferredTime.includes("Days") ? p.preferredTime : "Flexible / Any Slot"))} />
                               <InfoRow icon={Clock} label="Class Duration" value={getClassDuration(p)} />
                               <InfoRow icon={Calendar} label="Preferred Days" value={getPreferredDays(p.preferredDays)} />
                               {p.classTimingType && (
@@ -2961,7 +2962,7 @@ export default function AdminDashboard() {
                             <div className="space-y-1">
                               <InfoRow icon={BookOpen} label="Preferred Mode" value={p.formData.preferredMode} />
                               <InfoRow icon={User} label="Preferred Gender" value={p.formData.preferredGender} />
-                              <InfoRow icon={Clock} label="Preferred Time" value={p.formData.preferredTime || (p.formData.startTime && `${p.formData.startTime} - ${p.formData.endTime}`)} />
+                              <InfoRow icon={Clock} label="Preferred Time" value={p.formData.preferredTime || (p.formData.startTime && (formatClassTimeRange(p.formData.startTime, p.formData.endTime) || `${p.formData.startTime} - ${p.formData.endTime}`))} />
                               <InfoRow icon={Clock} label="Class Duration" value={p.formData.classDuration} />
                               <InfoRow icon={Calendar} label="Preferred Days" value={getPreferredDays(p.formData.preferredDays)} />
                             </div>
@@ -3991,9 +3992,17 @@ function AdminAttendanceConsole({
 
   const formatCycleDateRange = (lead, cycleNum, includeYear = false) => {
     const cycle = cycleNum || lead.currentPackageCycle || 1;
-    const start = lead.classStartDate ? new Date(lead.classStartDate) : new Date(lead.createdAt || Date.now());
-    const cycleStart = new Date(start);
-    cycleStart.setMonth(cycleStart.getMonth() + (cycle - 1));
+    let cycleStart;
+    if (cycle === (lead.currentPackageCycle || 1) && lead.currentCycleStartDate) {
+      // A cycle's month runs from its first logged class ("YYYY-MM-DD")
+      const [y, m, d] = lead.currentCycleStartDate.split("-").map(Number);
+      cycleStart = new Date(y, m - 1, d);
+    } else {
+      // No class logged yet: estimate from the enquiry date
+      const start = lead.classStartDate ? new Date(lead.classStartDate) : new Date(lead.createdAt || Date.now());
+      cycleStart = new Date(start);
+      cycleStart.setMonth(cycleStart.getMonth() + (cycle - 1));
+    }
     const cycleEnd = new Date(cycleStart);
     cycleEnd.setMonth(cycleEnd.getMonth() + 1);
     cycleEnd.setDate(cycleEnd.getDate() - 1);
@@ -4554,7 +4563,7 @@ function AdminAttendanceConsole({
                                     : (p.currentPackageCycle || 1);
 
                                   const selectedCycleObj = leadCycles.find(c => c.cycleNumber === currentSelectedCycle);
-                                  const cycleDates = selectedCycleObj ? selectedCycleObj.dates : formatCycleDateRange(p, currentSelectedCycle, true);
+                                  const cycleDates = selectedCycleObj?.dateRangeDisplay || formatCycleDateRange(p, currentSelectedCycle, true);
                                   
                                   const filteredLogs = currentSelectedCycle === "all"
                                     ? allLogs
@@ -4627,25 +4636,25 @@ function AdminAttendanceConsole({
                                             <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
                                               <span className="text-xs font-bold uppercase text-slate-400 block">Total</span>
                                               <strong className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                                                {selectedCycleObj?.totalClasses ?? (p.totalClasses || 12)}
+                                                {selectedCycleObj?.totalScheduled ?? (p.totalClasses || 12)}
                                               </strong>
                                             </div>
                                             <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
                                               <span className="text-xs font-bold uppercase text-slate-400 block">Completed</span>
                                               <strong className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                                                {selectedCycleObj?.completedClasses ?? filteredLogs.filter(l => l.status === "Done").length}
+                                                {selectedCycleObj?.completedCount ?? filteredLogs.filter(l => l.status === "Done").length}
                                               </strong>
                                             </div>
                                             <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
                                               <span className="text-xs font-bold uppercase text-slate-400 block">Missed</span>
                                               <strong className="text-sm font-bold text-rose-500">
-                                                {selectedCycleObj?.missedClasses ?? filteredLogs.filter(l => l.status === "Missed").length}
+                                                {selectedCycleObj?.missedCount ?? filteredLogs.filter(l => l.status === "Missed").length}
                                               </strong>
                                             </div>
                                             <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
                                               <span className="text-xs font-bold uppercase text-slate-400 block">Remaining</span>
                                               <strong className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-                                                {selectedCycleObj?.remainingClasses ?? Math.max(0, (selectedCycleObj?.totalClasses ?? p.totalClasses ?? 12) - filteredLogs.filter(l => l.status === "Done").length)}
+                                                {selectedCycleObj?.remainingCount ?? Math.max(0, (selectedCycleObj?.totalScheduled ?? p.totalClasses ?? 12) - filteredLogs.filter(l => l.status === "Done").length)}
                                               </strong>
                                             </div>
                                           </div>
@@ -4697,23 +4706,23 @@ function AdminAttendanceConsole({
                                                     </div>
                                                   </div>
 
-                                                  <div className="grid grid-cols-2 gap-3">
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     <div>
                                                       <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Class From</label>
-                                                      <input
-                                                        type="time"
+                                                      <TimeInput12
                                                         value={logStartTime}
-                                                        onChange={(e) => setLogStartTime(e.target.value)}
-                                                        className="w-full h-9 px-3 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                                                        onChange={setLogStartTime}
+                                                        ariaLabel="Class start time"
+                                                        className="h-9 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                                                       />
                                                     </div>
                                                     <div>
                                                       <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Class To</label>
-                                                      <input
-                                                        type="time"
+                                                      <TimeInput12
                                                         value={logEndTime}
-                                                        onChange={(e) => setLogEndTime(e.target.value)}
-                                                        className="w-full h-9 px-3 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                                                        onChange={setLogEndTime}
+                                                        ariaLabel="Class end time"
+                                                        className="h-9 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                                                       />
                                                     </div>
                                                   </div>

@@ -4,6 +4,7 @@ import { API_BASE } from "../config";
 import ThemeToggle from "../components/ThemeToggle";
 import "@fontsource-variable/inter";
 import { formatClassTimeRange, classTimeError } from "../utils/classTime";
+import TimeInput12 from "../components/TimeInput12";
 import { 
   LogOut, 
   Check, 
@@ -768,27 +769,27 @@ export default function TeacherDashboard() {
                 {/* Class Time */}
                 <div>
                   <span className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Class Time</span>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="block">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
                       <span className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">From</span>
-                      <input
-                        type="time"
+                      <TimeInput12
                         required
                         value={classStartTime}
-                        onChange={(e) => setClassStartTime(e.target.value)}
-                        className="w-full h-11 px-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        onChange={setClassStartTime}
+                        ariaLabel="Class start time"
+                        className="h-11 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
-                    </label>
-                    <label className="block">
+                    </div>
+                    <div>
                       <span className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">To</span>
-                      <input
-                        type="time"
+                      <TimeInput12
                         required
                         value={classEndTime}
-                        onChange={(e) => setClassEndTime(e.target.value)}
-                        className="w-full h-11 px-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        onChange={setClassEndTime}
+                        ariaLabel="Class end time"
+                        className="h-11 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
-                    </label>
+                    </div>
                   </div>
                   <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                     {selectedStudent.usualClassStartTime

@@ -11,47 +11,22 @@ import {
 } from "../utils/odooService.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
 import { parseClassTime, usualClassTime, formatClassTimeRange } from "../utils/classTime.js";
+import {
+  withStudentLock,
+  addOneMonth,
+  cycleFilterFor,
+  currentCycleEndDate,
+  advanceToNextCycle,
+  completeCycle,
+} from "../utils/packageCycle.js";
+
+export { addOneMonth };
 
 const router = express.Router();
-
-// Requests for the same student + date run one at a time, so a double tap cannot
-// slip past the "already marked?" check in /mark and insert the same class twice.
-const attendanceLocks = new Map();
-async function withAttendanceLock(key, task) {
-  const previous = attendanceLocks.get(key) || Promise.resolve();
-  const run = previous.then(task);
-  const tail = run.catch(() => {});
-  attendanceLocks.set(key, tail);
-  try {
-    return await run;
-  } finally {
-    if (attendanceLocks.get(key) === tail) attendanceLocks.delete(key);
-  }
-}
 
 // =============================================================
 // Helper: Date operations and cycle breakdown calculations
 // =============================================================
-export function addOneMonth(dateStr) {
-  if (!dateStr) return "";
-  try {
-    const parts = dateStr.split("-");
-    if (parts.length === 3) {
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10);
-      const day = parseInt(parts[2], 10);
-      const d = new Date(year, month - 1, day);
-      d.setMonth(d.getMonth() + 1);
-      d.setDate(d.getDate() - 1);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const dt = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${dt}`;
-    }
-  } catch (e) {}
-  return "";
-}
-
 export function formatDateRange(startDate, endDate) {
   if (!startDate) return "";
   if (!endDate) return startDate;
@@ -302,7 +277,9 @@ router.get("/tutor/:tutorId/students", verifyToken(["admin", "tutor"]), async (r
 // POST: Mark Attendance (Done / Missed) - Idempotent & Editable
 // =============================================================
 router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
-  withAttendanceLock(`${req.body?.parentEnquiryId}:${req.body?.date}`, async () => {
+  // One request per student at a time: a double tap can't insert the same class twice,
+  // and two classes marked together can't both close the cycle and skip a month
+  withStudentLock(String(req.body?.parentEnquiryId), async () => {
   try {
     const {
       parentEnquiryId,
@@ -345,12 +322,25 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
     const tutor = await Tutor.findById(tutorId);
     if (!tutor) return res.status(404).json({ success: false, message: "Tutor not found." });
 
+    // A new class goes into the next cycle if the current one is already over:
+    // all its classes are done (e.g. completed before auto-advance existed) or its month has ended
+    if (!(await Attendance.exists({ parentEnquiryId: lead._id, date }))) {
+      const endedCycle = lead.currentPackageCycle || 1;
+      const doneInCycle = await Attendance.countDocuments({
+        parentEnquiryId: lead._id,
+        ...cycleFilterFor(endedCycle),
+        status: "Done",
+      });
+      const isFull = doneInCycle >= (lead.totalClasses || 12);
+      const monthEnd = await currentCycleEndDate(lead);
+      if (isFull || (monthEnd && date > monthEnd)) {
+        await completeCycle(lead, doneInCycle);
+      }
+    }
+
     const activeCycle = lead.currentPackageCycle || 1;
     const activeTotal = lead.totalClasses || 12;
-
-    const cycleFilter = activeCycle === 1
-      ? { $or: [{ packageCycle: 1 }, { packageCycle: { $exists: false } }, { packageCycle: null }] }
-      : { packageCycle: activeCycle };
+    const cycleFilter = cycleFilterFor(activeCycle);
 
     // Check if an attendance record for this student and date already exists
     let existing = await Attendance.findOne({
@@ -444,16 +434,16 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
     });
 
     let cycleNotice = "";
-    if (newCompletedCount >= activeTotal && activeTotal > 0) {
-      lead.completedClasses = activeTotal;
-      lead.packageStatus = "completed";
+    const cycleCompleted = newCompletedCount >= activeTotal && activeTotal > 0;
+    if (cycleCompleted) {
+      // All classes done: archive this cycle and start the next one automatically
+      await completeCycle(lead, newCompletedCount);
       cycleNotice = ` Month ${activeCycle} is now completed (${newCompletedCount}/${activeTotal} classes)!`;
     } else {
       lead.completedClasses = newCompletedCount;
       lead.packageStatus = "active";
+      await lead.save({ validateBeforeSave: false });
     }
-
-    await lead.save({ validateBeforeSave: false });
 
     // Sync to Odoo (x_attendance_log, crm.lead summary, and Chatter) asynchronously
     syncAttendanceLogToOdoo({ log: attendanceDoc, lead, tutor, postChatter: true }).catch((odooErr) => {
@@ -462,9 +452,9 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
     syncLeadAttendanceSummaryToOdoo(lead, {
       cycleNumber: activeCycle,
       totalScheduled: activeTotal,
-      completedCount: lead.completedClasses,
-      remainingCount: Math.max(0, activeTotal - lead.completedClasses),
-      status: lead.packageStatus,
+      completedCount: Math.min(newCompletedCount, activeTotal),
+      remainingCount: Math.max(0, activeTotal - newCompletedCount),
+      status: cycleCompleted ? "completed" : "active",
       logs: [attendanceDoc],
     }).catch((odooErr) => {
       console.error("[Odoo Lead Summary Sync Error]:", odooErr.message);
@@ -770,19 +760,8 @@ router.put("/update-tuition/:id", verifyToken(["admin"]), async (req, res) => {
         status: "Done",
       });
 
-      // Archive current cycle into packageHistory with accurate completed count
-      if (!lead.packageHistory) lead.packageHistory = [];
-      lead.packageHistory.push({
-        cycle: currentCycle,
-        totalClasses: lead.totalClasses || 12,
-        completedClasses: actualDoneCount || lead.completedClasses || 0,
-        completedAt: new Date(),
-      });
-
-      // Increment cycle, activate next cycle
-      lead.currentPackageCycle = currentCycle + 1;
-      lead.completedClasses = 0;
-      lead.packageStatus = "active";
+      // Archive current cycle with accurate completed count, activate next cycle
+      advanceToNextCycle(lead, actualDoneCount);
       if (totalClasses !== undefined && totalClasses > 0) {
         lead.totalClasses = totalClasses;
       }
