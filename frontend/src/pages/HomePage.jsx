@@ -49,6 +49,7 @@ import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import DemoParentDashboard from "./DemoParentDashboard";
+import BrandLogo from "../components/BrandLogo";
 
 
 
@@ -659,6 +660,25 @@ export default function HomePage() {
 
   const sliderRef = useRef(null);
 
+  // On phones and tablets tutors are a sideways swipe row, so "See More Tutors"
+  // scrolls it to the first newly added tutor; otherwise they appear off-screen
+  const scrollToTutorRef = useRef(null);
+  const showMoreTutors = () => {
+    scrollToTutorRef.current = visibleTutorsCount;
+    setVisibleTutorsCount((prev) => prev + 4);
+  };
+  useEffect(() => {
+    const index = scrollToTutorRef.current;
+    scrollToTutorRef.current = null;
+    const slider = sliderRef.current;
+    const card = slider?.children[index];
+    if (index === null || !card || slider.offsetParent === null) return; // the row is hidden on desktop
+    slider.scrollBy({
+      left: card.getBoundingClientRect().left - slider.getBoundingClientRect().left,
+      behavior: "smooth",
+    });
+  }, [visibleTutorsCount]);
+
   const [bookingForm, setBookingForm] = useState({
     learnerName: "",
     phone: "",
@@ -773,27 +793,94 @@ export default function HomePage() {
     sliderRef.current.scrollBy({ left: amount, behavior: "smooth" });
   }
 
-  // 5 exact Bangalore FAQs
+  // Bangalore FAQs (also published as FAQPage schema below, so keep answers factual)
   const faqs = [
+    // About our services
+    {
+      q: "Which is the best home tuition service in Bengaluru?",
+      a: "The right tuition service should match your child's curriculum, subject needs, learning style, location, schedule, and budget. Saraswati Tutorials helps parents explore suitable home and online tutoring options based on these requirements."
+    },
     {
       q: "Do you provide home tuition across all areas of Bangalore?",
       a: "Yes, Saraswati Tutorials provides home tuition services across major areas of Bangalore including Whitefield, HSR Layout, Indiranagar, Jayanagar, Koramangala, JP Nagar, Electronic City, and nearby locations."
-    },
-    {
-      q: "Which boards do your tutors cover?",
-      a: "Our tutors teach students from CBSE, ICSE, IGCSE, IB and Karnataka State Board for Classes 6 to 12."
     },
     {
       q: "Is online tuition also available?",
       a: "Yes, we provide both home tuition and live online tuition classes with personalized one-to-one teaching support."
     },
     {
-      q: "Can I book a demo class before hiring a tutor?",
-      a: "Yes, parents can request a free demo class to evaluate the teaching style and subject expertise of the tutor."
+      q: "How much does home tuition cost in Bengaluru?",
+      a: "Tuition fees depend on the class, subject, tutor experience, teaching frequency, duration, and location. Contact Saraswati Tutorials for a quote based on your specific requirements."
+    },
+    {
+      q: "What tuition plans do you offer?",
+      a: "We offer three plans: the Foundation Plan, the Advance Growth Plan, and the Elite Mentor Plan. They differ in tutor allocation, tests and assignments, doubt support, and replacement support. You can compare them in the Plans section on this page."
+    },
+    {
+      q: "How many classes per week can my child take?",
+      a: "You choose the number of days per week and hours per class when you share your requirement. The schedule and fees are then planned around that, and can be discussed with the team."
+    },
+    {
+      q: "Can I track my child's attendance and progress?",
+      a: "Yes. Parents get access to the Parents Portal, which shows class dates, topics covered, and the attendance log for every class."
+    },
+    {
+      q: "Do you provide tutors in Mumbai as well?",
+      a: "Yes, along with Bangalore, Saraswati Tutorials also arranges home and online tutors for students in Mumbai."
+    },
+    // About our classes
+    {
+      q: "Which boards do your tutors cover?",
+      a: "Our tutors teach students from CBSE, ICSE, IGCSE, IB and Karnataka State Board for Classes 6 to 12."
     },
     {
       q: "Which subjects are available for tuition in Bangalore?",
       a: "We provide tuition for Maths, Science, Physics, Chemistry, Biology, English, Accounts, Economics and other major subjects."
+    },
+    {
+      q: "How can I find a CBSE Class 10 home tutor in Bengaluru?",
+      a: "Share the student's locality, subjects, current academic needs, and preferred schedule with Saraswati Tutorials. The team can identify suitable available tutors and explain the next steps for arranging tuition."
+    },
+    {
+      q: "Do you provide tuition for Class 11 and 12 Science and Commerce?",
+      a: "Yes. Tutors are available for Class 11 and 12 subjects such as Physics, Chemistry, Maths, Biology, Accounts, and Economics, with a focus on concept clarity and board exam preparation."
+    },
+    {
+      q: "Do you offer tuition for graduation students?",
+      a: "Yes, along with Classes 6 to 12, we help graduation students find tutors for their subjects, depending on the subject and tutor availability."
+    },
+    {
+      q: "Do you offer classes beyond school subjects?",
+      a: "Yes. Apart from academic tuition, you can find tutors for Spoken English, Music, Programming, Fitness, and Soft Skills."
+    },
+    {
+      q: "Do tutors give tests and homework support?",
+      a: "Yes. Depending on your plan, tutors provide homework support, regular practice, and monthly or bi-weekly tests and assignments to track your child's progress."
+    },
+    {
+      q: "Can parents request a demo class before finalising a tutor?",
+      a: "Parents can ask about demo availability during the matching process. The arrangements should be confirmed with the team before the session is scheduled."
+    },
+    {
+      q: "What happens if a class is missed?",
+      a: "Every class is recorded in the attendance log as done or missed. If a class is missed with 24 hours' notice, the team helps arrange a replacement class."
+    },
+    // About our tutors
+    {
+      q: "How does Saraswati Tutorials select tutors?",
+      a: "The matching process considers subject expertise, educational qualifications, relevant experience, availability, location, and applicable identity or credential checks."
+    },
+    {
+      q: "Does Saraswati Tutorials provide female home tutors?",
+      a: "Female tutors may be available depending on the subject, locality, schedule, and current tutor availability. Parents should specify this requirement when submitting an enquiry."
+    },
+    {
+      q: "What if I am not satisfied with the tutor?",
+      a: "If there is a genuine concern with the tutor, Saraswati Tutorials arranges a replacement tutor. The replacement timeline depends on your plan and is explained in our Terms & Conditions."
+    },
+    {
+      q: "How can I become a tutor with Saraswati Tutorials?",
+      a: "Tutors can apply through the Tutor Verification page on our website. After the profile is reviewed and approved, the team matches tutors with students based on subject, location, and availability."
     }
   ];
 
@@ -1000,34 +1087,18 @@ export default function HomePage() {
     { title: "Start Learning", desc: "Begin classes at home or online with scheduled progress reviews." }
   ];
 
-  const updatedFaqSchema = {
-    ...faqSchema,
-    mainEntity: faqSchema.mainEntity.map((item, idx) => {
-      if (idx === 0) {
-        return {
-          ...item,
-          acceptedAnswer: {
-            "@type": "Answer",
-            "text": "Yes, Saraswati Tutorials provides home tuition services across major areas of Bangalore."
-          }
-        };
-      }
-      return item;
-    })
-  };
-
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,#eff6ff,transparent_50%),radial-gradient(ellipse_at_bottom,#f5f3ff,transparent_50%),linear-gradient(to_bottom,#f8fafc,#f1f5f9)] dark:bg-none dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 selection:bg-blue-600 selection:text-white">
       <Helmet>
         <title>Private Home Tutors near me in Bangalore | Saraswati Tutorials</title>
         <meta
           name="description"
-          content="Hire patient, experienced, background-verified home tutors in Bangalore for Classes 6–12, graduation, competitive exams, and skills."
+          content="Saraswati Tutorials offers verified home and online tuition in Bangalore for Classes 6–12 and graduation. Get experienced tutors for CBSE, ICSE, IGCSE, IB and State Board with personalized learning."
         />
         <link rel="canonical" href="https://saraswatitutorial.com/" />
 
         {/* Schemas */}
-        <script type="application/ld+json">{JSON.stringify(updatedFaqSchema)}</script>
+        <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(localBusinessSchema)}</script>
       </Helmet>
 
@@ -1040,14 +1111,7 @@ export default function HomePage() {
                 transition={{ type: "spring", stiffness: 400, damping: 15 }}
                 className="h-[72px] w-[72px] sm:h-[60px] sm:w-[60px] shrink-0 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-sm flex items-center justify-center cursor-pointer"
               >
-                <img
-                  src="/logo.png"
-                  alt="ST"
-                  className="h-full w-full sm:h-[48px] sm:w-[48px] rounded-xl object-contain"
-                  onError={(e) => {
-                    e.target.src = "https://placehold.co/100x100?text=ST";
-                  }}
-                />
+                <BrandLogo alt="ST" className="h-full w-full sm:h-[48px] sm:w-[48px] rounded-xl object-contain" />
               </motion.div>
               <div className="hidden sm:block shrink-0 leading-tight">
                 <motion.div 
@@ -1559,8 +1623,9 @@ export default function HomePage() {
             {visibleTutorsCount < filteredTutors.length && (
               <div className="mt-8 flex justify-center">
                 <button
-                  onClick={() => setVisibleTutorsCount((prev) => prev + 4)}
-                  className="inline-flex items-center gap-2 rounded-full border-2 border-blue-600 bg-white px-6 py-2.5 text-xs font-black uppercase tracking-wider text-blue-600 hover:bg-blue-50 active:scale-95 transition-all duration-200 cursor-pointer shadow-md shadow-blue-500/5"
+                  type="button"
+                  onClick={showMoreTutors}
+                  className="inline-flex items-center gap-2 rounded-full border-2 border-blue-600 bg-white dark:bg-slate-900 px-6 py-2.5 text-xs font-black uppercase tracking-wider text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 active:scale-95 transition-all duration-200 cursor-pointer shadow-md shadow-blue-500/5"
                 >
                   See More Tutors
                   <ChevronDown className="h-4 w-4" />
@@ -1976,14 +2041,7 @@ export default function HomePage() {
           <div className="grid gap-8 md:grid-cols-4">
             <div>
               <div className="flex items-center gap-3">
-                <img
-                  src="/logo.png"
-                  alt="Saraswati Tutorial Logo"
-                  className="h-10 w-10 rounded-xl object-contain"
-                  onError={(e) => {
-                    e.target.src = "https://placehold.co/100x100?text=ST";
-                  }}
-                />
+                <BrandLogo alt="Saraswati Tutorial Logo" className="h-10 w-10 rounded-xl object-contain" />
                 <span className="text-lg font-black text-slate-950 dark:text-white">Saraswati Tutorial</span>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400">

@@ -79,29 +79,28 @@ router.get("/", verifyToken(["admin"]), async (req, res) => {
       leadQuery.batchSize(1000),
       Attendance.aggregate([
         {
-          $match: {
-            status: "Done",
-          },
-        },
-        {
           $group: {
             _id: {
               parentEnquiryId: "$parentEnquiryId",
               packageCycle: "$packageCycle",
             },
-            count: { $sum: 1 },
+            count: { $sum: { $cond: [{ $eq: ["$status", "Done"] }, 1, 0] } },
+            firstDate: { $min: "$date" },
           },
         },
       ]),
     ]);
 
     const attendanceCounts = new Map();
+    const cycleFirstDates = new Map(); // first class date per lead + cycle (a cycle's month starts there)
 
     for (const row of attendanceSummary) {
       const leadId = String(row._id.parentEnquiryId);
       const cycle = row._id.packageCycle == null ? 1 : row._id.packageCycle;
       const key = `${leadId}:${cycle}`;
       attendanceCounts.set(key, (attendanceCounts.get(key) || 0) + row.count);
+      const earlier = cycleFirstDates.get(key);
+      if (row.firstDate && (!earlier || row.firstDate < earlier)) cycleFirstDates.set(key, row.firstDate);
     }
 
     const synchronizedData = await Promise.all(
@@ -124,7 +123,8 @@ router.get("/", verifyToken(["admin"]), async (req, res) => {
           }
         }
 
-        return lead;
+        const currentCycleStartDate = cycleFirstDates.get(`${lead._id}:${lead.currentPackageCycle || 1}`) || "";
+        return { ...lead.toJSON(), currentCycleStartDate };
       })
     );
     res.json(synchronizedData);

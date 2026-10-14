@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { API_BASE } from "../config";
 import { TNC_CONFIG, computeFees, formatINR } from "../data/tncConfig";
+import BrandLogo from "../components/BrandLogo";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -329,11 +330,7 @@ export default function TermsConditions() {
         <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 py-3 shadow-xs">
           <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <img
-                src="/logo.png"
-                alt="Saraswati Tutorials"
-                className="h-9 sm:h-10 w-auto object-contain shrink-0"
-              />
+              <BrandLogo alt="Saraswati Tutorials" className="h-9 sm:h-10 w-auto object-contain shrink-0" />
               <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
               <div className="hidden sm:block">
                 <p className="text-xs font-black text-slate-900 dark:text-white leading-tight">Saraswati Tutorials</p>
