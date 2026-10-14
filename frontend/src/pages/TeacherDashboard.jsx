@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../config";
 import ThemeToggle from "../components/ThemeToggle";
 import "@fontsource-variable/inter";
+import { formatClassTimeRange, classTimeError } from "../utils/classTime";
 import { 
   LogOut, 
   Check, 
@@ -16,7 +17,8 @@ import {
   Search,
   CheckCircle2,
   HelpCircle,
-  FileDown
+  FileDown,
+  Bell
 } from "lucide-react";
 
 export default function TeacherDashboard() {
@@ -62,6 +64,9 @@ export default function TeacherDashboard() {
   const [missedReason, setMissedReason] = useState("");
   const [customReason, setCustomReason] = useState("");
   const [classDate, setClassDate] = useState("");
+  // Class time ("HH:mm"), pre-filled with the student's usual time
+  const [classStartTime, setClassStartTime] = useState("");
+  const [classEndTime, setClassEndTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState("");
 
@@ -130,6 +135,8 @@ export default function TeacherDashboard() {
     setSelectedStudent(student);
     setModalType(type);
     setClassDate(getLocalDateString());
+    setClassStartTime(student.usualClassStartTime || "");
+    setClassEndTime(student.usualClassEndTime || "");
     setTopicsCovered("");
     setMissedReason("");
     setCustomReason("");
@@ -145,6 +152,13 @@ export default function TeacherDashboard() {
     // Validations
     if (!classDate) {
       setModalError("Please select a date.");
+      setSubmitting(false);
+      return;
+    }
+
+    const timeError = classTimeError(classStartTime, classEndTime);
+    if (timeError) {
+      setModalError(timeError);
       setSubmitting(false);
       return;
     }
@@ -173,6 +187,8 @@ export default function TeacherDashboard() {
       tutorId,
       status: modalType,
       date: classDate,
+      classStartTime,
+      classEndTime,
       topicsCovered: modalType === "Done" ? topicsCovered : "",
       missedReason: modalType === "Missed" ? missedReason : "",
       customReason: modalType === "Missed" && missedReason === "Other" ? customReason : "",
@@ -214,6 +230,43 @@ export default function TeacherDashboard() {
     }
   }
 
+  // ── Missed-class notifications ──────────────────────────────────────
+  // A student with 2+ missed classes in the current month raises a notification.
+  // The id includes the count, so a further missed class shows it again after a dismiss.
+  const MISSED_ALERT_THRESHOLD = 2;
+  const dismissedKey = `tutorDismissedAlerts:${tutorId || "unknown"}`;
+  const [dismissedTutorAlerts, setDismissedTutorAlerts] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(dismissedKey) || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [showTutorAlerts, setShowTutorAlerts] = useState(false);
+
+  const tutorAlerts = useMemo(
+    () =>
+      students
+        .filter((st) => (st.missedClasses || 0) >= MISSED_ALERT_THRESHOLD)
+        .map((st) => {
+          const cycle = st.currentPackageCycle || 1;
+          return {
+            id: `missed-${st._id}-c${cycle}-${st.missedClasses}`,
+            message: `You have missed ${st.missedClasses} classes with ${st.studentName} (${st.requirementId}) in ${st.currentMonthLabel || `Month ${cycle}`}. Please reschedule with the parent and keep attendance up to date.`,
+          };
+        })
+        .filter((a) => !dismissedTutorAlerts.includes(a.id)),
+    [students, dismissedTutorAlerts]
+  );
+
+  const dismissTutorAlerts = (ids) => {
+    const updated = [...new Set([...dismissedTutorAlerts, ...ids])];
+    setDismissedTutorAlerts(updated);
+    try {
+      localStorage.setItem(dismissedKey, JSON.stringify(updated));
+    } catch {}
+  };
+
   // Filter students based on search query
   const filteredStudents = students.filter(student =>
     student.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -235,6 +288,78 @@ export default function TeacherDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowTutorAlerts((v) => !v)}
+                className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-sm transition hover:text-indigo-600 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+                aria-label={`Notifications (${tutorAlerts.length})`}
+                aria-expanded={showTutorAlerts}
+                title="Notifications"
+              >
+                <Bell className="h-[18px] w-[18px]" />
+                {tutorAlerts.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-[#f5f4f0] dark:border-slate-950 bg-rose-500 px-1 text-xs font-bold text-white">
+                    {tutorAlerts.length}
+                  </span>
+                )}
+              </button>
+
+              {showTutorAlerts && (
+                <>
+                  <div className="fixed inset-0 z-40 bg-slate-950/40 sm:hidden" onClick={() => setShowTutorAlerts(false)} />
+                  <div className="fixed left-4 right-4 top-20 z-50 mx-auto max-w-md rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-slate-800 dark:text-slate-100 shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-96">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        Notifications ({tutorAlerts.length})
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {tutorAlerts.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => dismissTutorAlerts(tutorAlerts.map((a) => a.id))}
+                            className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                          >
+                            Clear All
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setShowTutorAlerts(false)}
+                          className="rounded-lg p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                          aria-label="Close notifications"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                      {tutorAlerts.length === 0 ? (
+                        <p className="py-6 text-center text-xs font-bold text-slate-500 dark:text-slate-400">
+                          <CheckCircle2 className="mx-auto mb-2 h-6 w-6 text-emerald-500" />
+                          No new notifications
+                        </p>
+                      ) : (
+                        tutorAlerts.map((alert) => (
+                          <div key={alert.id} className="flex flex-col gap-2 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/80 dark:bg-rose-950/40 p-3 text-xs">
+                            <p className="font-semibold leading-normal text-slate-800 dark:text-slate-200">{alert.message}</p>
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => dismissTutorAlerts([alert.id])}
+                                className="rounded-lg border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                              >
+                                Dismiss
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             <ThemeToggle buttonClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-sm transition hover:text-indigo-600 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer" />
             <button 
               onClick={handleLogout}
@@ -253,6 +378,40 @@ export default function TeacherDashboard() {
       <main className="mx-auto max-w-4xl px-4 mt-6">
         <div className="flex flex-col gap-4">
           
+          {tutorAlerts.length > 0 && (
+            <div className="flex flex-col gap-3 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/95 dark:bg-rose-950/30 p-3.5 sm:flex-row sm:items-center sm:justify-between sm:p-4" role="status">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-500 text-white">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                    Missed classes ({tutorAlerts.length})
+                  </p>
+                  <p className="mt-0.5 break-words text-sm font-medium leading-snug text-slate-800 dark:text-slate-200">{tutorAlerts[0].message}</p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => dismissTutorAlerts([tutorAlerts[0].id])}
+                  className="flex-1 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-rose-100 dark:hover:bg-rose-950/40 transition cursor-pointer sm:flex-none"
+                >
+                  Dismiss
+                </button>
+                {tutorAlerts.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTutorAlerts(true)}
+                    className="flex-1 rounded-xl bg-rose-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition cursor-pointer sm:flex-none"
+                  >
+                    View All ({tutorAlerts.length})
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Welcome Card & Search */}
           <div className="rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none">
             <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Attendance Portal</h2>
@@ -521,7 +680,9 @@ export default function TeacherDashboard() {
                                     <div key={log._id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-3 text-xs">
                                       <div className="flex items-center justify-between mb-1 pb-1 border-b border-slate-100 dark:border-slate-800">
                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                          <span className="font-semibold text-slate-800 dark:text-white">Class {classNum} ({log.date})</span>
+                                          <span className="font-semibold text-slate-800 dark:text-white">
+                                            Class {classNum} ({log.date}{formatClassTimeRange(log.classStartTime, log.classEndTime) ? ` · ${formatClassTimeRange(log.classStartTime, log.classEndTime)}` : ""})
+                                          </span>
                                           <span className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold px-1.5 py-0.2 rounded">
                                             Month {log.packageCycle || 1}
                                           </span>
@@ -602,6 +763,38 @@ export default function TeacherDashboard() {
                     onChange={(e) => setClassDate(e.target.value)}
                     className="w-full h-11 px-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
+                </div>
+
+                {/* Class Time */}
+                <div>
+                  <span className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Class Time</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">From</span>
+                      <input
+                        type="time"
+                        required
+                        value={classStartTime}
+                        onChange={(e) => setClassStartTime(e.target.value)}
+                        className="w-full h-11 px-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">To</span>
+                      <input
+                        type="time"
+                        required
+                        value={classEndTime}
+                        onChange={(e) => setClassEndTime(e.target.value)}
+                        className="w-full h-11 px-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </label>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    {selectedStudent.usualClassStartTime
+                      ? "Filled with the usual class time. Change it if this class was at a different time."
+                      : "Select the time this class was scheduled for."}
+                  </p>
                 </div>
 
                 {/* DONE Popup: Topics Covered */}

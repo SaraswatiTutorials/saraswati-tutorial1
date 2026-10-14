@@ -54,6 +54,7 @@ import {
 import { API_BASE } from "../config";
 import ThemeToggle from "../components/ThemeToggle";
 import AdminLayout from "../components/admin/AdminLayout";
+import { formatClassTimeRange, classTimeError } from "../utils/classTime";
 import {
   AreaChart,
   Area,
@@ -482,9 +483,72 @@ export default function AdminDashboard() {
     localStorage.setItem("dismissedAlerts", JSON.stringify(updated));
   };
 
+  // ── New-enquiry notifications ─────────────────────────────────────────
+  // Enquiries submitted after "since" appear in the bell. "since" lives in this browser;
+  // the first time it starts 24 hours back so old enquiries don't flood the bell.
+  const ENQUIRY_ALERTS_SINCE_KEY = "adminEnquiryAlertsSince";
+  const [enquiryAlertsSince, setEnquiryAlertsSince] = useState(() => {
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    try {
+      const saved = localStorage.getItem(ENQUIRY_ALERTS_SINCE_KEY);
+      if (saved) return saved;
+      localStorage.setItem(ENQUIRY_ALERTS_SINCE_KEY, dayAgo);
+    } catch {}
+    return dayAgo;
+  });
+  const markEnquiryAlertsSeen = () => {
+    const now = new Date().toISOString();
+    setEnquiryAlertsSince(now);
+    try {
+      localStorage.setItem(ENQUIRY_ALERTS_SINCE_KEY, now);
+    } catch {}
+  };
+
+  // Newest few enquiries, re-checked every 2 minutes so new ones appear without a full refresh
+  const [recentEnquiries, setRecentEnquiries] = useState([]);
+  useEffect(() => {
+    const checkRecentEnquiries = async () => {
+      if (document.visibilityState === "hidden") return;
+      try {
+        const token = localStorage.getItem("adminToken");
+        const res = await fetch(`${API_BASE}/parent-enquiries?limit=${CARD_BATCH_SIZE}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data)) setRecentEnquiries(data);
+      } catch {}
+    };
+    const intervalId = setInterval(checkRecentEnquiries, 2 * 60 * 1000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const enquiryAlerts = useMemo(() => {
+    const since = new Date(enquiryAlertsSince).getTime();
+    const byId = new Map();
+    [...recentEnquiries, ...parentEnquiries].forEach((e) => {
+      if (e?._id && !byId.has(e._id)) byId.set(e._id, e);
+    });
+    return [...byId.values()]
+      .filter((e) => e.createdAt && new Date(e.createdAt).getTime() > since)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .map((e) => {
+        const students = (e.wards || [])
+          .map((w) => `${w.studentName || "Student"}${w.classGrade ? ` (Class ${w.classGrade})` : ""}`)
+          .join(", ");
+        return {
+          id: `enquiry-${e._id}`,
+          type: "new_enquiry",
+          severity: "info",
+          leadId: e._id,
+          message: `New enquiry from ${e.parentName || e.name || "a parent"}${students ? ` for ${students}` : ""} · ${formatSubmittedDate(e.createdAt)}`,
+        };
+      });
+  }, [recentEnquiries, parentEnquiries, enquiryAlertsSince]);
+
   const activeAlerts = useMemo(() => {
-    return alerts.filter(alert => !dismissedAlerts.includes(alert.id));
-  }, [alerts, dismissedAlerts]);
+    return [...enquiryAlerts, ...alerts].filter(alert => !dismissedAlerts.includes(alert.id));
+  }, [enquiryAlerts, alerts, dismissedAlerts]);
   const [period, setPeriod] = useState("7d"); // "24h", "7d", "30d"
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -1258,6 +1322,21 @@ export default function AdminDashboard() {
     }
   };
 
+  const openEnquiryAlert = (alert) => {
+    dismissAlert(alert.id);
+    setShowAlertsDropdown(false);
+    setSearch("");
+    setLeadFilter("All Leads");
+    setLeadTab("active");
+    setCurrentMainTab("leads");
+    setExpandedLeadIds((prev) => (prev.includes(alert.leadId) ? prev : [...prev, alert.leadId]));
+    // Arrived since the lists were loaded: reload them so the lead is in the table
+    if (!parentEnquiries.some((p) => p._id === alert.leadId)) fetchData();
+    setTimeout(() => {
+      document.getElementById(`lead-${alert.leadId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 400);
+  };
+
   const goToTab = (key) => {
     setCurrentMainTab(key);
     if (key === "attendance") fetchData();
@@ -1333,16 +1412,18 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-center pb-2.5 border-b border-slate-100 dark:border-slate-700">
                 <div className="flex items-center gap-2">
                   <Bell className="h-4 w-4 text-rose-500" />
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">System Alerts ({activeAlerts.length})</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Notifications ({activeAlerts.length})</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {activeAlerts.length > 0 && (
                     <button
                       onClick={() => {
-                        const allIds = activeAlerts.map(a => a.id);
+                        // Enquiry notifications clear by moving the "seen" time forward
+                        const allIds = activeAlerts.filter(a => a.type !== "new_enquiry").map(a => a.id);
                         const updated = [...dismissedAlerts, ...allIds];
                         setDismissedAlerts(updated);
                         localStorage.setItem("dismissedAlerts", JSON.stringify(updated));
+                        markEnquiryAlertsSeen();
                       }}
                       className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
                     >
@@ -1361,7 +1442,7 @@ export default function AdminDashboard() {
                 {activeAlerts.length === 0 ? (
                   <p className="text-xs font-bold text-slate-500 dark:text-slate-400 py-6 text-center">
                     <CheckCircle2 className="mx-auto mb-2 h-6 w-6 text-emerald-500" />
-                    No pending attendance alerts
+                    No new notifications
                   </p>
                 ) : (
                   activeAlerts.map(alert => (
@@ -1370,11 +1451,21 @@ export default function AdminDashboard() {
                       className={`p-3 rounded-2xl border text-xs flex flex-col gap-2 ${
                         alert.severity === "high"
                           ? "bg-rose-50/80 border-rose-200 text-rose-950 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-200"
+                          : alert.severity === "info"
+                          ? "bg-indigo-50/80 border-indigo-200 text-indigo-950 dark:bg-indigo-950/40 dark:border-indigo-900/60 dark:text-indigo-200"
                           : "bg-amber-50/80 border-amber-200 text-amber-950 dark:bg-amber-950/40 dark:border-amber-900/60 dark:text-amber-200"
                       }`}
                     >
                       <p className="font-semibold leading-normal text-slate-800 dark:text-slate-200">{alert.message}</p>
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
+                        {alert.type === "new_enquiry" && (
+                          <button
+                            onClick={() => openEnquiryAlert(alert)}
+                            className="text-xs font-bold uppercase tracking-wider bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700 transition cursor-pointer"
+                          >
+                            View
+                          </button>
+                        )}
                         <button
                           onClick={() => dismissAlert(alert.id)}
                           className="text-xs font-bold uppercase tracking-wider bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 px-3 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
@@ -1469,17 +1560,31 @@ export default function AdminDashboard() {
 
         {/* Persistent Top System Alerts Banner */}
         {activeAlerts.length > 0 && (
-          <div className="mb-6 rounded-2xl sm:rounded-2xl border border-rose-200 bg-rose-50/95 dark:border-rose-900/50 dark:bg-rose-950/30 backdrop-blur-xl p-3.5 sm:p-4 text-slate-900 dark:text-slate-100 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-slideFade">
+          <div className={`mb-6 rounded-2xl border backdrop-blur-xl p-3.5 sm:p-4 text-slate-900 dark:text-slate-100 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-slideFade ${
+            activeAlerts[0]?.severity === "info"
+              ? "border-indigo-200 bg-indigo-50/95 dark:border-indigo-900/50 dark:bg-indigo-950/30"
+              : "border-rose-200 bg-rose-50/95 dark:border-rose-900/50 dark:bg-rose-950/30"
+          }`}>
             <div className="flex items-start sm:items-center gap-3">
-              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+              <div className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl text-white flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 ${activeAlerts[0]?.severity === "info" ? "bg-indigo-600" : "bg-rose-500"}`}>
                 <Bell className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
               </div>
               <div>
-                <p className="text-xs font-bold uppercase text-rose-600 dark:text-rose-400 tracking-wider">System Alert ({activeAlerts.length} Pending)</p>
+                <p className={`text-xs font-bold uppercase tracking-wider ${activeAlerts[0]?.severity === "info" ? "text-indigo-600 dark:text-indigo-300" : "text-rose-600 dark:text-rose-400"}`}>
+                  Notifications ({activeAlerts.length})
+                </p>
                 <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5 leading-snug break-words">{activeAlerts[0]?.message}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0 justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t border-rose-200/60 dark:border-rose-900/60 sm:border-0">
+              {activeAlerts[0]?.type === "new_enquiry" && (
+                <button
+                  onClick={() => openEnquiryAlert(activeAlerts[0])}
+                  className="flex-1 sm:flex-none rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow hover:bg-indigo-700 transition cursor-pointer text-center"
+                >
+                  View
+                </button>
+              )}
               <button
                 onClick={() => dismissAlert(activeAlerts[0].id)}
                 className="flex-1 sm:flex-none rounded-xl border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-rose-100 dark:hover:bg-rose-950/40 transition cursor-pointer text-center"
@@ -2065,7 +2170,7 @@ export default function AdminDashboard() {
                     };
 
                     return (
-                      <div key={p._id} className={`overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none xl:rounded-none xl:shadow-none ${borderClass} ${isExpanded ? "xl:bg-slate-50/70 xl:dark:bg-slate-800/25" : "xl:bg-transparent xl:dark:bg-transparent"}`}>
+                      <div key={p._id} id={`lead-${p._id}`} className={`scroll-mt-24 overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none xl:rounded-none xl:shadow-none ${borderClass} ${isExpanded ? "xl:bg-slate-50/70 xl:dark:bg-slate-800/25" : "xl:bg-transparent xl:dark:bg-transparent"}`}>
                         <div
                           role="button"
                           tabIndex={0}
@@ -3910,6 +4015,8 @@ function AdminAttendanceConsole({
   const [editingLogId, setEditingLogId] = useState(null);
   const [logStatus, setLogStatus] = useState("Done");
   const [logDate, setLogDate] = useState("");
+  const [logStartTime, setLogStartTime] = useState("");
+  const [logEndTime, setLogEndTime] = useState("");
   const [logTopics, setLogTopics] = useState("");
   const [logMissedReason, setLogMissedReason] = useState("");
   const [logCustomReason, setLogCustomReason] = useState("");
@@ -4001,6 +4108,8 @@ function AdminAttendanceConsole({
     setEditingLogId(log._id);
     setLogStatus(log.status || "Done");
     setLogDate(log.date || "");
+    setLogStartTime(log.classStartTime || "");
+    setLogEndTime(log.classEndTime || "");
     setLogTopics(log.topicsCovered || "");
     setLogMissedReason(log.missedReason || "");
     setLogCustomReason(log.customReason || "");
@@ -4030,6 +4139,12 @@ function AdminAttendanceConsole({
       return;
     }
 
+    if ((logStartTime || logEndTime) && classTimeError(logStartTime, logEndTime)) {
+      setLogError(classTimeError(logStartTime, logEndTime));
+      setLogUpdating(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/attendance/log/${logId}`, {
         method: "PUT",
@@ -4040,6 +4155,8 @@ function AdminAttendanceConsole({
         body: JSON.stringify({
           status: logStatus,
           date: logDate,
+          classStartTime: logStartTime,
+          classEndTime: logEndTime,
           topicsCovered: logStatus === "Done" ? logTopics : "",
           missedReason: logStatus === "Missed" ? logMissedReason : "",
           customReason: logStatus === "Missed" && logMissedReason === "Other" ? logCustomReason : "",
@@ -4580,6 +4697,27 @@ function AdminAttendanceConsole({
                                                     </div>
                                                   </div>
 
+                                                  <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Class From</label>
+                                                      <input
+                                                        type="time"
+                                                        value={logStartTime}
+                                                        onChange={(e) => setLogStartTime(e.target.value)}
+                                                        className="w-full h-9 px-3 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                                                      />
+                                                    </div>
+                                                    <div>
+                                                      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Class To</label>
+                                                      <input
+                                                        type="time"
+                                                        value={logEndTime}
+                                                        onChange={(e) => setLogEndTime(e.target.value)}
+                                                        className="w-full h-9 px-3 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                                                      />
+                                                    </div>
+                                                  </div>
+
                                                   {logStatus === "Done" ? (
                                                     <div>
                                                       <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Topics Covered</label>
@@ -4647,7 +4785,9 @@ function AdminAttendanceConsole({
                                               <div key={log._id} className="bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700 p-3.5 flex justify-between gap-4 text-xs font-semibold">
                                                 <div className="space-y-1">
                                                   <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="font-semibold text-slate-800 dark:text-slate-100">Class {logIndex} ({log.date})</span>
+                                                    <span className="font-semibold text-slate-800 dark:text-slate-100">
+                                                      Class {logIndex} ({log.date}{formatClassTimeRange(log.classStartTime, log.classEndTime) ? ` · ${formatClassTimeRange(log.classStartTime, log.classEndTime)}` : ""})
+                                                    </span>
                                                     <span className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 text-indigo-700 dark:text-indigo-400 text-xs font-bold px-2 py-0.5 rounded">
                                                       Month {log.packageCycle || 1}
                                                     </span>

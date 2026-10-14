@@ -10,6 +10,7 @@ import {
   deleteOdooAttendanceLog,
 } from "../utils/odooService.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
+import { parseClassTime, usualClassTime, formatClassTimeRange } from "../utils/classTime.js";
 
 const router = express.Router();
 
@@ -209,6 +210,8 @@ export async function formatStudentCard(lead) {
     })),
     classSchedule: lead.classSchedule || lead.preferredTime || "Not Scheduled",
     classDuration: lead.classDuration || "Not provided",
+    usualClassStartTime: usualClassTime(lead).start,
+    usualClassEndTime: usualClassTime(lead).end,
     currentAttendanceStatus: latestLog ? latestLog.status : "Pending",
     latestLogDate: latestLog ? latestLog.date : null,
     latestLogTopics: latestLog ? latestLog.topicsCovered : "",
@@ -309,6 +312,8 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
       missedReason,
       customReason,
       date,
+      classStartTime,
+      classEndTime,
     } = req.body;
 
     if (!parentEnquiryId || !tutorId || !status || !date) {
@@ -325,6 +330,12 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
 
     if (status === "Missed" && missedReason === "Other" && !customReason?.trim()) {
       return res.status(400).json({ success: false, message: "Custom reason description is required." });
+    }
+
+    // Class time is optional (older app versions don't send it) but must be valid when sent
+    const classTime = parseClassTime(classStartTime, classEndTime);
+    if (!classTime.ok) {
+      return res.status(400).json({ success: false, message: classTime.message });
     }
 
     // Fetch parent enquiry and tutor info
@@ -372,6 +383,10 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
         existing.missedReason = missedReason || "";
         existing.customReason = missedReason === "Other" ? (customReason?.trim() || "") : "";
       }
+      if (classTime.provided) {
+        existing.classStartTime = classTime.start;
+        existing.classEndTime = classTime.end;
+      }
       existing.tutorId = tutor._id;
       existing.tutorName = tutor.name;
       if (!existing.packageCycle) existing.packageCycle = activeCycle;
@@ -409,6 +424,8 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
         missedReason: status === "Missed" ? (missedReason || "") : "",
         customReason: status === "Missed" && missedReason === "Other" ? (customReason?.trim() || "") : "",
         date,
+        classStartTime: classTime.provided ? classTime.start : "",
+        classEndTime: classTime.provided ? classTime.end : "",
       });
 
       // Stable externalAttendanceId (uses MongoDB _id)
@@ -536,7 +553,7 @@ router.get("/download-history/:parentEnquiryId", async (req, res) => {
     const studentName = lead.wards?.map((w) => w.studentName).join(", ") || "Student";
     const reqId = lead.requirementId || "REQ";
 
-    let csvContent = "Cycle,Month,Class #,Date,Status,Student Name,Teacher,Requirement ID,Topics Covered / Reason\n";
+    let csvContent = "Cycle,Month,Class #,Date,Class Time,Status,Student Name,Teacher,Requirement ID,Topics Covered / Reason\n";
 
     logs.forEach((log) => {
       const cycleNumber = log.packageCycle || 1;
@@ -544,6 +561,7 @@ router.get("/download-history/:parentEnquiryId", async (req, res) => {
       const monthStr = `Month ${cycleNumber}`;
       const sessionStr = log.sessionNumber || 1;
       const dateStr = log.date || "";
+      const timeStr = `"${formatClassTimeRange(log.classStartTime, log.classEndTime)}"`;
       const statusStr = log.status || "";
       const sName = `"${(log.studentName || studentName).replace(/"/g, '""')}"`;
       const tName = `"${(log.tutorName || lead.assignedTutor || "").replace(/"/g, '""')}"`;
@@ -557,7 +575,7 @@ router.get("/download-history/:parentEnquiryId", async (req, res) => {
       }
       noteStr = `"${noteStr.replace(/"/g, '""')}"`;
 
-      csvContent += `${cycleStr},${monthStr},${sessionStr},${dateStr},${statusStr},${sName},${tName},${rId},${noteStr}\n`;
+      csvContent += `${cycleStr},${monthStr},${sessionStr},${dateStr},${timeStr},${statusStr},${sName},${tName},${rId},${noteStr}\n`;
     });
 
     const filename = `Attendance_History_${reqId}_${cycleFilter ? `cycle_${cycleFilter}` : "all"}.csv`;
@@ -848,9 +866,17 @@ router.delete("/log/:logId", verifyToken(["admin"]), async (req, res) => {
 // =============================================================
 router.put("/log/:logId", verifyToken(["admin"]), async (req, res) => {
   try {
-    const { status, date, topicsCovered, missedReason, customReason } = req.body;
+    const { status, date, topicsCovered, missedReason, customReason, classStartTime, classEndTime } = req.body;
     const log = await Attendance.findById(req.params.logId);
     if (!log) return res.status(404).json({ message: "Log not found." });
+
+    // Class time: unchanged unless sent; both empty clears it
+    if (classStartTime !== undefined || classEndTime !== undefined) {
+      const classTime = parseClassTime(classStartTime, classEndTime);
+      if (!classTime.ok) return res.status(400).json({ message: classTime.message });
+      log.classStartTime = classTime.provided ? classTime.start : "";
+      log.classEndTime = classTime.provided ? classTime.end : "";
+    }
 
     if (status) log.status = status;
     if (date) log.date = date;

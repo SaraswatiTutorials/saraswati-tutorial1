@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import { LOCAL_SAFE_MODE, safeModeRequestGuard } from "./utils/localSafeMode.js";
 import dns from "dns";
 
 try {
@@ -80,6 +81,9 @@ app.get("/", (req, res) => {
   res.json({ message: "Saraswati Tutorial backend is running" });
 });
 
+// Local safe mode: only reads and logins reach the routes
+if (LOCAL_SAFE_MODE) app.use("/api", safeModeRequestGuard);
+
 // ── API Routes ────────────────────────────────────────────────────────────────
 app.use("/api/tutors",           tutorRoutes);
 app.use("/api/bookings",         bookingRoutes);
@@ -144,10 +148,16 @@ if (
       console.log("MongoDB connected");
 
       // Error recovery: reset stale Sending logs before starting schedulers
-      await recoverStaleSendingLogs();
+      // (skipped in local safe mode: it changes records the live server is using)
+      if (!LOCAL_SAFE_MODE) await recoverStaleSendingLogs();
 
       app.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);
+
+        if (LOCAL_SAFE_MODE) {
+          console.log("Local safe mode: background jobs (reminders, broadcast retries, Odoo sync) not started.");
+          return;
+        }
 
         // ── Start background schedulers ────────────────────────────────────
         startReminderScheduler();  // Attendance reminders (every 60 sec)

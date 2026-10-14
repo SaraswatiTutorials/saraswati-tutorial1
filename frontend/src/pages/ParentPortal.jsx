@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { API_BASE } from "../config";
 import ThemeToggle from "../components/ThemeToggle";
+import { formatClassTimeRange } from "../utils/classTime";
 import "@fontsource-variable/inter";
 import { 
   Search, 
@@ -188,9 +189,11 @@ export default function ParentPortal() {
           ? `Topics: ${log.topicsCovered}` 
           : `Reason: ${log.missedReason === "Other" ? log.customReason : log.missedReason}`;
         
+        // Class time goes under the date (plain hyphen: PDF fonts may lack the en dash)
+        const classTime = formatClassTimeRange(log.classStartTime, log.classEndTime).replace(" – ", " - ");
         return [
           `Class ${classNumber} (M${log.packageCycle || 1})`,
-          log.date,
+          classTime ? `${log.date}\n${classTime}` : log.date,
           log.status === "Done" ? "Done" : "Missed",
           details,
           log.tutorName
@@ -566,7 +569,10 @@ export default function ParentPortal() {
                                               Month {log.packageCycle || 1}
                                             </span>
                                             <span className="text-slate-300 dark:text-slate-700">•</span>
-                                            <span className="text-slate-500 dark:text-slate-400 font-bold">{log.date}</span>
+                                            <span className="text-slate-500 dark:text-slate-400 font-bold">
+                                              {log.date}
+                                              {formatClassTimeRange(log.classStartTime, log.classEndTime) ? ` · ${formatClassTimeRange(log.classStartTime, log.classEndTime)}` : ""}
+                                            </span>
                                           </h6>
                                           <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
                                             log.status === "Done" 
