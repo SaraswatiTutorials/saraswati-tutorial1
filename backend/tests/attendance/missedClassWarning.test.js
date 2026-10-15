@@ -45,7 +45,10 @@ test("warning goes out from 8 AM until the class starts", () => {
   // 12-hour format and unknown time
   assert.equal(isWarningTime(at(9), "5:00 PM"), true);
   assert.equal(isWarningTime(at(7), ""), false);
-  assert.equal(isWarningTime(at(20), ""), true);
+  // Unknown class time: mornings only (8–11 AM), never at night
+  assert.equal(isWarningTime(at(9), ""), true);
+  assert.equal(isWarningTime(at(11), ""), false);
+  assert.equal(isWarningTime(at(21, 48), ""), false);
 });
 
 test("message text", () => {

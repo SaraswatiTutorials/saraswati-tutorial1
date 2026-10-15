@@ -49,11 +49,14 @@ export function previousClassDates(today, dayIndexes, count = 2) {
   return dates;
 }
 
+// With no known class time, only send in the morning (8:00–11:00 AM), never at night
+const NO_TIME_SEND_UNTIL_MINUTES = 11 * 60;
+
 // Is it time to send today's warning? From 8:00 AM (or 1 hour before an early class)
-// until the class starts; with no known start time, any time from 8:00 AM.
+// until the class starts; with no known start time, 8:00–11:00 AM.
 export function isWarningTime(nowMinutes, classStartTime) {
   const start = toTime24(classStartTime || "");
-  if (!start) return nowMinutes >= DEFAULT_SEND_MINUTES;
+  if (!start) return nowMinutes >= DEFAULT_SEND_MINUTES && nowMinutes < NO_TIME_SEND_UNTIL_MINUTES;
   const [h, m] = start.split(":").map(Number);
   const startMinutes = h * 60 + m;
   const sendAt = Math.max(0, Math.min(DEFAULT_SEND_MINUTES, startMinutes - 60));
