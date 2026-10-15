@@ -8,7 +8,7 @@ import { calculateQuote, toEnquiryFields } from "../../utils/pricing/feeEngine.j
 
 const modulePath = (rel) => new URL(`../../${rel}`, import.meta.url).href;
 
-const calls = { saved: [], analytics: 0, draftsDeleted: 0, createLead: 0, constructed: 0 };
+const calls = { saved: [], analytics: 0, draftsDeleted: 0, createLead: 0, constructed: 0, adminAlerts: 0 };
 
 class FakeParentEnquiry {
   constructor(doc) {
@@ -61,6 +61,9 @@ before(async () => {
   });
   mock.module(modulePath("utils/recommendationEngine.js"), {
     namedExports: { getRecommendations: async () => [], buildParamsFromLead: () => ({}) },
+  });
+  mock.module(modulePath("utils/adminAlerts.js"), {
+    namedExports: { notifyAdminOfNewEnquiry: async () => { calls.adminAlerts += 1; } },
   });
   mock.module(modulePath("utils/geoLookup.js"), {
     namedExports: { resolveGeo: async () => ({ city: "Unknown City" }) },
@@ -115,7 +118,7 @@ const submission = (overrides = {}) => {
 };
 
 beforeEach(() => {
-  Object.assign(calls, { saved: [], analytics: 0, draftsDeleted: 0, createLead: 0, constructed: 0 });
+  Object.assign(calls, { saved: [], analytics: 0, draftsDeleted: 0, createLead: 0, constructed: 0, adminAlerts: 0 });
   delete process.env.PRICING_ENFORCEMENT;
 });
 
@@ -127,6 +130,7 @@ describe("POST /api/parent-enquiries (mocked models)", () => {
     assert.equal(calls.saved[0].finalPrice, 1);
     assert.equal(calls.saved[0].monthlyFees, 1);
     assert.equal(calls.createLead, 1);
+    assert.equal(calls.adminAlerts, 1);
   });
 
   test("default (off): an honest submission saves the same fee fields the form sent", async () => {

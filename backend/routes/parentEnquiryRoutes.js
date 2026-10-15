@@ -29,6 +29,7 @@ import {
   parseAddress,
 } from "../utils/matchingEngine.js";
 import { getRecommendations, buildParamsFromLead } from "../utils/recommendationEngine.js";
+import { notifyAdminOfNewEnquiry } from "../utils/adminAlerts.js";
 
 
 const router = express.Router();
@@ -521,6 +522,11 @@ router.post("/", async (req, res) => {
     // â”€â”€ Step 4: Trigger auto-broadcast asynchronously â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     autoBroadcastTutorsForLead(saved).catch(err => {
       console.error("[Auto-Broadcast] Trigger failed:", err.message);
+    });
+
+    // Alert the admin on WhatsApp (non-blocking)
+    notifyAdminOfNewEnquiry(saved).catch(err => {
+      console.error("[Admin Alert] New enquiry alert failed:", err.message);
     });
 
     // â”€â”€ Step 5: Sync to Odoo Community asynchronously (non-blocking) â”€â”€â”€â”€â”€â”€â”€â”€â”€
