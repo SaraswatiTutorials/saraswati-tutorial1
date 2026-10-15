@@ -376,6 +376,12 @@ const parentEnquirySchema = new mongoose.Schema(
       default: "",
     },
 
+    // Date ("YYYY-MM-DD", India time) the tutor was last warned about missing two classes in a row
+    missWarningSentDate: {
+      type: String,
+      default: "",
+    },
+
     odooSyncStatus: {
       type: String,
       enum: ["synced", "failed", "pending", "retrying"],

@@ -13,8 +13,18 @@ import {
   currentCycleEndDate,
   completeCycle,
 } from "./packageCycle.js";
+import { usualClassTime } from "./classTime.js";
+import {
+  scheduledDayIndexes,
+  dayOfWeek,
+  previousClassDates,
+  isWarningTime,
+  nowMinutesIST,
+  buildMissedClassWarningMessage,
+} from "./missedClassWarning.js";
 
 const MAX_RETRY_COUNT = Number(process.env.RETRY_COUNT || 3);
+const MISSED_CLASS_TEMPLATE_NAME = process.env.WHATSAPP_MISSED_CLASS_TEMPLATE_NAME || "tutor_attendance_not_marked";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Attendance Reminder Scheduler
@@ -60,14 +70,12 @@ export async function checkAndSendAttendanceReminders() {
     const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const shortDaysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     
-    const now = new Date();
-    const todayIndex = now.getDay();
+    // YYYY-MM-DD and time of day in India (the server clock may be UTC)
+    const todayDateStr = todayIST();
+    const currentMinutes = nowMinutesIST();
+    const todayIndex = dayOfWeek(todayDateStr);
     const todayName = daysOfWeek[todayIndex];
     const todayShortName = shortDaysOfWeek[todayIndex];
-    
-    // YYYY-MM-DD
-    const todayDateStr = now.toISOString().split("T")[0];
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
     // Fetch active enquiries with assigned tutors
     const enquiries = await ParentEnquiry.find({
@@ -160,6 +168,90 @@ export async function checkAndSendAttendanceReminders() {
     }
   } catch (err) {
     console.error(`[Reminder System Error]:`, err.message);
+  }
+}
+
+/**
+ * On the morning of a class day, warn the tutor on WhatsApp if attendance was not
+ * marked for the last two scheduled classes of that student (see missedClassWarning.js).
+ */
+let missedClassWarningsRunning = false;
+export async function checkMissedClassWarnings() {
+  // A slow WhatsApp send must not let the next minute's run pick up the same students
+  if (missedClassWarningsRunning) return;
+  missedClassWarningsRunning = true;
+
+  try {
+    const today = todayIST();
+    const nowMinutes = nowMinutesIST();
+
+    const leads = await ParentEnquiry.find({
+      status: { $in: ["Enrolled", "Won"] },
+      assignedTutorId: { $ne: null },
+      missWarningSentDate: { $ne: today },
+    });
+
+    for (const lead of leads) {
+      const dayIndexes = scheduledDayIndexes(lead);
+      if (!dayIndexes.has(dayOfWeek(today))) continue;
+      if (!isWarningTime(nowMinutes, usualClassTime(lead).start)) continue;
+
+      const [lastDate, earlierDate] = previousClassDates(today, dayIndexes, 2);
+      if (!earlierDate) continue;
+
+      // Only once classes with this tutor have started (a newly assigned tutor has no history yet)
+      const firstLog = await Attendance.findOne({ parentEnquiryId: lead._id, tutorId: lead.assignedTutorId })
+        .sort({ date: 1 })
+        .select("date")
+        .lean();
+      if (!firstLog || firstLog.date > earlierDate) continue;
+
+      const logs = await Attendance.find({
+        parentEnquiryId: lead._id,
+        date: { $gte: earlierDate, $lt: today },
+      }).lean();
+
+      // Any class done since then (e.g. a rescheduled class) means the tutor is attending
+      if (logs.some((l) => l.status === "Done")) continue;
+
+      // Warn only when attendance was not marked at all on both class days
+      if (logs.some((l) => l.date === lastDate || l.date === earlierDate)) continue;
+
+      // Mark first so a failed send isn't repeated every minute
+      await ParentEnquiry.updateOne({ _id: lead._id }, { missWarningSentDate: today });
+
+      const tutor = await Tutor.findById(lead.assignedTutorId);
+      const phoneNumber = tutor?.whatsapp || tutor?.phone || "";
+      if (!phoneNumber) {
+        console.warn(`[Missed Class Warning] No WhatsApp number for tutor of Lead ID: ${lead._id}. Skipping.`);
+        continue;
+      }
+
+      const teacherName = tutor.name || "Teacher";
+      const studentName = lead.wards?.map((w) => w.studentName).filter(Boolean).join(", ") || "your student";
+      console.log(`[Missed Class Warning] ${teacherName} did not mark attendance on ${earlierDate} and ${lastDate} for ${studentName} (Lead ID: ${lead._id}). Sending warning.`);
+
+      try {
+        const result = await sendWhatsAppToTutor({
+          phoneNumber,
+          messageBody: buildMissedClassWarningMessage(teacherName, studentName),
+          templateName: MISSED_CLASS_TEMPLATE_NAME,
+          // Order matters: {{1}} = tutor name, {{2}} = student name
+          templateVars: { tutor_name: teacherName, student_name: studentName },
+        });
+        if (result.success) {
+          console.log(`[Missed Class Warning] Sent to ${teacherName} (${phoneNumber}).`);
+        } else {
+          console.warn(`[Missed Class Warning] WhatsApp dispatch failed for ${teacherName}: ${result.failureReason}`);
+        }
+      } catch (wsErr) {
+        console.error(`[Missed Class Warning] WhatsApp error:`, wsErr.message);
+      }
+    }
+  } catch (err) {
+    console.error(`[Missed Class Warning Error]:`, err.message);
+  } finally {
+    missedClassWarningsRunning = false;
   }
 }
 
@@ -293,6 +385,7 @@ export function startReminderScheduler() {
   console.log(`[Reminder System] Starting automated attendance check daemon...`);
   setInterval(() => {
     checkAndSendAttendanceReminders();
+    checkMissedClassWarnings();
     checkPackageCompletionAlerts();
     checkParentRenewalReminders();
     checkMonthlyCycleRollover();
