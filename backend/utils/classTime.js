@@ -73,3 +73,39 @@ export function formatClassTimeRange(start, end) {
   const e = formatTime12(end);
   return s && e ? `${s} – ${e}` : "";
 }
+
+// Class length in minutes from "HH:mm" times ("17:00", "18:30" → 90), or null if not a valid pair
+export function classMinutes(start, end) {
+  const s = toMinutes(start || "");
+  const e = toMinutes(end || "");
+  return s !== null && e !== null && e > s ? e - s : null;
+}
+
+// Minutes of an attendance record: the stored duration, else worked out from its
+// class time (records made before durationMinutes existed), else null
+export function logMinutes(log) {
+  if (Number.isFinite(log?.durationMinutes) && log.durationMinutes > 0) return log.durationMinutes;
+  return classMinutes(log?.classStartTime, log?.classEndTime);
+}
+
+// Planned minutes per class from the student's plan: hoursPerDay, else the
+// classDuration text ("1.5 Hours", "1 hr", "90 min"), else the usual class time
+export function plannedClassMinutes(lead) {
+  const hours = Number(lead?.hoursPerDay);
+  if (Number.isFinite(hours) && hours > 0) return Math.round(hours * 60);
+  const text = String(lead?.classDuration || "").toLowerCase();
+  const m = /(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|m|min|mins|minute|minutes)\b/.exec(text);
+  if (m) {
+    const n = Number(m[1]);
+    return Math.round(m[2].startsWith("h") ? n * 60 : n);
+  }
+  const usual = usualClassTime(lead);
+  return classMinutes(usual.start, usual.end);
+}
+
+// 90 → "1.5 hrs", 60 → "1 hr", 75 → "1.25 hrs"
+export function formatHours(minutes) {
+  if (!Number.isFinite(minutes) || minutes <= 0) return "";
+  const hours = Math.round((minutes / 60) * 100) / 100;
+  return `${hours} ${hours === 1 ? "hr" : "hrs"}`;
+}

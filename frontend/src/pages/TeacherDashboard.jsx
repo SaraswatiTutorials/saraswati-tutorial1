@@ -3,7 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../config";
 import ThemeToggle from "../components/ThemeToggle";
 import "@fontsource-variable/inter";
-import { formatClassTimeRange, classTimeError } from "../utils/classTime";
+import {
+  formatClassTimeRange,
+  classTimeError,
+  CLASS_DURATION_OPTIONS,
+  classMinutes,
+  addMinutesToTime,
+  logMinutes,
+  formatHours,
+} from "../utils/classTime";
 import TimeInput12 from "../components/TimeInput12";
 import { 
   LogOut, 
@@ -136,13 +144,40 @@ export default function TeacherDashboard() {
     setSelectedStudent(student);
     setModalType(type);
     setClassDate(getLocalDateString());
-    setClassStartTime(student.usualClassStartTime || "");
-    setClassEndTime(student.usualClassEndTime || "");
+    // Pre-fill the usual time; the duration comes from it, else from the student's plan
+    const start = student.usualClassStartTime || "";
+    const usualMinutes = classMinutes(start, student.usualClassEndTime);
+    const duration = CLASS_DURATION_OPTIONS.includes(usualMinutes)
+      ? usualMinutes
+      : CLASS_DURATION_OPTIONS.includes(student.plannedClassMinutes) ? student.plannedClassMinutes : null;
+    setClassStartTime(start);
+    setClassEndTime(start && duration ? addMinutesToTime(start, duration) : student.usualClassEndTime || "");
     setTopicsCovered("");
     setMissedReason("");
     setCustomReason("");
     setModalError("");
     setShowModal(true);
+  }
+
+  // Changing the start time keeps the chosen duration
+  function changeClassStartTime(newStart) {
+    const minutes = classMinutes(classStartTime, classEndTime);
+    setClassStartTime(newStart);
+    if (newStart && minutes) setClassEndTime(addMinutesToTime(newStart, minutes));
+  }
+
+  function pickClassDuration(minutes) {
+    if (!classStartTime) {
+      setModalError("Select the class start time first.");
+      return;
+    }
+    const end = addMinutesToTime(classStartTime, minutes);
+    if (!end) {
+      setModalError("The class can't end after midnight.");
+      return;
+    }
+    setClassEndTime(end);
+    setModalError("");
   }
 
   async function handleMarkAttendance(e) {
@@ -160,6 +195,12 @@ export default function TeacherDashboard() {
     const timeError = classTimeError(classStartTime, classEndTime);
     if (timeError) {
       setModalError(timeError);
+      setSubmitting(false);
+      return;
+    }
+
+    if (modalType === "Done" && !CLASS_DURATION_OPTIONS.includes(classMinutes(classStartTime, classEndTime))) {
+      setModalError("Class duration must be 1, 1.5, 2 or 2.5 hours. Tap one of the duration buttons.");
       setSubmitting(false);
       return;
     }
@@ -682,7 +723,7 @@ export default function TeacherDashboard() {
                                       <div className="flex items-center justify-between mb-1 pb-1 border-b border-slate-100 dark:border-slate-800">
                                         <div className="flex items-center gap-1.5 flex-wrap">
                                           <span className="font-semibold text-slate-800 dark:text-white">
-                                            Class {classNum} ({log.date}{formatClassTimeRange(log.classStartTime, log.classEndTime) ? ` · ${formatClassTimeRange(log.classStartTime, log.classEndTime)}` : ""})
+                                            Class {classNum} ({log.date}{formatClassTimeRange(log.classStartTime, log.classEndTime) ? ` · ${formatClassTimeRange(log.classStartTime, log.classEndTime)}` : ""}{log.status === "Done" && formatHours(logMinutes(log)) ? ` · ${formatHours(logMinutes(log))}` : ""})
                                           </span>
                                           <span className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold px-1.5 py-0.2 rounded">
                                             Month {log.packageCycle || 1}
@@ -775,7 +816,7 @@ export default function TeacherDashboard() {
                       <TimeInput12
                         required
                         value={classStartTime}
-                        onChange={setClassStartTime}
+                        onChange={changeClassStartTime}
                         ariaLabel="Class start time"
                         className="h-11 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
@@ -796,6 +837,43 @@ export default function TeacherDashboard() {
                       ? "Filled with the usual class time. Change it if this class was at a different time."
                       : "Select the time this class was scheduled for."}
                   </p>
+                </div>
+
+                {/* Class Duration */}
+                <div>
+                  <span className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Class Duration</span>
+                  <div className="grid grid-cols-4 gap-2">
+                    {CLASS_DURATION_OPTIONS.map((minutes) => {
+                      const selected = classMinutes(classStartTime, classEndTime) === minutes;
+                      return (
+                        <button
+                          key={minutes}
+                          type="button"
+                          onClick={() => pickClassDuration(minutes)}
+                          className={`flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            selected
+                              ? "border-indigo-500 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 shadow-sm"
+                              : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
+                          }`}
+                        >
+                          {selected && <CheckCircle2 className="h-3.5 w-3.5" />}
+                          {formatHours(minutes)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    Duration: <strong className="text-slate-700 dark:text-slate-200">{formatHours(classMinutes(classStartTime, classEndTime)) || "—"}</strong>
+                    {selectedStudent.plannedClassMinutes ? ` · Plan: ${formatHours(selectedStudent.plannedClassMinutes)} per class` : ""}
+                  </p>
+                  {modalType === "Done" &&
+                    selectedStudent.plannedClassMinutes &&
+                    classMinutes(classStartTime, classEndTime) &&
+                    classMinutes(classStartTime, classEndTime) !== selectedStudent.plannedClassMinutes && (
+                      <p className="mt-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                        This is different from the student's plan. The admin will review it.
+                      </p>
+                    )}
                 </div>
 
                 {/* DONE Popup: Topics Covered */}
