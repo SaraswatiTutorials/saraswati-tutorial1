@@ -67,6 +67,11 @@ const attendanceSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    // Class length in minutes, worked out from the class time (null on records without a time)
+    durationMinutes: {
+      type: Number,
+      default: null,
+    },
     timestamp: {
       type: Date,
       default: Date.now,
@@ -118,6 +123,7 @@ attendanceSchema.pre("save", function (next) {
 attendanceSchema.index({ parentEnquiryId: 1, packageCycle: 1, date: 1, status: 1 });
 attendanceSchema.index({ parentEnquiryId: 1, packageCycle: 1, sessionNumber: 1 });
 attendanceSchema.index({ tutorId: 1 });
+attendanceSchema.index({ status: 1, date: 1 }); // tutor hours report
 attendanceSchema.index({ externalAttendanceId: 1 }, { sparse: true });
 
 export default mongoose.model("Attendance", attendanceSchema);

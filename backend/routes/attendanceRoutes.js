@@ -10,7 +10,15 @@ import {
   deleteOdooAttendanceLog,
 } from "../utils/odooService.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
-import { parseClassTime, usualClassTime, formatClassTimeRange } from "../utils/classTime.js";
+import {
+  parseClassTime,
+  usualClassTime,
+  formatClassTimeRange,
+  classMinutes,
+  logMinutes,
+  plannedClassMinutes,
+} from "../utils/classTime.js";
+import { summarizeTutorHours } from "../utils/tutorHours.js";
 import {
   withStudentLock,
   addOneMonth,
@@ -73,6 +81,10 @@ export function computeCycleBreakdown(lead, allLogs) {
 
     const doneCount = cycleLogs.filter((l) => l.status === "Done").length;
     const missedCount = cycleLogs.filter((l) => l.status === "Missed").length;
+    // Hours taught this month (Done classes only; records without a class time count as 0)
+    const doneMinutes = cycleLogs
+      .filter((l) => l.status === "Done")
+      .reduce((sum, l) => sum + (logMinutes(l) || 0), 0);
 
     // Check archived history if available
     const historyEntry = (lead.packageHistory || []).find((h) => h.cycle === c);
@@ -113,6 +125,7 @@ export function computeCycleBreakdown(lead, allLogs) {
       totalScheduled: scheduled,
       completedCount: doneCount,
       missedCount,
+      doneMinutes,
       remainingCount: remaining,
       status,
       logs: cycleLogs,
@@ -180,6 +193,7 @@ export async function formatStudentCard(lead) {
       totalScheduled: c.totalScheduled,
       completedCount: c.completedCount,
       missedCount: c.missedCount,
+      doneMinutes: c.doneMinutes,
       remainingCount: c.remainingCount,
       status: c.status,
     })),
@@ -187,6 +201,7 @@ export async function formatStudentCard(lead) {
     classDuration: lead.classDuration || "Not provided",
     usualClassStartTime: usualClassTime(lead).start,
     usualClassEndTime: usualClassTime(lead).end,
+    plannedClassMinutes: plannedClassMinutes(lead),
     currentAttendanceStatus: latestLog ? latestLog.status : "Pending",
     latestLogDate: latestLog ? latestLog.date : null,
     latestLogTopics: latestLog ? latestLog.topicsCovered : "",
@@ -376,6 +391,7 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
       if (classTime.provided) {
         existing.classStartTime = classTime.start;
         existing.classEndTime = classTime.end;
+        existing.durationMinutes = classMinutes(classTime.start, classTime.end);
       }
       existing.tutorId = tutor._id;
       existing.tutorName = tutor.name;
@@ -416,6 +432,7 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
         date,
         classStartTime: classTime.provided ? classTime.start : "",
         classEndTime: classTime.provided ? classTime.end : "",
+        durationMinutes: classTime.provided ? classMinutes(classTime.start, classTime.end) : null,
       });
 
       // Stable externalAttendanceId (uses MongoDB _id)
@@ -665,6 +682,48 @@ router.post("/parent-login", async (req, res) => {
 });
 
 // =============================================================
+// GET: Tutor hours for payroll (Admin only)
+// GET /api/attendance/tutor-hours?from=2026-10-01&to=2026-10-31
+// =============================================================
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+router.get("/tutor-hours", verifyToken(["admin"]), async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    if (!DATE_RE.test(from || "") || !DATE_RE.test(to || "")) {
+      return res.status(400).json({ success: false, message: "Select a From and To date." });
+    }
+    if (from > to) {
+      return res.status(400).json({ success: false, message: "The From date must be on or before the To date." });
+    }
+
+    const logs = await Attendance.find({ status: "Done", date: { $gte: from, $lte: to } })
+      .select("parentEnquiryId tutorId tutorName studentName requirementId status date classStartTime classEndTime durationMinutes")
+      .lean();
+
+    const leadIds = [...new Set(logs.map((l) => String(l.parentEnquiryId)))];
+    const leads = await ParentEnquiry.find({ _id: { $in: leadIds } })
+      .select("wards requirementId hoursPerDay classDuration startTime endTime classTimingSlot")
+      .lean();
+    const leadsById = new Map(
+      leads.map((lead) => [
+        String(lead._id),
+        {
+          studentName: lead.wards?.map((w) => w.studentName).filter(Boolean).join(", ") || "",
+          requirementId: lead.requirementId || "",
+          plannedMinutes: plannedClassMinutes(lead),
+        },
+      ])
+    );
+
+    res.json({ success: true, from, to, ...summarizeTutorHours(logs, leadsById) });
+  } catch (err) {
+    console.error("Tutor hours report error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// =============================================================
 // GET: Admin Alerts (Self-healing list of notifications)
 // =============================================================
 router.get("/admin-alerts", verifyToken(["admin"]), async (req, res) => {
@@ -855,6 +914,7 @@ router.put("/log/:logId", verifyToken(["admin"]), async (req, res) => {
       if (!classTime.ok) return res.status(400).json({ message: classTime.message });
       log.classStartTime = classTime.provided ? classTime.start : "";
       log.classEndTime = classTime.provided ? classTime.end : "";
+      log.durationMinutes = classTime.provided ? classMinutes(classTime.start, classTime.end) : null;
     }
 
     if (status) log.status = status;

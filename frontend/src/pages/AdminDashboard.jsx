@@ -54,7 +54,7 @@ import {
 import { API_BASE } from "../config";
 import ThemeToggle from "../components/ThemeToggle";
 import AdminLayout from "../components/admin/AdminLayout";
-import { formatClassTimeRange, classTimeError } from "../utils/classTime";
+import { formatClassTimeRange, formatTime12, classTimeError, logMinutes, formatHours, plannedClassMinutes } from "../utils/classTime";
 import TimeInput12 from "../components/TimeInput12";
 import {
   AreaChart,
@@ -3976,6 +3976,7 @@ function AdminAttendanceConsole({
   }, [searchTerm]);
   const [expandedId, setExpandedId] = useState(null);
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+  const [showTutorHours, setShowTutorHours] = useState(false);
   const [activeCycleFilter, setActiveCycleFilter] = useState({}); // { [leadId]: 'all' | cycleNumber }
   const [attendanceColumns, setAttendanceColumns] = useState(() => {
     try {
@@ -4320,6 +4321,16 @@ function AdminAttendanceConsole({
 
           <button
             type="button"
+            onClick={() => setShowTutorHours(true)}
+            className="flex items-center gap-1.5 px-3.5 h-11 rounded-2xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/60 text-xs font-bold text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition cursor-pointer shrink-0 shadow-sm"
+            title="Completed classes and hours per tutor, for payment"
+          >
+            <Clock className="h-4 w-4" />
+            Tutor Hours
+          </button>
+
+          <button
+            type="button"
             onClick={handleSyncAllToOdoo}
             disabled={syncingOdoo}
             className="flex items-center gap-1.5 px-3.5 h-11 rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition cursor-pointer shrink-0 shadow-sm disabled:opacity-50"
@@ -4632,7 +4643,7 @@ function AdminAttendanceConsole({
                                             </div>
                                           </div>
 
-                                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
                                             <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
                                               <span className="text-xs font-bold uppercase text-slate-400 block">Total</span>
                                               <strong className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -4655,6 +4666,12 @@ function AdminAttendanceConsole({
                                               <span className="text-xs font-bold uppercase text-slate-400 block">Remaining</span>
                                               <strong className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
                                                 {selectedCycleObj?.remainingCount ?? Math.max(0, (selectedCycleObj?.totalScheduled ?? p.totalClasses ?? 12) - filteredLogs.filter(l => l.status === "Done").length)}
+                                              </strong>
+                                            </div>
+                                            <div className="bg-white dark:bg-slate-800 rounded-xl p-2 border border-slate-200 dark:border-slate-700 shadow-xs">
+                                              <span className="text-xs font-bold uppercase text-slate-400 block">Hours Taught</span>
+                                              <strong className="text-sm font-bold text-violet-600 dark:text-violet-400">
+                                                {formatHours(filteredLogs.filter(l => l.status === "Done").reduce((sum, l) => sum + (logMinutes(l) || 0), 0)) || "0 hrs"}
                                               </strong>
                                             </div>
                                           </div>
@@ -4800,6 +4817,23 @@ function AdminAttendanceConsole({
                                                     <span className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 text-indigo-700 dark:text-indigo-400 text-xs font-bold px-2 py-0.5 rounded">
                                                       Month {log.packageCycle || 1}
                                                     </span>
+                                                    {log.status === "Done" && (() => {
+                                                      const minutes = logMinutes(log);
+                                                      const planned = plannedClassMinutes(p);
+                                                      const mismatch = minutes && planned && minutes !== planned;
+                                                      return (
+                                                        <span
+                                                          title={mismatch ? `Plan is ${formatHours(planned)} per class` : undefined}
+                                                          className={`text-xs font-bold px-1.5 py-0.5 rounded border ${
+                                                            mismatch
+                                                              ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-400"
+                                                              : "bg-violet-50 dark:bg-violet-950/40 border-violet-100 dark:border-violet-900/60 text-violet-700 dark:text-violet-400"
+                                                          }`}
+                                                        >
+                                                          {formatHours(minutes) || "Duration unknown"}{mismatch ? ` (plan ${formatHours(planned)})` : ""}
+                                                        </span>
+                                                      );
+                                                    })()}
                                                     <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
                                                       log.status === "Done"
                                                         ? "bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-400"
@@ -4995,6 +5029,8 @@ function AdminAttendanceConsole({
         </table>
       </div>
 
+      {showTutorHours && <TutorHoursReport onClose={() => setShowTutorHours(false)} />}
+
       {showCustomizeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-fadeIn">
           <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col max-h-[85vh] z-50">
@@ -5090,6 +5126,219 @@ function AdminAttendanceConsole({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Tutor Hours report (payroll) ─────────────────────────────────────
+// Classes marked Done in a date range, per tutor and student, with hours.
+// Classes whose length differs from the student's plan are flagged in amber.
+const localDate = (d) => d.toLocaleDateString("en-CA"); // "2026-10-15"
+const csvCell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+function TutorHoursReport({ onClose }) {
+  const today = new Date();
+  const [from, setFrom] = useState(localDate(new Date(today.getFullYear(), today.getMonth(), 1)));
+  const [to, setTo] = useState(localDate(today));
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [expandedTutorId, setExpandedTutorId] = useState(null);
+
+  async function loadReport() {
+    setError("");
+    if (!from || !to) return setError("Select a From and To date.");
+    if (from > to) return setError("The From date must be on or before the To date.");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/attendance/tutor-hours?from=${from}&to=${to}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to load tutor hours.");
+      setReport(data);
+      setExpandedTutorId(null);
+    } catch (err) {
+      setError(err.message || "Failed to load tutor hours.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function downloadCsv() {
+    const rows = [["Tutor", "Student", "Requirement ID", "Date", "From", "To", "Hours", "Plan Hours", "Different From Plan"]];
+    report.tutors.forEach((t) => {
+      t.students.forEach((s) => {
+        s.classes.forEach((c) => {
+          rows.push([
+            t.tutorName,
+            s.studentName,
+            s.requirementId,
+            c.date,
+            formatTime12(c.classStartTime),
+            formatTime12(c.classEndTime),
+            c.minutes ? Math.round((c.minutes / 60) * 100) / 100 : "",
+            s.plannedMinutes ? s.plannedMinutes / 60 : "",
+            c.mismatch ? "Yes" : "",
+          ]);
+        });
+      });
+      rows.push([`${t.tutorName} — TOTAL`, "", "", "", "", "", Math.round((t.totalMinutes / 60) * 100) / 100, "", t.mismatchClasses ? `${t.mismatchClasses} flagged` : ""]);
+    });
+    const csv = rows.map((r) => r.map(csvCell).join(",")).join("\n");
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    link.download = `tutor-hours_${from}_to_${to}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  const dateInputClass =
+    "h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 animate-fadeIn">
+      <div className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col max-h-[92vh]">
+        <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+            <div>
+              <h3 className="text-sm font-bold">Tutor Hours</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Completed classes and hours per tutor, for payment.</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 text-slate-500 cursor-pointer" aria-label="Close">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-3 flex flex-wrap items-end gap-3 border-b border-slate-100 dark:border-slate-800">
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
+            <span className="block mb-1">From</span>
+            <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className={dateInputClass} />
+          </label>
+          <label className="text-xs font-bold text-slate-600 dark:text-slate-300">
+            <span className="block mb-1">To</span>
+            <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className={dateInputClass} />
+          </label>
+          <button
+            type="button"
+            onClick={loadReport}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-4 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer disabled:opacity-60"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            {loading ? "Loading..." : "Show Hours"}
+          </button>
+          <button
+            type="button"
+            onClick={downloadCsv}
+            disabled={!report || report.tutors.length === 0}
+            className="flex items-center gap-1.5 px-4 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer disabled:opacity-50"
+          >
+            <FileDown className="h-4 w-4" />
+            Download CSV
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-5 space-y-4">
+          {error && (
+            <p className="flex items-center gap-2 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/60 rounded-xl p-3">
+              <AlertCircle className="h-4 w-4 shrink-0" /> {error}
+            </p>
+          )}
+
+          {report && (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                {[
+                  ["Tutors", report.tutors.length, "text-slate-800 dark:text-slate-100"],
+                  ["Classes Done", report.totals.classesDone, "text-emerald-600 dark:text-emerald-400"],
+                  ["Total Hours", formatHours(report.totals.totalMinutes) || "0 hrs", "text-violet-600 dark:text-violet-400"],
+                  ["Different From Plan", report.totals.mismatchClasses, "text-amber-600 dark:text-amber-400"],
+                ].map(([label, value, color]) => (
+                  <div key={label} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3">
+                    <span className="block text-xs font-bold uppercase text-slate-400">{label}</span>
+                    <strong className={`text-lg font-bold ${color}`}>{value}</strong>
+                  </div>
+                ))}
+              </div>
+
+              {report.totals.unknownDurationClasses > 0 && (
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {report.totals.unknownDurationClasses} older class{report.totals.unknownDurationClasses === 1 ? " has" : "es have"} no class time recorded, so {report.totals.unknownDurationClasses === 1 ? "it isn't" : "they aren't"} included in the hours.
+                </p>
+              )}
+
+              {report.tutors.length === 0 ? (
+                <p className="text-xs font-bold text-slate-400 text-center py-8">No completed classes between these dates.</p>
+              ) : (
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+                  {report.tutors.map((t) => {
+                    const open = expandedTutorId === t.tutorId;
+                    return (
+                      <div key={t.tutorId}>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedTutorId(open ? null : t.tutorId)}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer"
+                        >
+                          {open ? <ChevronUp className="h-4 w-4 text-slate-400 shrink-0" /> : <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />}
+                          <span className="flex-1 min-w-0 text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{t.tutorName}</span>
+                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">{t.classesDone} classes</span>
+                          <span className="text-sm font-bold text-violet-600 dark:text-violet-400 shrink-0 w-20 text-right">{formatHours(t.totalMinutes) || "0 hrs"}</span>
+                          {t.mismatchClasses > 0 && (
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60 shrink-0">
+                              {t.mismatchClasses} flagged
+                            </span>
+                          )}
+                        </button>
+
+                        {open && (
+                          <div className="px-4 pb-4 space-y-3 bg-slate-50/60 dark:bg-slate-950/30">
+                            {t.students.map((s) => (
+                              <div key={s.parentEnquiryId} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                  <div className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                                    {s.studentName} <span className="text-slate-400 font-semibold">({s.requirementId || "—"})</span>
+                                  </div>
+                                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                    Plan: {formatHours(s.plannedMinutes) || "—"} · {s.classesDone} classes · <strong className="text-violet-600 dark:text-violet-400">{formatHours(s.totalMinutes) || "0 hrs"}</strong>
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {s.classes.map((c) => (
+                                    <span
+                                      key={c.logId}
+                                      title={formatClassTimeRange(c.classStartTime, c.classEndTime) || "No class time recorded"}
+                                      className={`text-xs font-semibold px-2 py-1 rounded-lg border ${
+                                        c.mismatch
+                                          ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-400"
+                                          : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+                                      }`}
+                                    >
+                                      {c.date} · {formatHours(c.minutes) || "no time"}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
