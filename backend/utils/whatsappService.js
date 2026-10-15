@@ -211,12 +211,17 @@ export async function callOdooMethod(uid, model, method, args, kwargs = {}) {
  * Check if a tutor's WhatsApp number has an active conversation within 24 hours.
  * Returns the discuss channel ID if found, null otherwise.
  */
+// Odoo datetime fields take UTC as "YYYY-MM-DD HH:MM:SS" (no "T", no timezone)
+export function toOdooDatetime(date) {
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
 async function findActiveConversation(uid, phoneNumber) {
   try {
     const cleanPhone = String(phoneNumber || "").replace(/\D/g, "").slice(-10);
     if (!cleanPhone) return null;
 
-    const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const cutoffDate = toOdooDatetime(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
     // Search for WhatsApp discuss channels linked to this phone number
     const channels = await callOdooMethod(
@@ -259,7 +264,7 @@ export async function validateTemplate(uid, templateIdentifier) {
       uid,
       "whatsapp.template",
       "search_read",
-      [[domain]],
+      [domain],
       { fields: ["id", "status"], limit: 1 }
     );
     if (!templates || templates.length === 0) {
