@@ -82,14 +82,22 @@ describe("validateSubmittedPricing", () => {
     assert.equal(result.errors[0].code, "UNAVAILABLE");
   });
 
-  test("pending combinations are invalid: Advance 3×1 before price approval", () => {
+  test("Advance 3×1 for Class 6 is valid at its own 1-hour price", () => {
     const result = validateSubmittedPricing({
       planType: "advance", daysPerWeek: 3, hoursPerDay: 1, preferredMode: HOME,
       wards: [{ classGrade: "6", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }],
-      finalPrice: 8600, monthlyFees: 8600,
+      finalPrice: 5900, monthlyFees: 5900,
+    });
+    assert.notEqual(result.status, "invalid", JSON.stringify(result.errors));
+  });
+
+  test("1-hour Advance for Class 8 is invalid", () => {
+    const result = validateSubmittedPricing({
+      planType: "advance", daysPerWeek: 3, hoursPerDay: 1, preferredMode: HOME,
+      wards: [{ classGrade: "8", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }],
     });
     assert.equal(result.status, "invalid");
-    assert.equal(result.errors[0].code, "PRICE_PENDING");
+    assert.equal(result.errors[0].code, "UNAVAILABLE");
   });
 
   test("1-hour Advance for Class 10 is invalid", () => {

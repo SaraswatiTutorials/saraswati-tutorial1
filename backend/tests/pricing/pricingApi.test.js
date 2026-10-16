@@ -118,7 +118,10 @@ describe("well-formed but unpriceable requests get HTTP 400 with engine messages
     ["off-grid hours 1.46", { hoursPerDay: 1.46 }, "INVALID_SCHEDULE"],
     ["unsupported 4 days", { daysPerWeek: 4 }, "INVALID_SCHEDULE"],
     ["Foundation for Class 6", { planType: "foundation" }, "UNAVAILABLE"],
-    ["pending Advance 3×1", { hoursPerDay: 1 }, "PRICE_PENDING"],
+    ["Advance 3×1 for Class 8", {
+      hoursPerDay: 1,
+      wards: [{ studentName: "A", classGrade: "8", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }],
+    }, "UNAVAILABLE"],
     ["unknown plan", { planType: "platinum" }, "UNKNOWN_PLAN"],
   ]) {
     test(label, async () => {

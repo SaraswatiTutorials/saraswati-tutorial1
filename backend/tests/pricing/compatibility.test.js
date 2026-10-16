@@ -77,7 +77,7 @@ describe("pricing API (no database)", () => {
     assert.equal(plans.foundation.available, false);
     assert.equal(plans.advance.available, true);
     const advance36 = plans.advance.options.find((o) => o.days === 3 && o.hours === 1);
-    assert.deepEqual(advance36, { days: 3, hours: 1, status: "pending", price: null });
+    assert.deepEqual(advance36, { days: 3, hours: 1, status: "available", price: 5900 });
     assert.equal(plans.advance.options.find((o) => o.days === 3 && o.hours === 1.5).price, 8600);
   });
 
