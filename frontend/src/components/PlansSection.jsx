@@ -129,7 +129,7 @@ export default function PlansSection() {
     }
   };
 
-  // Same availability rules as the enquiry form (e.g. no Foundation below Class 8).
+  // Same availability rules as the enquiry form (e.g. no Foundation below Class 6).
   const student = [{ classGrade: selectedClass, curriculum: selectedBoard }];
   const visiblePlans = PLANS.filter((p) => isPlanAvailable(p.id, student));
   const activePlanData = visiblePlans.find((p) => p.id === activePlan);

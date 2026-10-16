@@ -71,8 +71,8 @@ describe("pricing API (no database)", () => {
     return res;
   };
 
-  test("GET /options hides Foundation for Class 6 and returns prices", () => {
-    const res = call("get", "/options", { query: { classGrade: "6", curriculum: "CBSE" } });
+  test("GET /options hides Foundation for Class 5 and returns prices", () => {
+    const res = call("get", "/options", { query: { classGrade: "5", curriculum: "CBSE" } });
     const plans = Object.fromEntries(res.payload.plans.map((p) => [p.id, p]));
     assert.equal(plans.foundation.available, false);
     assert.equal(plans.advance.available, true);
@@ -86,7 +86,7 @@ describe("pricing API (no database)", () => {
   });
 
   test("POST /options intersects availability across students", () => {
-    const res = call("post", "/options", { body: { wards: [{ classGrade: "6" }, { classGrade: "10" }] } });
+    const res = call("post", "/options", { body: { wards: [{ classGrade: "5" }, { classGrade: "10" }] } });
     assert.equal(res.payload.plans.find((p) => p.id === "foundation").available, false);
   });
 
@@ -96,10 +96,10 @@ describe("pricing API (no database)", () => {
         wards: [{ classGrade: "6", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }] },
     });
     assert.equal(ok.statusCode, 200);
-    assert.equal(ok.payload.monthlyPayable, 7500);
+    assert.equal(ok.payload.monthlyPayable, 6750);
 
     const bad = call("post", "/quote", {
-      body: { planType: "foundation", daysPerWeek: 3, hoursPerDay: 1.5, wards: [{ classGrade: "6" }] },
+      body: { planType: "foundation", daysPerWeek: 3, hoursPerDay: 1.5, wards: [{ classGrade: "5" }] },
     });
     assert.equal(bad.statusCode, 400);
     assert.equal(bad.payload.errors[0].code, "UNAVAILABLE");
