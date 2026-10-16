@@ -20,6 +20,8 @@ export const GRADE_GROUPS = [
 
 const ALL_GROUPS = GRADE_GROUPS;
 const CLASS_8_PLUS = GRADE_GROUPS.slice(3);
+// Advance 1-hour sessions: Classes 1–7 only (not Class 8 to Degree)
+const ADVANCE_ONE_HOUR_GROUPS = GRADE_GROUPS.slice(0, 3);
 
 // Combination keys are `${daysPerWeek}_${hoursPerSession.toFixed(1)}`.
 export const FEE_CONFIG = {
@@ -36,13 +38,15 @@ export const FEE_CONFIG = {
     "Degree": { "3_1.5": 13860, "3_2.0": 16170, "5_1.5": 18480, "5_2.0": 20790 },
   },
 
-  // PENDING APPROVAL (U2): Advance/Growth 3 days × 1 hour base prices.
-  // While a value is null the combination stays hidden and cannot be quoted.
-  // Values must be CBSE base prices in the same form as masterPrices
-  // (before the plan multiplier, board multiplier and rounding).
+  // Plan-only base prices for schedules not in masterPrices: Advance 1-hour sessions
+  // (Classes 1–7). Values are the 1-hour Advanced base anchors from the pricing
+  // document (Grades 1–5 use the Grades 1–3 anchor). They are CBSE base prices in the
+  // same form as masterPrices (before the plan multiplier, board multiplier and rounding).
+  // A null or missing value keeps that grade's combination hidden and unquotable.
   pendingBasePrices: {
     advance: {
-      "3_1.0": { "Grades 1–5": null, "Grade 6": null },
+      "3_1.0": { "Grades 1–5": 4500, "Grade 6": 5000, "Grade 7": 5500 },
+      "5_1.0": { "Grades 1–5": 6000, "Grade 6": 6000, "Grade 7": 6500 },
     },
   },
 
@@ -90,10 +94,10 @@ export const FEE_CONFIG = {
       { combo: "5_2.0", groups: CLASS_8_PLUS },
     ],
     advance: [
-      // NEW, pending price (U2). Class 7 is not included pending decision U3.
-      { combo: "3_1.0", groups: ["Grades 1–5", "Grade 6"] },
+      { combo: "3_1.0", groups: ADVANCE_ONE_HOUR_GROUPS },
       { combo: "3_1.5", groups: ALL_GROUPS },
       { combo: "3_2.0", groups: ALL_GROUPS },
+      { combo: "5_1.0", groups: ADVANCE_ONE_HOUR_GROUPS },
       { combo: "5_1.5", groups: ALL_GROUPS },
       { combo: "5_2.0", groups: ALL_GROUPS },
     ],

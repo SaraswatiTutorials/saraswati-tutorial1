@@ -98,21 +98,23 @@ describe("availability matrix", () => {
     }
   });
 
-  test("Advance 3×1 is pending (hidden, unpriced) for Classes 1–6 until its price is approved", () => {
-    for (const g of ["1 to 5", "6"]) {
-      assert.equal(getComboStatus("advance", g, 3, 1), "pending");
-      assert.equal(errorCode(() => calculatePlanPrice("advance", g, "CBSE", 3, 1, HOME)), ERROR_CODES.PRICE_PENDING);
-      const opts = getAvailableOptions("advance", [{ classGrade: g, curriculum: "CBSE" }], HOME);
-      assert.ok(!opts.some((o) => o.days === 3 && o.hours === 1));
+  test("Advance 1-hour (3 and 5 days) is offered for Classes 1–7 at the document's base prices", () => {
+    // [class, 3×1 home, 5×1 home]: base × 1.18 (Advance up to Class 7), nearest ₹100
+    for (const [g, d3, d5] of [["1 to 5", 5300, 7100], ["6", 5900, 7100], ["7", 6500, 7700]]) {
+      assert.equal(getComboStatus("advance", g, 3, 1), "available");
+      assert.equal(getComboStatus("advance", g, 5, 1), "available");
+      assert.equal(calculatePlanPrice("advance", g, "CBSE", 3, 1, HOME), d3);
+      assert.equal(calculatePlanPrice("advance", g, "CBSE", 5, 1, HOME), d5);
     }
+    assert.equal(calculatePlanPrice("advance", "6", "CBSE", 3, 1, ONLINE), 4150); // 5000 × 1.18 × 0.7, nearest ₹50
   });
 
-  test("Advance 3×1 is unavailable for Class 7 (decision pending) and Classes 8+", () => {
-    for (const g of ["7", ...SENIOR]) assert.equal(getComboStatus("advance", g, 3, 1), "unavailable");
-  });
-
-  test("Advance 5×1 is unavailable for every grade", () => {
-    for (const g of [...JUNIOR, ...SENIOR]) assert.equal(getComboStatus("advance", g, 5, 1), "unavailable");
+  test("Advance 1-hour is unavailable for Class 8 to Degree", () => {
+    for (const g of SENIOR) {
+      assert.equal(getComboStatus("advance", g, 3, 1), "unavailable");
+      assert.equal(getComboStatus("advance", g, 5, 1), "unavailable");
+      assert.equal(errorCode(() => calculatePlanPrice("advance", g, "CBSE", 3, 1, HOME)), ERROR_CODES.UNAVAILABLE);
+    }
   });
 
   test("1-hour sessions in Classes 8–12 exist only on the configured Elite schedules", () => {
@@ -134,14 +136,15 @@ describe("availability matrix", () => {
     }
   });
 
-  test("approving a 3×1 price enables it only for the configured grades", () => {
+  test("a missing 1-hour price hides that schedule for that grade only", () => {
     const config = withConfig((c) => {
-      c.pendingBasePrices.advance["3_1.0"]["Grade 6"] = 5000; // test fixture value, not an approved price
+      c.pendingBasePrices.advance["3_1.0"]["Grade 6"] = null;
     });
-    assert.equal(getComboStatus("advance", "6", 3, 1, config), "available");
-    assert.equal(calculatePlanPrice("advance", "6", "CBSE", 3, 1, HOME, config), 5900); // 5000 × 1.18, nearest ₹100
-    assert.equal(getComboStatus("advance", "1 to 5", 3, 1, config), "pending");
-    assert.equal(getComboStatus("advance", "7", 3, 1, config), "unavailable");
+    assert.equal(getComboStatus("advance", "6", 3, 1, config), "pending");
+    assert.equal(errorCode(() => calculatePlanPrice("advance", "6", "CBSE", 3, 1, HOME, config)), ERROR_CODES.PRICE_PENDING);
+    assert.ok(!getAvailableOptions("advance", [{ classGrade: "6", curriculum: "CBSE" }], HOME, config)
+      .some((o) => o.days === 3 && o.hours === 1));
+    assert.equal(getComboStatus("advance", "7", 3, 1, config), "available");
     assert.equal(getComboStatus("foundation", "6", 3, 1, config), "unavailable");
   });
 
@@ -150,6 +153,15 @@ describe("availability matrix", () => {
     assert.deepEqual(getAvailableOptions("foundation", student, HOME).map((o) => [o.days, o.hours]), STANDARD);
     assert.deepEqual(getAvailableOptions("advance", student, HOME).map((o) => [o.days, o.hours]), STANDARD);
     assert.deepEqual(getAvailableOptions("elite", student, HOME).map((o) => [o.days, o.hours]), ELITE);
+    assert.deepEqual(
+      getAvailableOptions("advance", [{ classGrade: "6", curriculum: "CBSE" }], HOME).map((o) => [o.days, o.hours]),
+      [[3, 1], [3, 1.5], [3, 2], [5, 1], [5, 1.5], [5, 2]]
+    );
+  });
+
+  test("siblings in Class 6 and Class 9 are not offered Advance 1-hour (needs every student eligible)", () => {
+    const wards = [{ classGrade: "6", curriculum: "CBSE" }, { classGrade: "9", curriculum: "CBSE" }];
+    assert.deepEqual(getAvailableOptions("advance", wards, HOME).map((o) => [o.days, o.hours]), STANDARD);
   });
 });
 
@@ -176,8 +188,8 @@ describe("missing prices and invalid input are rejected, never substituted", () 
       planType: "advance", daysPerWeek: 3, hoursPerDay: 1, preferredMode: HOME,
       wards: [{ classGrade: "6", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }],
     });
-    assert.equal(quote.ok, false);
-    assert.equal(quote.errors[0].code, ERROR_CODES.PRICE_PENDING);
+    assert.ok(quote.ok, JSON.stringify(quote.errors));
+    assert.equal(quote.monthlyPayable, 5900); // its own 1-hour price, not the 3×1.5 price (8600)
   });
 });
 
