@@ -77,8 +77,8 @@ describe("pricing API (no database)", () => {
     assert.equal(plans.foundation.available, false);
     assert.equal(plans.advance.available, true);
     const advance36 = plans.advance.options.find((o) => o.days === 3 && o.hours === 1);
-    assert.deepEqual(advance36, { days: 3, hours: 1, status: "available", price: 5500 });
-    assert.equal(plans.advance.options.find((o) => o.days === 3 && o.hours === 1.5).price, 6750);
+    assert.deepEqual(advance36, { days: 3, hours: 1, status: "available", price: 5000 });
+    assert.equal(plans.advance.options.find((o) => o.days === 3 && o.hours === 1.5).price, 7500);
   });
 
   test("GET /options requires a class", () => {
@@ -96,7 +96,7 @@ describe("pricing API (no database)", () => {
         wards: [{ classGrade: "6", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }] },
     });
     assert.equal(ok.statusCode, 200);
-    assert.equal(ok.payload.monthlyPayable, 6750);
+    assert.equal(ok.payload.monthlyPayable, 7500);
 
     const bad = call("post", "/quote", {
       body: { planType: "foundation", daysPerWeek: 3, hoursPerDay: 1.5, wards: [{ classGrade: "6" }] },

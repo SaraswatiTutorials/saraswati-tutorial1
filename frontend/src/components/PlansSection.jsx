@@ -30,6 +30,11 @@ import { getAvailableOptions, getEffectiveHourlyRate, isPlanAvailable } from "..
 import { FEE_CONFIG } from "../pricing/feeConfig";
 import { trackEvent } from "../utils/analytics";
 
+const CLASS_OPTIONS = [
+  "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7",
+  "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "Degree",
+];
+
 const TIMELINE_STEPS = [
   {
     number: "1",
@@ -83,7 +88,10 @@ const itemVariants = {
 
 export default function PlansSection() {
   const [activePlan, setActivePlan] = useState(null);
-  const [selectedClass, setSelectedClass] = useState(() => localStorage.getItem("selectedClass") || "Grade 6");
+  const [selectedClass, setSelectedClass] = useState(() => {
+    const saved = localStorage.getItem("selectedClass");
+    return CLASS_OPTIONS.includes(saved) ? saved : "Grade 6"; // a retired value such as "Grade 1–5" falls back
+  });
   const [selectedBoard, setSelectedBoard] = useState(() => localStorage.getItem("selectedBoard") || "CBSE");
   const detailsRef = useRef(null);
   
@@ -206,7 +214,7 @@ export default function PlansSection() {
                 }}
                 className="w-full bg-slate-900/80 border border-white/10 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition duration-300 cursor-pointer shadow-inner backdrop-blur-md"
               >
-                {["Grade 1–5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "Degree"].map((cg) => (
+                {CLASS_OPTIONS.map((cg) => (
                   <option key={cg} value={cg} className="bg-slate-950 text-white">{cg}</option>
                 ))}
               </select>

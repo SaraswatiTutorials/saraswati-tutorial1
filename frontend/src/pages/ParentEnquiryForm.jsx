@@ -137,7 +137,11 @@ const dayOptions = [
 ];
 
 const classOptions = [
-  "1 to 5",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
   "6",
   "7",
   "8",
@@ -152,7 +156,7 @@ const classOptions = [
 const getCurriculumOptions = (classGrade) => {
   if (!classGrade) return [];
   const cg = String(classGrade).trim();
-  if (["1 to 5", "6", "7", "8", "9", "10"].includes(cg)) {
+  if (["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].includes(cg)) {
     return ["CBSE", "ICSE", "IGCSE", "IB", "NIOS", "Others"];
   }
   if (["11", "12"].includes(cg)) {
@@ -757,10 +761,9 @@ export default function ParentEnquiryForm() {
           let cgValue = prefilledClass || "";
           if (cgValue.startsWith("Grade ")) {
             cgValue = cgValue.replace("Grade ", "");
-            if (cgValue === "1–5" || cgValue === "1-5") {
-              cgValue = "1 to 5";
-            }
           }
+          if (cgValue === "Degree") cgValue = "Degree Courses";
+          if (!classOptions.includes(cgValue)) cgValue = ""; // e.g. the retired "1–5"
           
           updatedWards[0] = {
             ...updatedWards[0],

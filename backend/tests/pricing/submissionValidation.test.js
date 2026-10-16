@@ -86,7 +86,7 @@ describe("validateSubmittedPricing", () => {
     const result = validateSubmittedPricing({
       planType: "advance", daysPerWeek: 3, hoursPerDay: 1, preferredMode: HOME,
       wards: [{ classGrade: "6", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }],
-      finalPrice: 5500, monthlyFees: 5500,
+      finalPrice: 5000, monthlyFees: 5000,
     });
     assert.notEqual(result.status, "invalid", JSON.stringify(result.errors));
   });

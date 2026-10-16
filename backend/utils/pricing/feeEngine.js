@@ -70,18 +70,15 @@ const scheduleError = (config) => {
   );
 };
 
-// Maps both enquiry-form values ("1 to 5", "6", "PUC", "Degree Courses") and
-// homepage values ("Grade 1–5", "Grade 6", "Degree") to a grade group.
-// Unknown values return null rather than defaulting to a group.
+// Maps both enquiry-form values ("1", "6", "PUC", "Degree Courses") and
+// homepage values ("Grade 1", "Grade 6", "Degree") to a grade group.
+// Unknown values (including the retired combined "1 to 5") return null rather
+// than defaulting to a group.
 export const getGradeGroup = (classGrade) => {
   if (typeof classGrade !== "string") return null;
-  const cg = classGrade
-    .trim()
-    .replace(/^Grades?\s+/i, "")
-    .replace(/[–—]/g, "-");
+  const cg = classGrade.trim().replace(/^Grades?\s+/i, "");
 
-  if (cg === "1 to 5" || cg === "1-5") return "Grades 1–5";
-  if (["6", "7", "8", "9", "10", "11", "12"].includes(cg)) return `Grade ${cg}`;
+  if (["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"].includes(cg)) return `Grade ${cg}`;
   if (cg === "PUC") return "Grade 12";
   if (cg.toLowerCase().includes("degree")) return "Degree";
   return null;

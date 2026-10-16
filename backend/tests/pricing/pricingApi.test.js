@@ -54,7 +54,7 @@ describe("valid requests still work", () => {
   test("POST /quote returns the monthly quote", async () => {
     const r = await post("/quote", quoteBody());
     assert.equal(r.status, 200);
-    assert.equal(JSON.parse(r.text).monthlyPayable, 6750);
+    assert.equal(JSON.parse(r.text).monthlyPayable, 7500);
   });
 
   test("numeric strings for days and hours are accepted", async () => {
