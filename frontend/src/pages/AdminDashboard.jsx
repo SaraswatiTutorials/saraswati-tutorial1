@@ -2455,7 +2455,7 @@ export default function AdminDashboard() {
 
                                   <div className="space-y-0.5">
                                     <InfoRow icon={User} label="Student Name" value={ward.studentName || ward.fullName} />
-                                    <InfoRow icon={School} label="School" value={ward.schoolName} />
+                                    {ward.schoolName && <InfoRow icon={School} label="School" value={ward.schoolName} />}
                                     <InfoRow icon={GraduationCap} label="Class" value={ward.classGrade} />
                                     <InfoRow icon={BookOpen} label="Curriculum" value={ward.curriculum} />
                                     <InfoRow icon={BookOpen} label="Subjects" value={getSubjects(ward.subjectsNeeded)} />
@@ -3039,7 +3039,7 @@ export default function AdminDashboard() {
 
                                 <div className="space-y-0.5">
                                   <InfoRow icon={User} label="Student Name" value={ward.studentName || ward.fullName} />
-                                  <InfoRow icon={School} label="School" value={ward.schoolName} />
+                                  {ward.schoolName && <InfoRow icon={School} label="School" value={ward.schoolName} />}
                                   <InfoRow icon={GraduationCap} label="Class" value={ward.classGrade} />
                                   <InfoRow icon={BookOpen} label="Curriculum" value={ward.curriculum} />
                                   <InfoRow icon={BookOpen} label="Subjects" value={getSubjects(ward.subjectsNeeded)} />

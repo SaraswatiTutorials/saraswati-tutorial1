@@ -16,7 +16,6 @@ import {
   Phone,
   Mail,
   MapPin,
-  Building2,
   GraduationCap,
   Calendar,
   Eye,
@@ -91,7 +90,6 @@ const wardVariants = {
 
 const initialWard = {
   studentName: "",
-  schoolName: "",
   classGrade: "",
   curriculum: "",
   subjectsNeeded: [],
@@ -105,14 +103,14 @@ const initialForm = {
   address: "",
   preferredGender: "",
   preferredMode: "",
-  classTimingType: "Flexible",
-  classTimingMode: "Predefined",
-  classTimingSlot: "5:00 PM – 6:00 PM",
+  // No timing is pre-selected: the parent must choose "Fixed Timing" or "Flexible"
+  classTimingType: "",
+  classTimingSlot: "",
   preferredDays: [],
   preferredTime: "",
-  startTime: "17:00",
-  endTime: "18:30",
-  classDuration: "1.5 Hours",
+  startTime: "",
+  endTime: "",
+  classDuration: "",
   planType: "",
   daysPerWeek: null,
   hoursPerDay: null,
@@ -204,59 +202,6 @@ const subjectOptions = [
   "Spoken English",
 ];
 
-const bangaloreSchoolOptions = [
-  "The International School Bangalore",
-  "Inventure Academy",
-  "Mallya Aditi International School",
-  "Bangalore International School",
-  "Greenwood High International School",
-  "Vidyashilp Academy",
-  "Vidya Niketan School",
-  "The Valley School",
-  "Ebenezer International School",
-  "BGS International School",
-  "Sarala Birla Academy",
-  "Legacy School",
-  "Indus International School Bangalore",
-  "National Public School, Indiranagar",
-  "National Public School, Koramangala",
-  "National Public School, HSR Layout",
-  "Delhi Public School Bangalore South",
-  "Delhi Public School Bangalore East",
-  "New Horizon Gurukul",
-  "Sophia High School",
-  "Bishop Cotton Girls' School",
-  "Bishop Cotton Boys' School",
-  "The Frank Anthony Public School",
-  "Clarence High School",
-  "Bethany High",
-  "Ryan International School, Kundalahalli",
-  "Canadian International School",
-  "TRIO World Academy",
-  "Jain International Residential School",
-  "Sri Kumaran Children's Home",
-];
-
-const mumbaiSchoolOptions = [
-  "Dhirubhai Ambani International School",
-  "The Cathedral & John Connon School",
-  "Aditya Birla World Academy",
-  "Jamnabai Narsee School",
-  "Bombay Scottish School",
-  "Campillion School",
-  "Arya Vidya Mandir",
-  "Podar International School",
-  "Smt. Sulochanadevi Singhania School",
-  "Gems Genesis International School",
-  "Oberoi International School",
-  "Hiranandani Foundation School",
-  "Singhania School Thane",
-  "Ryan International School, Malad",
-  "Vibgyor High School, Goregaon",
-  "Billabong High International School",
-  "Lilavatibai Podar High School",
-];
-
 const preferredModeOptions = [
   "Online / One-to-One Tuition",
   "Home Tuition / In-Person",
@@ -293,15 +238,43 @@ const addHoursToTimeStr = (startTimeStr, hoursDuration) => {
   return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
 };
 
-const getSlotsForHours = (hours = 1.5) => {
-  const h = parseFloat(hours || 1.5);
-  if (h === 1) {
-    return ["4:00 PM – 5:00 PM", "5:00 PM – 6:00 PM", "6:00 PM – 7:00 PM", "7:00 PM – 8:00 PM"];
+// Start times offered for a fixed class time, grouped by part of the day.
+// Each one is shown as a full range worked out from the plan's hours per class.
+const TIMING_GROUPS = [
+  { label: "Morning", starts: ["07:00", "08:00", "09:00", "10:00", "11:00"] },
+  { label: "Afternoon", starts: ["12:00", "13:00", "14:00", "15:00"] },
+  { label: "Evening", starts: ["16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"] },
+];
+const PRESET_START_TIMES = TIMING_GROUPS.flatMap((group) => group.starts);
+
+// Form fields for a fixed class time starting at `start` ("17:00") and lasting `hours`
+const getFixedTimingFields = (start, hours) => {
+  const h = Number(hours) || 1.5;
+  const end = addHoursToTimeStr(start, h);
+  return {
+    startTime: start,
+    endTime: end,
+    classTimingSlot: `${formatTime12Hr(start)} – ${formatTime12Hr(end)}`,
+    classDuration: `${h} Hour${h !== 1 ? "s" : ""}`,
+  };
+};
+
+// "17:00", 1.5 → "5:00 – 6:30 PM" (AM/PM written once when both times share it)
+const formatSlotLabel = (start, hours) => {
+  const s = formatTime12Hr(start);
+  const e = formatTime12Hr(addHoursToTimeStr(start, Number(hours) || 1.5));
+  return s.slice(-2) === e.slice(-2) ? `${s.slice(0, -3)} – ${e}` : `${s} – ${e}`;
+};
+
+// Error for the step 3 class timing choice, or "" when it is complete
+const getTimingError = (form) => {
+  if (!form.classTimingType) return "Please choose a class timing: a fixed time or flexible.";
+  if (form.classTimingType !== "Fixed Timing") return "";
+  if (!form.startTime) return "Please pick a class start time.";
+  if (!calculateDuration(form.startTime, form.endTime)) {
+    return "The class must end before midnight. Please pick an earlier start time.";
   }
-  if (h === 2) {
-    return ["4:00 PM – 6:00 PM", "5:00 PM – 7:00 PM", "6:00 PM – 8:00 PM"];
-  }
-  return ["4:00 PM – 5:30 PM", "5:00 PM – 6:30 PM", "5:30 PM – 7:00 PM", "6:00 PM – 7:30 PM"];
+  return "";
 };
 
 // Schedules offered to every student on the enquiry (unavailable and
@@ -622,9 +595,6 @@ export default function ParentEnquiryForm() {
     selectedCity = "Mumbai";
   }
 
-  const isMumbai = selectedCity === "Mumbai";
-  const schoolOptions = isMumbai ? mumbaiSchoolOptions : bangaloreSchoolOptions;
-
   const [step, setStep] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
@@ -638,9 +608,16 @@ export default function ParentEnquiryForm() {
     try {
       const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
       if (saved?.form) {
+        // Drafts saved before the timing had to be chosen carry pre-filled
+        // defaults (marked by classTimingMode); drop them so the parent picks one.
+        const { classTimingMode, ...savedForm } = saved.form;
+        const timingReset = classTimingMode
+          ? { classTimingType: "", classTimingSlot: "", startTime: "", endTime: "", classDuration: "" }
+          : {};
         return {
           ...initialForm,
-          ...saved.form,
+          ...savedForm,
+          ...timingReset,
         };
       }
     } catch {}
@@ -657,6 +634,7 @@ export default function ParentEnquiryForm() {
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
   const [showAllFeatures, setShowAllFeatures] = useState(false);
   const [showDemoPreview, setShowDemoPreview] = useState(false);
+  const [showCustomTime, setShowCustomTime] = useState(false);
 
   // Auto-save form draft whenever step or form state changes
   useEffect(() => {
@@ -706,12 +684,6 @@ export default function ParentEnquiryForm() {
       return;
     }
 
-    // Automatically calculate End Time and Slot matching the chosen plan's session hours
-    const curStart = form.startTime || "17:00";
-    const calculatedEnd = addHoursToTimeStr(curStart, selectedOption.hours);
-    const calculatedSlot = `${formatTime12Hr(curStart)} – ${formatTime12Hr(calculatedEnd)}`;
-    const calculatedDuration = `${selectedOption.hours} Hour${selectedOption.hours !== 1 ? 's' : ''}`;
-
     setForm((prev) => ({
       ...prev,
       planType: plan.id,
@@ -719,14 +691,16 @@ export default function ParentEnquiryForm() {
       hoursPerDay: selectedOption.hours,
       ...getFeeFields(quote),
       preferredDays: [],
-      endTime: calculatedEnd,
-      classTimingSlot: calculatedSlot,
-      classDuration: calculatedDuration,
+      // A fixed time already picked keeps its start; the end follows the new plan's hours
+      ...(prev.classTimingType === "Fixed Timing" && prev.startTime
+        ? getFixedTimingFields(prev.startTime, selectedOption.hours)
+        : {}),
     }));
     setErrors((prev) => ({
       ...prev,
       planType: "",
       preferredDays: "",
+      classTiming: "",
     }));
     setViewingPlanId(null);
     setSelectedOption(null);
@@ -1027,10 +1001,6 @@ export default function ParentEnquiryForm() {
           newErrors[`wards.${index}.subjectsNeeded`] =
             "Subjects Required is required";
         }
-
-        if (!ward.schoolName.trim()) {
-          newErrors[`wards.${index}.schoolName`] = "School Name is required";
-        }
       });
     }
 
@@ -1054,6 +1024,10 @@ export default function ParentEnquiryForm() {
         }
         if (form.preferredDays.length !== form.daysPerWeek) {
           newErrors.preferredDays = `Please select exactly ${form.daysPerWeek} preferred days.`;
+        }
+        const timingError = getTimingError(form);
+        if (timingError) {
+          newErrors.classTiming = timingError;
         }
       }
 
@@ -1137,15 +1111,20 @@ export default function ParentEnquiryForm() {
     const suffix = citySuffixes[selectedCity] || selectedCity;
     const finalAddress = form.address.trim() ? `${form.address.trim()}, ${suffix}` : suffix;
 
+    // Flexible timing sends no clock time, so reminders and attendance never assume one
+    const isFixedTiming = form.classTimingType === "Fixed Timing";
+
     return {
       ...form,
+      startTime: isFixedTiming ? form.startTime : "",
+      endTime: isFixedTiming ? form.endTime : "",
+      classTimingSlot: isFixedTiming ? form.classTimingSlot : "Flexible",
       preferredTime: prefTime,
       classDuration: classDur,
       preferredDays: prefDays,
       address: finalAddress,
       wards: form.wards.map((ward) => ({
         studentName: ward.studentName,
-        schoolName: ward.schoolName,
         classGrade: ward.classGrade,
         curriculum: ward.curriculum,
         subjectsNeeded: ward.subjectsNeeded,
@@ -1530,19 +1509,6 @@ export default function ParentEnquiryForm() {
                               />
                             </div>
                           )}
-
-                          <SearchableInput
-                            label={requiredLabel("School Name")}
-                            type="text"
-                            name="schoolName"
-                            value={ward.schoolName}
-                            onChange={(e) => handleWardChange(index, e)}
-                            options={schoolOptions}
-                            listId={`schools-${index}`}
-                            placeholder="Enter school name"
-                            error={errors[`wards.${index}.schoolName`]}
-                            icon={Building2}
-                          />
 
                           <SubjectsMultiSelect
                             label={requiredLabel("Subjects Required")}
@@ -2341,176 +2307,214 @@ export default function ParentEnquiryForm() {
                   )}
                 </AnimatePresence>
 
-                {/* Class Timing Section in Preference Step (Placed after Plan Selection) */}
-                <motion.div variants={itemVariants} className="mt-8 space-y-3">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                    <Clock className="h-4.5 w-4.5 text-blue-600" />
-                    {requiredLabel("Class Timing Preference")}
-                  </label>
+                {/* Class Timing: shown once a plan is chosen, so the time ranges match its hours per class */}
+                {form.planType && (() => {
+                  const hours = form.hoursPerDay || 1.5;
+                  const isFixed = form.classTimingType === "Fixed Timing";
+                  const customOpen = showCustomTime || (!!form.startTime && !PRESET_START_TIMES.includes(form.startTime));
+                  const chosenDays = dayOptions
+                    .filter((day) => form.preferredDays.includes(day))
+                    .map((day) => day.slice(0, 3))
+                    .join(", ");
+                  const timingError = getTimingError(form);
 
-                  <div className="relative flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1.5 border border-slate-200/50 dark:border-slate-700">
-                    {["Flexible", "Fixed Timing"].map((timingType) => {
-                      const isSelected = (form.classTimingType || "Flexible") === timingType;
-                      return (
-                        <button
-                          type="button"
-                          key={timingType}
-                          onClick={() => setForm(prev => ({ ...prev, classTimingType: timingType }))}
-                          className={`relative flex flex-1 items-center justify-center gap-2 py-3 px-3 text-xs font-extrabold rounded-xl transition-all duration-300 cursor-pointer z-10 ${
-                            isSelected ? "text-white" : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                          }`}
-                        >
-                          {isSelected && (
-                            <motion.div
-                              layoutId="activeTimingBg"
-                              className="absolute inset-0 bg-slate-900 rounded-xl -z-10 shadow-sm"
-                              transition={{ type: "spring", stiffness: 350, damping: 28 }}
-                            />
+                  const chooseTimingType = (type) => {
+                    setForm((prev) => ({ ...prev, classTimingType: type }));
+                    setErrors((prev) => ({ ...prev, classTiming: "" }));
+                  };
+                  const chooseStart = (start) => {
+                    setForm((prev) =>
+                      start
+                        ? { ...prev, ...getFixedTimingFields(start, prev.hoursPerDay) }
+                        : { ...prev, startTime: "", endTime: "", classTimingSlot: "", classDuration: "" }
+                    );
+                    setErrors((prev) => ({ ...prev, classTiming: "" }));
+                  };
+
+                  return (
+                    <motion.div
+                      variants={itemVariants}
+                      className={`mt-8 rounded-3xl border bg-white/90 dark:bg-slate-900/80 backdrop-blur-md p-6 shadow-xl dark:shadow-none transition-colors ${
+                        errors.classTiming ? "border-red-400" : "border-slate-200 dark:border-slate-700"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <h4 className="text-lg font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                          <Clock className="h-5 w-5 text-blue-600" />
+                          Class Timing <span className="text-red-500">*</span>
+                        </h4>
+                        <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700">
+                          {hours} Hr per class
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-xs font-medium text-slate-400">
+                        When should classes happen? Choose one option.
+                      </p>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {[
+                          {
+                            id: "Fixed Timing",
+                            title: "Fixed time",
+                            desc: "Same time for every class. Pick it below.",
+                            icon: Clock,
+                          },
+                          {
+                            id: "Flexible",
+                            title: "Flexible",
+                            desc: "Any time works. The tutor will agree a time with you.",
+                            icon: RefreshCw,
+                          },
+                        ].map((option) => {
+                          const isSelected = form.classTimingType === option.id;
+                          const OptionIcon = option.icon;
+                          return (
+                            <button
+                              type="button"
+                              key={option.id}
+                              onClick={() => chooseTimingType(option.id)}
+                              aria-pressed={isSelected}
+                              className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition-all duration-300 cursor-pointer ${
+                                isSelected
+                                  ? "border-blue-600 bg-blue-50/40 dark:bg-blue-950/30 ring-2 ring-blue-500/15 shadow-md"
+                                  : "border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 hover:border-slate-300 dark:hover:border-slate-600"
+                              }`}
+                            >
+                              <div className={`p-2.5 rounded-xl shrink-0 transition-colors ${
+                                isSelected ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300"
+                              }`}>
+                                <OptionIcon className="h-5 w-5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-black text-slate-800 dark:text-slate-100">{option.title}</p>
+                                <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">{option.desc}</p>
+                              </div>
+                              <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                                isSelected ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 dark:border-slate-600"
+                              }`}>
+                                {isSelected && <Check className="h-3 w-3" strokeWidth={4} />}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <AnimatePresence initial={false}>
+                        {isFixed && (
+                          <motion.div
+                            key="fixed-times"
+                            variants={wardVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-5 space-y-4">
+                              {TIMING_GROUPS.map((group) => (
+                                <div key={group.label}>
+                                  <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                                    {group.label}
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {group.starts.map((start) => {
+                                      const active = !customOpen && form.startTime === start;
+                                      return (
+                                        <button
+                                          type="button"
+                                          key={start}
+                                          onClick={() => {
+                                            setShowCustomTime(false);
+                                            chooseStart(start);
+                                          }}
+                                          className={`rounded-xl border px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
+                                            active
+                                              ? "bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02]"
+                                              : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                          }`}
+                                        >
+                                          {formatSlotLabel(start, hours)}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+
+                              <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                                {customOpen ? (
+                                  <div className="flex flex-wrap items-end gap-3">
+                                    <div>
+                                      <label htmlFor="customStartTime" className="mb-1 block text-xs font-bold text-slate-600 dark:text-slate-300">
+                                        Other start time
+                                      </label>
+                                      <input
+                                        id="customStartTime"
+                                        type="time"
+                                        step="900"
+                                        value={form.startTime || ""}
+                                        onChange={(e) => chooseStart(e.target.value)}
+                                        className="rounded-xl border border-slate-300 dark:border-slate-600 p-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                      />
+                                    </div>
+                                    {form.startTime && form.endTime && (
+                                      <p className="pb-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                        Ends at {formatTime12Hr(form.endTime)} ({hours} Hr)
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowCustomTime(true)}
+                                    className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                  >
+                                    + None of these? Enter another time
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Live summary of the schedule, so the choice is always visible before submitting */}
+                      <div
+                        className={`mt-5 flex items-start gap-3 rounded-2xl border p-4 text-xs font-bold ${
+                          timingError
+                            ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-300"
+                        }`}
+                      >
+                        {timingError ? (
+                          <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                        ) : (
+                          <Calendar className="h-4 w-4 shrink-0 mt-0.5" />
+                        )}
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-wider opacity-70">Your class schedule</p>
+                          <p className="mt-1 text-sm font-black">
+                            {chosenDays || "Days not selected yet"}
+                            {" · "}
+                            {!form.classTimingType
+                              ? "Timing not chosen yet"
+                              : isFixed
+                                ? form.startTime && form.endTime
+                                  ? `${formatTime12Hr(form.startTime)} – ${formatTime12Hr(form.endTime)}`
+                                  : "Start time not picked yet"
+                                : "Flexible timing"}
+                          </p>
+                          {form.classTimingType === "Flexible" && (
+                            <p className="mt-1 font-medium">The tutor will confirm a suitable time with you before the first class.</p>
                           )}
-                          <Clock className="h-4 w-4" />
-                          <span>{timingType}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {form.classTimingType === "Fixed Timing" ? (
-                    <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white dark:bg-slate-900 p-5 shadow-sm dark:shadow-none space-y-4">
-                      {/* Sub-mode selector: Predefined Slots vs Custom Manual Input */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-700 pb-3">
-                        <span className="text-xs font-extrabold text-slate-700 dark:text-slate-200">Choose Timing Option:</span>
-                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setForm(prev => ({ ...prev, classTimingMode: "Predefined" }))}
-                            className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
-                              (form.classTimingMode || "Predefined") === "Predefined"
-                                ? "bg-blue-600 text-white shadow-sm"
-                                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                            }`}
-                          >
-                            Predefined Slots
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setForm(prev => ({ ...prev, classTimingMode: "Custom" }))}
-                            className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
-                              form.classTimingMode === "Custom"
-                                ? "bg-blue-600 text-white shadow-sm"
-                                : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                            }`}
-                          >
-                            + Enter Custom Timing
-                          </button>
                         </div>
                       </div>
 
-                      {(form.classTimingMode || "Predefined") === "Predefined" ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block">
-                              Predefined Slots ({form.hoursPerDay ? `${form.hoursPerDay} Hr/Class` : 'Default 1.5 Hr'}):
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {getSlotsForHours(form.hoursPerDay || 1.5).map((slot) => {
-                              const isSlotSelected = form.classTimingSlot === slot;
-                              return (
-                                <button
-                                  type="button"
-                                  key={slot}
-                                  onClick={() => setForm(prev => ({ ...prev, classTimingSlot: slot }))}
-                                  className={`px-3.5 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                                    isSlotSelected
-                                      ? "bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02]"
-                                      : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                  }`}
-                                >
-                                  {slot}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3 bg-blue-50/30 p-4 rounded-xl border border-blue-100">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-extrabold text-blue-900 block">
-                              Enter Start Time (End Time & Duration calculated from plan):
-                            </span>
-                            {form.hoursPerDay && (
-                              <span className="bg-blue-100 text-blue-800 text-[10px] font-black px-2 py-0.5 rounded-full">
-                                Selected Plan: {form.hoursPerDay} Hr/Day
-                              </span>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-xs font-bold text-slate-600 block mb-1">
-                                Start Time
-                              </label>
-                              <input
-                                type="time"
-                                name="startTime"
-                                value={form.startTime || "17:00"}
-                                onChange={(e) => {
-                                  const newStart = e.target.value;
-                                  const hours = form.hoursPerDay || 1.5;
-                                  const calculatedEnd = addHoursToTimeStr(newStart, hours);
-                                  const formattedSlot = `${formatTime12Hr(newStart)} – ${formatTime12Hr(calculatedEnd)}`;
-                                  const duration = `${hours} Hour${hours !== 1 ? 's' : ''}`;
-                                  setForm(prev => ({
-                                    ...prev,
-                                    startTime: newStart,
-                                    endTime: calculatedEnd,
-                                    classDuration: duration,
-                                    classTimingSlot: formattedSlot
-                                  }));
-                                }}
-                                className="w-full rounded-xl border border-slate-300 dark:border-slate-600 p-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs font-bold text-slate-600 block mb-1">
-                                End Time (Auto-calculated)
-                              </label>
-                              <input
-                                type="time"
-                                name="endTime"
-                                value={form.endTime || addHoursToTimeStr(form.startTime || "17:00", form.hoursPerDay || 1.5)}
-                                onChange={(e) => {
-                                  const newEnd = e.target.value;
-                                  const duration = calculateDuration(form.startTime || "17:00", newEnd);
-                                  const formattedSlot = `${formatTime12Hr(form.startTime || "17:00")} – ${formatTime12Hr(newEnd)}`;
-                                  setForm(prev => ({
-                                    ...prev,
-                                    endTime: newEnd,
-                                    classDuration: duration,
-                                    classTimingSlot: formattedSlot
-                                  }));
-                                }}
-                                className="w-full rounded-xl border border-slate-300 dark:border-slate-600 p-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                              />
-                            </div>
-                          </div>
-
-                          {form.startTime && form.endTime && (
-                            <div className="mt-2 text-xs font-bold text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 flex items-center justify-between">
-                              <span>
-                                Calculated Class Slot: {formatTime12Hr(form.startTime)} to {formatTime12Hr(form.endTime)}
-                              </span>
-                              <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">
-                                {calculateDuration(form.startTime, form.endTime) || `${form.hoursPerDay || 1.5} Hours`}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                      {errors.classTiming && (
+                        <p className="mt-3 text-xs font-bold text-red-600">{errors.classTiming}</p>
                       )}
-                    </div>
-                  ) : (
-                    null
-                  )}
-                </motion.div>
+                    </motion.div>
+                  );
+                })()}
 
                 {/* Final Pricing Consent Declaration Checkbox at the end of Step 3 (Preference) */}
                 <motion.div variants={itemVariants} className="mt-8 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 p-5 shadow-sm dark:shadow-none">
@@ -2726,53 +2730,6 @@ function TextArea({ label, error, icon: Icon, ...props }) {
               : "border-slate-200 dark:border-slate-800 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-blue-100 dark:focus:ring-blue-900/30"
           }`}
         />
-      </div>
-      <ErrorText message={error} />
-    </div>
-  );
-}
-
-function SearchableInput({
-  label,
-  name,
-  value,
-  onChange,
-  options = [],
-  listId,
-  error,
-  icon: Icon,
-  ...props
-}) {
-  return (
-    <div>
-      <label className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-300">
-        {label}
-      </label>
-      <div className="relative">
-        {Icon && (
-          <div className="absolute left-4.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none z-10">
-            <Icon className="h-5 w-5" />
-          </div>
-        )}
-        <input
-          list={listId}
-          name={name}
-          value={value}
-          onChange={onChange}
-          className={`h-14 w-full rounded-3xl border bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm text-sm outline-none transition-all duration-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-900 focus:ring-4 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 ${
-            Icon ? "pl-12 pr-5" : "px-5"
-          } ${
-            error
-              ? "border-red-400 focus:ring-red-100 dark:focus:ring-red-950"
-              : "border-slate-200 dark:border-slate-800 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-blue-100 dark:focus:ring-blue-900/30"
-          }`}
-          {...props}
-        />
-        <datalist id={listId}>
-          {options.map((option) => (
-            <option key={option} value={option} className="dark:bg-slate-950 dark:text-white" />
-          ))}
-        </datalist>
       </div>
       <ErrorText message={error} />
     </div>
