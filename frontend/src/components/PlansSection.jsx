@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 
 import { PLANS } from "../data/plansConfig";
-import { getAvailableOptions, getEliteHourlyRate, isPlanAvailable } from "../pricing/feeEngine";
+import { getAvailableOptions, getEffectiveHourlyRate, isPlanAvailable } from "../pricing/feeEngine";
 import { FEE_CONFIG } from "../pricing/feeConfig";
 import { trackEvent } from "../utils/analytics";
 
@@ -816,6 +816,8 @@ function PlanCard({ plan, isActive, isSelectedAny, isCenter, position, onClick }
   return (
     <div
       onClick={onClick}
+      // Gold and black cards look the same in both themes (silver has its own dark: styles)
+      data-own-colors={isSilver ? undefined : ""}
       style={getCardStyle()}
       className={`relative overflow-hidden rounded-[2rem] sm:rounded-[2.2rem] border flex flex-col min-h-[460px] h-auto sm:min-h-[500px] md:min-h-[520px] pb-4 cursor-pointer group ${getCardThemeClasses()} ${getActiveStateClasses()} ${
         isSelectedAny && !isActive ? "pointer-events-none md:pointer-events-auto" : ""
@@ -1233,12 +1235,15 @@ function PlanDetails({ plan, onCTA, selectedClass, selectedBoard }) {
           
           {plan.id === 'elite' && (
             (() => {
-              const hrRate = getEliteHourlyRate(selectedClass, selectedBoard) ?? 0;
+              // Elite is priced per schedule (Advance + 35%), so show the lowest hourly rate
+              const rates = pricingOptions.map((o) => getEffectiveHourlyRate(o.price, o.days, o.hours)).filter((r) => r !== null);
+              if (rates.length === 0) return null;
+              const hrRate = Math.min(...rates);
               return (
                 <div className="mb-6 bg-slate-900 border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-inner">
                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Hourly Rate</span>
                   <span className="text-2xl font-black tracking-tight text-amber-400 mt-1">
-                    ₹{hrRate.toLocaleString('en-IN')}/hour
+                    from ₹{hrRate.toLocaleString('en-IN')}/hour
                   </span>
                   <span className="text-[10px] font-medium text-slate-400 block mt-1">
                     Estimated Monthly Tuition calculated below

@@ -1,6 +1,5 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
 import { FEE_CONFIG } from "../../utils/pricing/feeConfig.js";
 import {
@@ -11,7 +10,6 @@ import {
   getAvailableOptions,
   getComboStatus,
   getEffectiveHourlyRate,
-  getEliteHourlyRate,
   getGradeGroup,
   getPlanOptions,
   getStruckListPrice,
@@ -19,14 +17,30 @@ import {
   toEnquiryFields,
 } from "../../utils/pricing/feeEngine.js";
 
-const legacy = JSON.parse(readFileSync(new URL("./fixtures/legacyPrices.json", import.meta.url), "utf8"));
-
 const HOME = "Home Tuition / In-Person";
 const ONLINE = "Online / One-to-One Tuition";
 const JUNIOR = ["1 to 5", "6", "7"];
 const SENIOR = ["8", "9", "10", "11", "12", "PUC", "Degree Courses"];
+const ONE_HOUR = ["1 to 5", "6", "7", "8", "9", "10"];
+const NO_ONE_HOUR = ["11", "12", "PUC", "Degree Courses"];
 const STANDARD = [[3, 1.5], [3, 2], [5, 1.5], [5, 2]];
 const ELITE = [[3, 1], [3, 1.5], [5, 1], [5, 1.5]];
+const ADVANCE_ORDER = [[3, 1], [3, 1.5], [3, 2], [5, 1], [5, 1.5], [5, 2]];
+
+// Advance fee tables (CBSE/ICSE home tuition), [class, 3×1, 3×1.5, 3×2, 5×1, 5×1.5, 5×2].
+// Grades 6–10: table 3.2; Grades 11, 12, Graduation: table 3.4 (no 1-hour).
+const ADVANCE_TABLE = [
+  ["6", 5500, 6750, 7800, 6500, 8250, 9000],
+  ["7", 6000, 7200, 8500, 7000, 9000, 10000],
+  ["8", 5700, 7500, 9000, 7500, 9750, 11000],
+  ["9", 6500, 8000, 9500, 8000, 10500, 12000],
+  ["10", 7000, 8500, 10200, 8500, 11200, 13000],
+  ["11", null, 9500, 11200, null, 12500, 14500],
+  ["12", null, 10500, 12500, null, 14000, 16000],
+  ["Degree Courses", null, 11000, 13000, null, 15000, 17500],
+];
+// Grades 1–5 keep their previous Advance prices.
+const GRADES_1_5 = ["1 to 5", 5300, 7500, 8600, 7100, 10200, 10900];
 
 const withConfig = (mutate) => {
   const config = structuredClone(FEE_CONFIG);
@@ -43,41 +57,44 @@ const errorCode = (fn) => {
   return null;
 };
 
-describe("existing approved prices are unchanged", () => {
-  test(`all ${legacy.prices.length} legacy plan/grade/board/mode/schedule prices match`, () => {
-    for (const row of legacy.prices) {
-      const actual = calculatePlanPrice(row.plan, row.classGrade, row.curriculum, row.days, row.hours, row.mode);
-      assert.equal(actual, row.price, `${row.plan} ${row.classGrade} ${row.curriculum} ${row.mode} ${row.days}x${row.hours}`);
+describe("plan prices", () => {
+  test("Advance (CBSE and ICSE, home) matches the fee tables for Grade 6 to Graduation", () => {
+    for (const [g, ...prices] of ADVANCE_TABLE) {
+      ADVANCE_ORDER.forEach(([d, h], i) => {
+        if (prices[i] === null) return;
+        for (const board of ["CBSE", "ICSE"]) {
+          assert.equal(calculatePlanPrice("advance", g, board, d, h, HOME), prices[i], `${g} ${board} ${d}x${h}`);
+        }
+      });
     }
   });
 
-  test("Foundation struck-through list price matches the legacy 'board' price", () => {
-    for (const row of legacy.prices.filter((r) => r.plan === "foundation")) {
-      assert.equal(calculateListPrice(row.classGrade, row.curriculum, row.days, row.hours, row.mode), row.listPrice);
-    }
+  test("Grades 1–5 Advance prices are unchanged", () => {
+    const [g, ...prices] = GRADES_1_5;
+    ADVANCE_ORDER.forEach(([d, h], i) => assert.equal(calculatePlanPrice("advance", g, "CBSE", d, h, HOME), prices[i]));
   });
 
-  test("legacy multi-student totals map onto the same enquiry fields", () => {
-    for (const c of legacy.siblingCases) {
-      for (const [mode, expected] of Object.entries(c.results)) {
-        const quote = calculateQuote({
-          planType: c.plan,
-          daysPerWeek: c.option.days,
-          hoursPerDay: c.option.hours,
-          preferredMode: mode,
-          wards: c.wards,
-        });
-        assert.ok(quote.ok, JSON.stringify(quote.errors));
-        const fields = toEnquiryFields(quote);
-        assert.deepEqual(fields.studentFees, expected.studentFees);
-        assert.equal(fields.totalBaseFee, expected.totalBaseFee);
-        assert.equal(fields.siblingConcessionPercent, expected.concessionPercent);
-        assert.equal(fields.siblingDiscount, expected.siblingDiscount);
-        assert.equal(fields.finalPrice, expected.finalPrice);
-        assert.equal(fields.monthlyFees, expected.finalPrice);
-        assert.equal(fields.costPerClass, expected.costPerClass);
-      }
+  test("Foundation is Advance − 18% and Elite is Advance + 35%, nearest ₹50", () => {
+    for (const [g, ...prices] of [...ADVANCE_TABLE, GRADES_1_5]) {
+      ADVANCE_ORDER.forEach(([d, h], i) => {
+        if (prices[i] === null) return;
+        if (getComboStatus("foundation", g, d, h) === "available") {
+          assert.equal(calculatePlanPrice("foundation", g, "CBSE", d, h, HOME), Math.round((prices[i] * 0.82) / 50) * 50);
+        }
+        if (getComboStatus("elite", g, d, h) === "available") {
+          assert.equal(calculatePlanPrice("elite", g, "CBSE", d, h, HOME), Math.round((prices[i] * 1.35) / 50) * 50);
+        }
+      });
     }
+    assert.equal(calculatePlanPrice("foundation", "9", "CBSE", 3, 2, HOME), 7800); // 9500 × 0.82 = 7790
+    assert.equal(calculatePlanPrice("elite", "6", "CBSE", 3, 1.5, HOME), 9100); // 6750 × 1.35 = 9112.5
+  });
+
+  test("board multipliers and online pricing apply on top of the plan price", () => {
+    assert.equal(calculatePlanPrice("advance", "9", "IGCSE", 3, 1.5, HOME), 10000); // 8000 × 1.25
+    assert.equal(calculatePlanPrice("advance", "9", "IB", 3, 1.5, HOME), 11200); // 8000 × 1.4
+    assert.equal(calculatePlanPrice("advance", "9", "CBSE", 3, 1.5, ONLINE), 5600); // 8000 × 0.7
+    assert.equal(calculatePlanPrice("elite", "9", "CBSE", 3, 1, ONLINE), 6150); // 6500 × 1.35 × 0.7 = 6142.5
   });
 });
 
@@ -98,39 +115,37 @@ describe("availability matrix", () => {
     }
   });
 
-  test("Advance 1-hour (3 and 5 days) is offered for Classes 1–7 at the document's base prices", () => {
-    // [class, 3×1 home, 5×1 home]: base × 1.18 (Advance up to Class 7), nearest ₹100
-    for (const [g, d3, d5] of [["1 to 5", 5300, 7100], ["6", 5900, 7100], ["7", 6500, 7700]]) {
-      assert.equal(getComboStatus("advance", g, 3, 1), "available");
-      assert.equal(getComboStatus("advance", g, 5, 1), "available");
-      assert.equal(calculatePlanPrice("advance", g, "CBSE", 3, 1, HOME), d3);
-      assert.equal(calculatePlanPrice("advance", g, "CBSE", 5, 1, HOME), d5);
+  test("Advance and Elite 1-hour (3 and 5 days) are offered for Classes 1–10", () => {
+    for (const g of ONE_HOUR) {
+      for (const plan of ["advance", "elite"]) {
+        assert.equal(getComboStatus(plan, g, 3, 1), "available", `${plan} ${g}`);
+        assert.equal(getComboStatus(plan, g, 5, 1), "available", `${plan} ${g}`);
+      }
     }
-    assert.equal(calculatePlanPrice("advance", "6", "CBSE", 3, 1, ONLINE), 4150); // 5000 × 1.18 × 0.7, nearest ₹50
+    assert.equal(calculatePlanPrice("advance", "6", "CBSE", 3, 1, ONLINE), 3850); // 5500 × 0.7
   });
 
-  test("Advance 1-hour is unavailable for Class 8 to Degree", () => {
-    for (const g of SENIOR) {
-      assert.equal(getComboStatus("advance", g, 3, 1), "unavailable");
-      assert.equal(getComboStatus("advance", g, 5, 1), "unavailable");
-      assert.equal(errorCode(() => calculatePlanPrice("advance", g, "CBSE", 3, 1, HOME)), ERROR_CODES.UNAVAILABLE);
-    }
-  });
-
-  test("1-hour sessions in Classes 8–12 exist only on the configured Elite schedules", () => {
-    for (const g of SENIOR) {
-      for (const plan of ["foundation", "advance"]) {
+  test("1-hour sessions are unavailable for Class 11 to Degree on every plan", () => {
+    for (const g of NO_ONE_HOUR) {
+      for (const plan of ["foundation", "advance", "elite"]) {
         assert.equal(getComboStatus(plan, g, 3, 1), "unavailable");
         assert.equal(getComboStatus(plan, g, 5, 1), "unavailable");
+        assert.equal(errorCode(() => calculatePlanPrice(plan, g, "CBSE", 3, 1, HOME)), ERROR_CODES.UNAVAILABLE);
       }
-      assert.equal(getComboStatus("elite", g, 3, 1), "available");
-      assert.equal(getComboStatus("elite", g, 5, 1), "available");
     }
   });
 
-  test("Elite keeps its four schedules for every grade; 2-hour Elite stays unavailable", () => {
+  test("Foundation never offers 1-hour sessions", () => {
+    for (const g of SENIOR) {
+      assert.equal(getComboStatus("foundation", g, 3, 1), "unavailable");
+      assert.equal(getComboStatus("foundation", g, 5, 1), "unavailable");
+    }
+  });
+
+  test("Elite offers 1.5 hours for every grade; 2-hour Elite stays unavailable", () => {
     for (const g of [...JUNIOR, ...SENIOR]) {
-      for (const [d, h] of ELITE) assert.equal(getComboStatus("elite", g, d, h), "available");
+      assert.equal(getComboStatus("elite", g, 3, 1.5), "available");
+      assert.equal(getComboStatus("elite", g, 5, 1.5), "available");
       assert.equal(getComboStatus("elite", g, 3, 2), "unavailable");
       assert.equal(getComboStatus("elite", g, 5, 2), "unavailable");
     }
@@ -138,7 +153,7 @@ describe("availability matrix", () => {
 
   test("a missing 1-hour price hides that schedule for that grade only", () => {
     const config = withConfig((c) => {
-      c.pendingBasePrices.advance["3_1.0"]["Grade 6"] = null;
+      delete c.advancePrices["Grade 6"]["3_1.0"];
     });
     assert.equal(getComboStatus("advance", "6", 3, 1, config), "pending");
     assert.equal(errorCode(() => calculatePlanPrice("advance", "6", "CBSE", 3, 1, HOME, config)), ERROR_CODES.PRICE_PENDING);
@@ -151,16 +166,15 @@ describe("availability matrix", () => {
   test("display order matches the existing plan option order", () => {
     const student = [{ classGrade: "9", curriculum: "CBSE" }];
     assert.deepEqual(getAvailableOptions("foundation", student, HOME).map((o) => [o.days, o.hours]), STANDARD);
-    assert.deepEqual(getAvailableOptions("advance", student, HOME).map((o) => [o.days, o.hours]), STANDARD);
+    assert.deepEqual(getAvailableOptions("advance", student, HOME).map((o) => [o.days, o.hours]), ADVANCE_ORDER);
     assert.deepEqual(getAvailableOptions("elite", student, HOME).map((o) => [o.days, o.hours]), ELITE);
-    assert.deepEqual(
-      getAvailableOptions("advance", [{ classGrade: "6", curriculum: "CBSE" }], HOME).map((o) => [o.days, o.hours]),
-      [[3, 1], [3, 1.5], [3, 2], [5, 1], [5, 1.5], [5, 2]]
-    );
+    const senior = [{ classGrade: "11", curriculum: "CBSE" }];
+    assert.deepEqual(getAvailableOptions("advance", senior, HOME).map((o) => [o.days, o.hours]), STANDARD);
+    assert.deepEqual(getAvailableOptions("elite", senior, HOME).map((o) => [o.days, o.hours]), [[3, 1.5], [5, 1.5]]);
   });
 
-  test("siblings in Class 6 and Class 9 are not offered Advance 1-hour (needs every student eligible)", () => {
-    const wards = [{ classGrade: "6", curriculum: "CBSE" }, { classGrade: "9", curriculum: "CBSE" }];
+  test("siblings in Class 6 and Class 11 are not offered 1-hour (needs every student eligible)", () => {
+    const wards = [{ classGrade: "6", curriculum: "CBSE" }, { classGrade: "11", curriculum: "CBSE" }];
     assert.deepEqual(getAvailableOptions("advance", wards, HOME).map((o) => [o.days, o.hours]), STANDARD);
   });
 });
@@ -177,7 +191,7 @@ describe("missing prices and invalid input are rejected, never substituted", () 
 
   test("a schedule whose price is missing from the table becomes pending and cannot be priced", () => {
     const config = withConfig((c) => {
-      delete c.masterPrices["Grade 9"]["5_2.0"];
+      delete c.advancePrices["Grade 9"]["5_2.0"];
     });
     assert.equal(errorCode(() => calculatePlanPrice("advance", "9", "CBSE", 5, 2, HOME, config)), ERROR_CODES.PRICE_PENDING);
     assert.equal(getComboStatus("advance", "9", 5, 2, config), "pending");
@@ -189,7 +203,7 @@ describe("missing prices and invalid input are rejected, never substituted", () 
       wards: [{ classGrade: "6", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }],
     });
     assert.ok(quote.ok, JSON.stringify(quote.errors));
-    assert.equal(quote.monthlyPayable, 5900); // its own 1-hour price, not the 3×1.5 price (8600)
+    assert.equal(quote.monthlyPayable, 5500); // its own 1-hour price, not the 3×1.5 price (6750)
   });
 });
 
@@ -217,10 +231,10 @@ describe("session-length and schedule validation", () => {
   });
 
   test("supported values still calculate, including numeric strings", () => {
-    assert.equal(calculatePlanPrice("advance", "9", "CBSE", 3, 1.5, HOME), 9000);
-    assert.equal(calculatePlanPrice("advance", "9", "CBSE", "3", "1.5", HOME), 9000);
-    assert.equal(calculatePlanPrice("advance", "9", "CBSE", 5, 2, HOME), 13600);
-    assert.equal(calculatePlanPrice("elite", "9", "CBSE", 3, 1, HOME), 6600);
+    assert.equal(calculatePlanPrice("advance", "9", "CBSE", 3, 1.5, HOME), 8000);
+    assert.equal(calculatePlanPrice("advance", "9", "CBSE", "3", "1.5", HOME), 8000);
+    assert.equal(calculatePlanPrice("advance", "9", "CBSE", 5, 2, HOME), 12000);
+    assert.equal(calculatePlanPrice("elite", "9", "CBSE", 3, 1, HOME), 8800);
     const q = calculateQuote({ planType: "advance", daysPerWeek: "3", hoursPerDay: "1.5", preferredMode: HOME,
       wards: [{ classGrade: "9", curriculum: "CBSE" }] });
     assert.equal(q.ok, true);
@@ -275,16 +289,15 @@ describe("malformed student input", () => {
 });
 
 describe("effective hourly rate (display)", () => {
-  test("home Elite: equals the configured hourly rate for every legacy case", () => {
-    for (const row of legacy.prices.filter((r) => r.plan === "elite" && r.mode === HOME)) {
-      assert.equal(getEffectiveHourlyRate(row.price, row.days, row.hours), getEliteHourlyRate(row.classGrade, row.curriculum));
-    }
+  test("derived from the monthly price over 4 weeks", () => {
+    const price = calculatePlanPrice("elite", "9", "CBSE", 3, 1, HOME); // ₹8,800
+    assert.equal(getEffectiveHourlyRate(price, 3, 1), Math.round(8800 / 12));
   });
 
   test("online: derived from the actual online monthly price", () => {
-    const price = calculatePlanPrice("elite", "9", "CBSE", 3, 1, ONLINE); // 6600 × 0.7 → ₹4,600
-    assert.equal(price, 4600);
-    assert.equal(getEffectiveHourlyRate(price, 3, 1), Math.round(4600 / 12));
+    const price = calculatePlanPrice("elite", "9", "CBSE", 3, 1, ONLINE); // ₹6,150
+    assert.equal(price, 6150);
+    assert.equal(getEffectiveHourlyRate(price, 3, 1), Math.round(6150 / 12));
   });
 
   test("invalid schedule or price returns null", () => {
@@ -307,7 +320,7 @@ describe("grade labels", () => {
     }
   });
 
-  test("homepage 'Grade 1–5' Advance now matches the enquiry form (legacy homepage showed ₹6,400)", () => {
+  test("homepage 'Grade 1–5' Advance matches the enquiry form", () => {
     assert.equal(calculatePlanPrice("advance", "Grade 1–5", "CBSE", 3, 1.5, HOME), 7500);
   });
 });
@@ -329,21 +342,21 @@ describe("subject-wise pricing", () => {
   test("disabled by default: one fee covers all subjects (existing behaviour)", () => {
     const q = quoteFor(["Mathematics", "Science", "English"], FEE_CONFIG);
     assert.equal(q.rules.subjectPricingEnabled, false);
-    assert.equal(q.monthlyPayable, 8600);
+    assert.equal(q.monthlyPayable, 6750);
     assert.ok(q.students[0].subjects.every((s) => s.included === true));
   });
 
   test("one subject receives no additional-subject discount", () => {
     const q = quoteFor(["Mathematics"]);
     assert.equal(q.students[0].subjects[0].discountPercent, 0);
-    assert.equal(q.monthlyPayable, 8600);
+    assert.equal(q.monthlyPayable, 6750);
   });
 
   test("two subjects: the second is 10% off", () => {
     const q = quoteFor(["Mathematics", "Science"]);
     const [first, second] = q.students[0].subjects;
-    assert.deepEqual([first.finalPrice, second.discountPercent, second.discountAmount, second.finalPrice], [8600, 10, 860, 7740]);
-    assert.equal(q.monthlyPayable, 16340);
+    assert.deepEqual([first.finalPrice, second.discountPercent, second.discountAmount, second.finalPrice], [6750, 10, 675, 6075]);
+    assert.equal(q.monthlyPayable, 12825);
   });
 
   test("three or more: every subject after the first is 10% off, and totals equal the sum of lines", () => {
@@ -351,9 +364,9 @@ describe("subject-wise pricing", () => {
     const lines = q.students[0].subjects;
     assert.deepEqual(lines.map((l) => l.discountPercent), [0, 10, 10, 10]);
     assert.equal(q.students[0].monthlyFee, lines.reduce((s, l) => s + l.finalPrice, 0));
-    assert.equal(q.subjectDiscountTotal, 860 * 3);
-    assert.equal(q.totalBeforeSubjectDiscount, 8600 * 4);
-    assert.equal(q.monthlyPayable, 8600 + 7740 * 3);
+    assert.equal(q.subjectDiscountTotal, 675 * 3);
+    assert.equal(q.totalBeforeSubjectDiscount, 6750 * 4);
+    assert.equal(q.monthlyPayable, 6750 + 6075 * 3);
   });
 
   test("subjects for students in different grades use each student's own price", () => {
@@ -407,8 +420,8 @@ describe("sibling concession", () => {
 
   test("applied once to the combined monthly total", () => {
     const q = quote([ward("6"), ward("9")]);
-    assert.equal(q.totalBaseFee, 8600 + 9000);
-    assert.equal(q.siblingDiscount, Math.round(17600 * 0.25));
+    assert.equal(q.totalBaseFee, 6750 + 8000);
+    assert.equal(q.siblingDiscount, Math.round(14750 * 0.25));
     assert.equal(q.monthlyPayable, q.totalBaseFee - q.siblingDiscount);
   });
 
@@ -417,8 +430,8 @@ describe("sibling concession", () => {
       c.sibling.percentByStudentCount = { 2: 10, 3: 10 };
     });
     const q = quote([ward("6"), ward("9")], config);
-    assert.equal(q.siblingDiscount, 1760);
-    assert.equal(q.monthlyPayable, 15840);
+    assert.equal(q.siblingDiscount, 1475);
+    assert.equal(q.monthlyPayable, 13275);
   });
 
   test("with subject pricing enabled, the sibling discount applies after subject discounts", () => {
@@ -426,8 +439,8 @@ describe("sibling concession", () => {
       c.subjectPricing.enabled = true;
     });
     const q = quote([{ ...ward("6"), subjectsNeeded: ["Mathematics", "Science"] }, ward("9")], config);
-    assert.equal(q.totalBaseFee, 8600 + 7740 + 9000);
-    assert.equal(q.siblingDiscount, Math.round(25340 * 0.25));
+    assert.equal(q.totalBaseFee, 6750 + 6075 + 8000);
+    assert.equal(q.siblingDiscount, Math.round(20825 * 0.25));
   });
 
   test("options are limited to those every student qualifies for", () => {
@@ -453,9 +466,9 @@ describe("prepayment", () => {
     assert.deepEqual(
       q.prepaymentOptions.map((o) => [o.months, o.discountPercent, o.grossTotal, o.discountAmount, o.total]),
       [
-        [3, 5, 25800, 1290, 24510],
-        [6, 10, 51600, 5160, 46440],
-        [12, 15, 103200, 15480, 87720],
+        [3, 5, 20250, 1013, 19237],
+        [6, 10, 40500, 4050, 36450],
+        [12, 15, 81000, 12150, 68850],
       ]
     );
   });
@@ -465,17 +478,23 @@ describe("prepayment", () => {
       c.prepayment.enabled = true;
     });
     const fields = toEnquiryFields(calculateQuote(base, config));
-    assert.equal(fields.finalPrice, 8600);
-    assert.equal(fields.monthlyFees, 8600);
+    assert.equal(fields.finalPrice, 6750);
+    assert.equal(fields.monthlyFees, 6750);
   });
 });
 
 describe("rounding", () => {
-  test("home Foundation/Advance round to ₹100, online to ₹50, Elite home to ₹1", () => {
-    for (const row of legacy.prices) {
-      if (row.mode === ONLINE) assert.equal(row.price % 50, 0);
-      else if (row.plan !== "elite") assert.equal(row.price % 100, 0);
-      assert.equal(calculatePlanPrice(row.plan, row.classGrade, row.curriculum, row.days, row.hours, row.mode) % 1, 0);
+  test("every plan rounds to ₹50, home and online", () => {
+    for (const plan of ["foundation", "advance", "elite"]) {
+      for (const g of [...JUNIOR, ...SENIOR]) {
+        for (const board of ["CBSE", "IGCSE", "IB"]) {
+          for (const mode of [HOME, ONLINE]) {
+            for (const o of getAvailableOptions(plan, [{ classGrade: g, curriculum: board }], mode)) {
+              assert.equal(o.price % 50, 0, `${plan} ${g} ${board} ${mode} ${o.days}x${o.hours}`);
+            }
+          }
+        }
+      }
     }
   });
 
@@ -518,11 +537,11 @@ describe("struck-through list price (display)", () => {
     calculateQuote({ planType, daysPerWeek: days, hoursPerDay: hours, preferredMode: mode,
       wards: [{ classGrade, curriculum: "CBSE" }] });
 
-  test("valid Foundation fee shows the list price beside it", () => {
+  test("valid Foundation fee shows the Advance price beside it", () => {
     const quote = quoteFor("foundation", "9", "3", "2");
     assert.equal(quote.ok, true);
-    assert.equal(quote.monthlyPayable, 8700);
-    assert.equal(getStruckListPrice(quote), 10626);
+    assert.equal(quote.monthlyPayable, 7800);
+    assert.equal(getStruckListPrice(quote), 9500);
   });
 
   test("invalid saved Foundation plan (Class 6) shows no list price", () => {
@@ -538,7 +557,7 @@ describe("struck-through list price (display)", () => {
     assert.equal(getStruckListPrice(undefined), null);
     assert.equal(getStruckListPrice(null), null);
     const quote = quoteFor("foundation", "9", "3", "2");
-    for (const monthlyPayable of [null, undefined, 0, NaN, "8700"]) {
+    for (const monthlyPayable of [null, undefined, 0, NaN, "7800"]) {
       assert.equal(getStruckListPrice({ ...quote, monthlyPayable }), null);
     }
   });

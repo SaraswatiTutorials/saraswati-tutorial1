@@ -86,24 +86,24 @@ describe("validateSubmittedPricing", () => {
     const result = validateSubmittedPricing({
       planType: "advance", daysPerWeek: 3, hoursPerDay: 1, preferredMode: HOME,
       wards: [{ classGrade: "6", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }],
-      finalPrice: 5900, monthlyFees: 5900,
+      finalPrice: 5500, monthlyFees: 5500,
     });
     assert.notEqual(result.status, "invalid", JSON.stringify(result.errors));
   });
 
-  test("1-hour Advance for Class 8 is invalid", () => {
+  test("1-hour Advance for Class 11 is invalid", () => {
     const result = validateSubmittedPricing({
       planType: "advance", daysPerWeek: 3, hoursPerDay: 1, preferredMode: HOME,
-      wards: [{ classGrade: "8", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }],
+      wards: [{ classGrade: "11", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }],
     });
     assert.equal(result.status, "invalid");
     assert.equal(result.errors[0].code, "UNAVAILABLE");
   });
 
-  test("1-hour Advance for Class 10 is invalid", () => {
+  test("1-hour Advance for Degree is invalid", () => {
     const result = validateSubmittedPricing({
       planType: "advance", daysPerWeek: 5, hoursPerDay: 1, preferredMode: HOME,
-      wards: [{ classGrade: "10", curriculum: "CBSE" }],
+      wards: [{ classGrade: "Degree Courses", curriculum: "CBSE" }],
     });
     assert.equal(result.status, "invalid");
   });

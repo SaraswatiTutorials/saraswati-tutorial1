@@ -7,8 +7,6 @@ import { FEE_CONFIG, GRADE_GROUPS } from "./feeConfig.js";
 
 export const PLAN_IDS = ["foundation", "advance", "elite"];
 
-const JUNIOR_GROUPS = ["Grades 1–5", "Grade 6", "Grade 7"];
-
 export const ERROR_CODES = {
   UNKNOWN_PLAN: "UNKNOWN_PLAN",
   UNKNOWN_GRADE: "UNKNOWN_GRADE",
@@ -89,8 +87,6 @@ export const getGradeGroup = (classGrade) => {
   return null;
 };
 
-export const isJuniorGroup = (group) => JUNIOR_GROUPS.includes(group);
-
 const boardKey = (curriculum) => {
   if (typeof curriculum !== "string") return null;
   const b = curriculum.trim().replace(/\s+/g, "");
@@ -108,22 +104,19 @@ const boardMultiplier = (curriculum, table) => {
   return key && table[key] !== undefined ? table[key] : 1.0;
 };
 
-export const getEliteHourlyRate = (classGrade, curriculum, config = FEE_CONFIG) => {
-  const group = getGradeGroup(classGrade);
-  if (!group) return null;
-  return Math.round(config.eliteHourlyRates[group] * boardMultiplier(curriculum, config.eliteBoardMultipliers));
-};
-
 const findAvailabilityEntry = (planId, key, config) =>
   (config.availability[planId] || []).find((entry) => entry.combo === key);
 
-const getBasePrice = (planId, group, key, config) => {
-  const approved = config.masterPrices[group]?.[key];
-  if (typeof approved === "number") return approved;
-  const pending = config.pendingBasePrices?.[planId]?.[key];
-  if (pending && typeof pending[group] === "number") return pending[group];
-  return null;
+// Advance price for CBSE/ICSE home tuition; every plan is priced from it.
+const getAdvancePrice = (group, key, config) => {
+  const price = config.advancePrices[group]?.[key];
+  return typeof price === "number" ? price : null;
 };
+
+const homeOrOnlinePrice = (price, mode, rounding) =>
+  isOnlineMode(mode)
+    ? roundTo(price * rounding.onlineFactor, rounding.onlineRoundTo)
+    : roundTo(price, rounding.homeRoundTo);
 
 // Availability status of one plan/grade/schedule:
 // "available" | "pending" (approved combination, price not yet approved) | "unavailable".
@@ -134,8 +127,7 @@ export const getComboStatus = (planId, classGrade, days, hours, config = FEE_CON
   const key = comboKey(schedule.days, schedule.hours);
   const entry = findAvailabilityEntry(planId, key, config);
   if (!entry || !entry.groups.includes(group)) return "unavailable";
-  if (planId === "elite") return "available";
-  return getBasePrice(planId, group, key, config) === null ? "pending" : "available";
+  return getAdvancePrice(group, key, config) === null ? "pending" : "available";
 };
 
 // Monthly plan price for one student (one subject when subject pricing is enabled).
@@ -174,43 +166,22 @@ export const calculatePlanPrice = (planId, classGrade, curriculum, days, hours, 
     );
   }
 
-  const online = isOnlineMode(mode);
-  const { rounding } = config;
-
-  if (planId === "elite") {
-    const hourly = getEliteHourlyRate(classGrade, curriculum, config);
-    const monthly = Math.round(hourly * h * d * 4);
-    return online ? roundTo(monthly * rounding.onlineFactor, rounding.onlineRoundTo) : monthly;
-  }
-
-  const base = getBasePrice(planId, group, comboKey(d, h), config);
-  if (base === null) {
+  const advance = getAdvancePrice(group, comboKey(d, h), config);
+  if (advance === null) {
     throw new PricingError(ERROR_CODES.PRICE_MISSING, `No approved price for ${group}.`, { planId, group });
   }
-  const planMult =
-    planId === "foundation"
-      ? config.planMultipliers.foundation
-      : isJuniorGroup(group)
-        ? config.planMultipliers.advance.upToClass7
-        : config.planMultipliers.advance.class8Plus;
-
-  const price = base * boardMultiplier(curriculum, config.boardMultipliers) * planMult;
-  return online
-    ? roundTo(price * rounding.onlineFactor, rounding.onlineRoundTo)
-    : roundTo(price, rounding.homeRoundTo);
+  const price = advance * boardMultiplier(curriculum, config.boardMultipliers) * config.planMultipliers[planId];
+  return homeOrOnlinePrice(price, mode, config.rounding);
 };
 
-// Board price before the plan multiplier — shown struck through next to the
-// Foundation price (existing "18% off" display).
+// Advance price for the same board, mode and schedule — shown struck through
+// next to the Foundation price (Foundation = Advance − 18%).
 export const calculateListPrice = (classGrade, curriculum, days, hours, mode, config = FEE_CONFIG) => {
   const group = getGradeGroup(classGrade);
   const schedule = parseSchedule(days, hours, config);
-  const base = group && schedule ? config.masterPrices[group]?.[comboKey(schedule.days, schedule.hours)] : undefined;
-  if (typeof base !== "number") return null;
-  const price = base * boardMultiplier(curriculum, config.boardMultipliers);
-  return isOnlineMode(mode)
-    ? roundTo(price * config.rounding.onlineFactor, config.rounding.onlineRoundTo)
-    : Math.round(price);
+  const advance = group && schedule ? getAdvancePrice(group, comboKey(schedule.days, schedule.hours), config) : null;
+  if (advance === null) return null;
+  return homeOrOnlinePrice(advance * boardMultiplier(curriculum, config.boardMultipliers), mode, config.rounding);
 };
 
 // Struck-through list price for the selected plan, or null when none should be
@@ -227,7 +198,6 @@ export const getStruckListPrice = (quote, config = FEE_CONFIG) => {
 };
 
 // Average hourly rate implied by a monthly price (4 weeks a month), for display.
-// For home Elite tuition this equals the configured hourly rate exactly.
 export const getEffectiveHourlyRate = (monthlyPrice, days, hours, config = FEE_CONFIG) => {
   const schedule = parseSchedule(days, hours, config);
   if (!schedule || typeof monthlyPrice !== "number" || !Number.isFinite(monthlyPrice)) return null;

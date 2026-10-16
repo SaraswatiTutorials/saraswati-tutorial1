@@ -1712,7 +1712,7 @@ export default function ParentEnquiryForm() {
                             {isSelected && (
                               <motion.div
                                 layoutId="activeGenderBg"
-                                className="absolute inset-0 bg-slate-900 rounded-xl -z-10 shadow-sm"
+                                className="absolute inset-0 bg-slate-900 dark:bg-blue-600 rounded-xl -z-10 shadow-sm"
                                 transition={{ type: "spring", stiffness: 350, damping: 28 }}
                               />
                             )}
@@ -1750,7 +1750,7 @@ export default function ParentEnquiryForm() {
                                 <h4 className="text-xl font-black text-slate-900 dark:text-white">
                                   {PLANS.find(p => p.id === form.planType)?.title || form.planType}
                                 </h4>
-                                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-black text-emerald-700 border border-emerald-200">
+                                <span data-own-colors className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-black text-emerald-700 border border-emerald-200">
                                   Selected
                                 </span>
                               </div>
@@ -1882,7 +1882,7 @@ export default function ParentEnquiryForm() {
                                 onClick={() => handleDayToggle(day)}
                                 className={`rounded-full px-5 py-3 text-sm font-extrabold transition-all duration-300 cursor-pointer ${
                                   active
-                                    ? "bg-slate-900 text-white shadow-lg scale-[1.03]"
+                                    ? "bg-slate-900 dark:bg-blue-600 text-white shadow-lg scale-[1.03]"
                                     : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                                 }`}
                               >
@@ -1944,6 +1944,7 @@ export default function ParentEnquiryForm() {
                           return (
                             <div
                               key={plan.id}
+                              data-own-colors
                               onClick={() => handleOpenPlanModal(plan)}
                               className={`relative overflow-hidden premium-shine-card w-[290px] sm:w-[320px] md:w-full flex-shrink-0 snap-center rounded-[2rem] border p-5 flex flex-col justify-between h-[250px] cursor-pointer transition-all duration-300 group hover:scale-[1.02] ${cardBgClass} ${textClass} ${hoverShadowClass}`}
                             >
@@ -1952,8 +1953,8 @@ export default function ParentEnquiryForm() {
                               {/* Top Info */}
                               <div>
                                 <div className={`inline-block rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-wider border mb-3 ${
-                                  isSilver ? 'bg-slate-900/10 dark:bg-white/10 text-slate-800 dark:text-slate-100 border-slate-900/20 dark:border-white/10' :
-                                  isGold ? 'bg-black/10 dark:bg-white/10 text-slate-900 dark:text-white border-black/20 dark:border-white/10' :
+                                  isSilver ? 'bg-slate-900/10 text-slate-800 border-slate-900/20' :
+                                  isGold ? 'bg-black/10 text-slate-900 border-black/20' :
                                   'bg-white/10 text-white border-white/10'
                                 }`}>
                                   {plan.badge}
@@ -2036,12 +2037,12 @@ export default function ParentEnquiryForm() {
                             onClick={(e) => e.stopPropagation()}
                           >
                             {/* Modal Header */}
-                            <div className={`px-5 py-4 md:px-6 md:py-5 text-white bg-gradient-to-r ${activePlanData.gradient} relative`}>
+                            <div data-own-colors className={`px-5 py-4 md:px-6 md:py-5 text-white bg-gradient-to-r ${activePlanData.gradient} relative`}>
                               <button
                                 type="button"
                                 onClick={() => setViewingPlanId(null)}
                                 className={`absolute top-4 right-4 p-1.5 rounded-full transition cursor-pointer flex items-center justify-center bg-black/5 hover:bg-black/15 ${
-                                  activePlanData.theme === 'black' ? 'text-white' : 'text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white'
+                                  activePlanData.theme === 'black' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
                                 }`}
                               >
                                 <X className="h-4.5 w-4.5" />
@@ -2049,19 +2050,19 @@ export default function ParentEnquiryForm() {
                               
                               <div className="mt-2">
                                 <span className={`inline-block rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider border mb-2 ${
-                                  activePlanData.theme === 'silver' ? 'bg-slate-900/10 dark:bg-white/10 text-slate-800 dark:text-slate-100 border-slate-400/30' :
-                                  activePlanData.theme === 'gold' ? 'bg-black/10 dark:bg-white/10 text-slate-900 dark:text-white border-black/20 dark:border-white/10' :
+                                  activePlanData.theme === 'silver' ? 'bg-slate-900/10 text-slate-800 border-slate-400/30' :
+                                  activePlanData.theme === 'gold' ? 'bg-black/10 text-slate-900 border-black/20' :
                                   'bg-white/15 text-white border-white/10'
                                 }`}>
                                   {activePlanData.badge}
                                 </span>
                                 <h3 className={`text-2xl font-black ${
-                                  activePlanData.theme === 'black' ? 'text-white' : 'text-slate-900 dark:text-white'
+                                  activePlanData.theme === 'black' ? 'text-white' : 'text-slate-900'
                                 }`}>
                                   {activePlanData.title}
                                 </h3>
                                 <p className={`mt-1 text-xs leading-relaxed max-w-2xl ${
-                                  activePlanData.theme === 'black' ? 'text-slate-300' : 'text-slate-600 dark:text-slate-300'
+                                  activePlanData.theme === 'black' ? 'text-slate-300' : 'text-slate-700'
                                 }`}>
                                   {activePlanData.description}
                                 </p>
@@ -2085,7 +2086,7 @@ export default function ParentEnquiryForm() {
                                           } ${
                                             isDarkModal
                                               ? 'bg-gradient-to-br from-[#0B1528] to-[#050B15] border border-blue-900/30 text-white hover:border-blue-700/40'
-                                              : 'bg-gradient-to-br from-[#F8FAFC] to-[#F1F5F9] border border-slate-200 text-slate-800 hover:border-slate-300 hover:shadow-sm'
+                                              : 'bg-gradient-to-br from-[#F8FAFC] to-[#F1F5F9] dark:from-slate-800 dark:to-slate-800/60 border border-slate-200 text-slate-800 hover:border-slate-300 hover:shadow-sm'
                                           }`}
                                         >
                                           <div className="w-10 h-10 shrink-0 flex items-center justify-center">
@@ -2173,7 +2174,7 @@ export default function ParentEnquiryForm() {
                                           onClick={() => setSelectedOption(opt)}
                                           className={`p-3 rounded-xl border transition cursor-pointer flex items-center justify-between ${
                                             isSelected 
-                                              ? 'border-blue-500 bg-blue-50/50 shadow-sm' 
+                                              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/50 shadow-sm'
                                               : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'
                                           }`}
                                         >
