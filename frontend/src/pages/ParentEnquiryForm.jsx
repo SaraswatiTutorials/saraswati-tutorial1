@@ -1021,7 +1021,7 @@ export default function ParentEnquiryForm() {
         newErrors.planType = "Preferred Plan selection is required";
       } else {
         if (form.planType === "foundation" && !isPlanAvailable("foundation", form.wards, form.preferredMode)) {
-          newErrors.planType = "Foundation Plan is available from Class 8 onward. Please select another plan.";
+          newErrors.planType = "Foundation Plan is available from Class 6 onward. Please select another plan.";
         } else if (feeQuote && !feeQuote.ok) {
           newErrors.planType = `${feeQuote.errors[0].message} Please choose another plan or schedule.`;
         }
@@ -1920,7 +1920,7 @@ export default function ParentEnquiryForm() {
                       <div className="flex w-full gap-5 overflow-x-auto pb-4 snap-x md:grid md:grid-cols-3 md:overflow-x-visible md:pb-0 scrollbar-thin">
                         {PLANS.map((plan) => {
                           // Plans with no schedule available for every student are hidden
-                          // (e.g. Foundation below Class 8).
+                          // (e.g. Foundation below Class 6).
                           if (!isPlanAvailable(plan.id, form.wards, form.preferredMode)) {
                             return null;
                           }

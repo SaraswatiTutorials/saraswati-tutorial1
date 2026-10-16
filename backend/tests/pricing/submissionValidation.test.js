@@ -76,8 +76,8 @@ describe("validateSubmittedPricing", () => {
     assert.equal(result.status, "mismatch");
   });
 
-  test("unavailable combinations are invalid: Foundation for Class 6", () => {
-    const result = validateSubmittedPricing(honestSubmission({ planType: "foundation" }));
+  test("unavailable combinations are invalid: Foundation for Class 5", () => {
+    const result = validateSubmittedPricing(honestSubmission({ planType: "foundation", wards: [{ classGrade: "5", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }] }));
     assert.equal(result.status, "invalid");
     assert.equal(result.errors[0].code, "UNAVAILABLE");
   });
@@ -86,7 +86,7 @@ describe("validateSubmittedPricing", () => {
     const result = validateSubmittedPricing({
       planType: "advance", daysPerWeek: 3, hoursPerDay: 1, preferredMode: HOME,
       wards: [{ classGrade: "6", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }],
-      finalPrice: 5000, monthlyFees: 5000,
+      finalPrice: 5500, monthlyFees: 5500,
     });
     assert.notEqual(result.status, "invalid", JSON.stringify(result.errors));
   });
@@ -174,7 +174,7 @@ describe("applyPricingPolicy", () => {
   });
 
   test("enforce: unavailable combinations are rejected", () => {
-    const out = applyPricingPolicy(honestSubmission({ planType: "foundation" }), "enforce", silentLogger());
+    const out = applyPricingPolicy(honestSubmission({ planType: "foundation", wards: [{ classGrade: "5", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }] }), "enforce", silentLogger());
     assert.equal(out.action, "reject");
     assert.match(out.message, /not available/);
   });

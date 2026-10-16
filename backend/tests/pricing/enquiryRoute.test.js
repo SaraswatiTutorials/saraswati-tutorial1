@@ -156,13 +156,13 @@ describe("POST /api/parent-enquiries (mocked models)", () => {
     process.env.PRICING_ENFORCEMENT = "enforce";
     const res = await submit(submission({ finalPrice: 1, monthlyFees: 1 }));
     assert.equal(res.statusCode, 201);
-    assert.equal(calls.saved[0].finalPrice, 7500);
-    assert.equal(calls.saved[0].monthlyFees, 7500);
+    assert.equal(calls.saved[0].finalPrice, 6750);
+    assert.equal(calls.saved[0].monthlyFees, 6750);
   });
 
   test("enforce: an unavailable combination is rejected before anything is written", async () => {
     process.env.PRICING_ENFORCEMENT = "enforce";
-    const res = await submit(submission({ planType: "foundation" }));
+    const res = await submit(submission({ planType: "foundation", wards: [{ studentName: "A", classGrade: "5", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }] }));
     assert.equal(res.statusCode, 400);
     assert.equal(calls.constructed, 0);
     assert.equal(calls.saved.length, 0);
