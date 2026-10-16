@@ -54,7 +54,7 @@ describe("valid requests still work", () => {
   test("POST /quote returns the monthly quote", async () => {
     const r = await post("/quote", quoteBody());
     assert.equal(r.status, 200);
-    assert.equal(JSON.parse(r.text).monthlyPayable, 8600);
+    assert.equal(JSON.parse(r.text).monthlyPayable, 7500);
   });
 
   test("numeric strings for days and hours are accepted", async () => {
@@ -118,9 +118,9 @@ describe("well-formed but unpriceable requests get HTTP 400 with engine messages
     ["off-grid hours 1.46", { hoursPerDay: 1.46 }, "INVALID_SCHEDULE"],
     ["unsupported 4 days", { daysPerWeek: 4 }, "INVALID_SCHEDULE"],
     ["Foundation for Class 6", { planType: "foundation" }, "UNAVAILABLE"],
-    ["Advance 3×1 for Class 8", {
+    ["Advance 3×1 for Class 11", {
       hoursPerDay: 1,
-      wards: [{ studentName: "A", classGrade: "8", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }],
+      wards: [{ studentName: "A", classGrade: "11", curriculum: "CBSE", subjectsNeeded: ["Mathematics"] }],
     }, "UNAVAILABLE"],
     ["unknown plan", { planType: "platinum" }, "UNKNOWN_PLAN"],
   ]) {

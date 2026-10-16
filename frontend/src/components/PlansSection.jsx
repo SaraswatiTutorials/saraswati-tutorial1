@@ -26,9 +26,14 @@ import {
 } from "lucide-react";
 
 import { PLANS } from "../data/plansConfig";
-import { getAvailableOptions, getEliteHourlyRate, isPlanAvailable } from "../pricing/feeEngine";
+import { getAvailableOptions, getEffectiveHourlyRate, isPlanAvailable } from "../pricing/feeEngine";
 import { FEE_CONFIG } from "../pricing/feeConfig";
 import { trackEvent } from "../utils/analytics";
+
+const CLASS_OPTIONS = [
+  "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7",
+  "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "Degree",
+];
 
 const TIMELINE_STEPS = [
   {
@@ -83,7 +88,10 @@ const itemVariants = {
 
 export default function PlansSection() {
   const [activePlan, setActivePlan] = useState(null);
-  const [selectedClass, setSelectedClass] = useState(() => localStorage.getItem("selectedClass") || "Grade 6");
+  const [selectedClass, setSelectedClass] = useState(() => {
+    const saved = localStorage.getItem("selectedClass");
+    return CLASS_OPTIONS.includes(saved) ? saved : "Grade 6"; // a retired value such as "Grade 1–5" falls back
+  });
   const [selectedBoard, setSelectedBoard] = useState(() => localStorage.getItem("selectedBoard") || "CBSE");
   const detailsRef = useRef(null);
   
@@ -206,7 +214,7 @@ export default function PlansSection() {
                 }}
                 className="w-full bg-slate-900/80 border border-white/10 rounded-2xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition duration-300 cursor-pointer shadow-inner backdrop-blur-md"
               >
-                {["Grade 1–5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "Degree"].map((cg) => (
+                {CLASS_OPTIONS.map((cg) => (
                   <option key={cg} value={cg} className="bg-slate-950 text-white">{cg}</option>
                 ))}
               </select>
@@ -816,6 +824,8 @@ function PlanCard({ plan, isActive, isSelectedAny, isCenter, position, onClick }
   return (
     <div
       onClick={onClick}
+      // Gold and black cards look the same in both themes (silver has its own dark: styles)
+      data-own-colors={isSilver ? undefined : ""}
       style={getCardStyle()}
       className={`relative overflow-hidden rounded-[2rem] sm:rounded-[2.2rem] border flex flex-col min-h-[460px] h-auto sm:min-h-[500px] md:min-h-[520px] pb-4 cursor-pointer group ${getCardThemeClasses()} ${getActiveStateClasses()} ${
         isSelectedAny && !isActive ? "pointer-events-none md:pointer-events-auto" : ""
@@ -1233,12 +1243,15 @@ function PlanDetails({ plan, onCTA, selectedClass, selectedBoard }) {
           
           {plan.id === 'elite' && (
             (() => {
-              const hrRate = getEliteHourlyRate(selectedClass, selectedBoard) ?? 0;
+              // Elite is priced per schedule (Advance + 35%), so show the lowest hourly rate
+              const rates = pricingOptions.map((o) => getEffectiveHourlyRate(o.price, o.days, o.hours)).filter((r) => r !== null);
+              if (rates.length === 0) return null;
+              const hrRate = Math.min(...rates);
               return (
                 <div className="mb-6 bg-slate-900 border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-inner">
                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Hourly Rate</span>
                   <span className="text-2xl font-black tracking-tight text-amber-400 mt-1">
-                    ₹{hrRate.toLocaleString('en-IN')}/hour
+                    from ₹{hrRate.toLocaleString('en-IN')}/hour
                   </span>
                   <span className="text-[10px] font-medium text-slate-400 block mt-1">
                     Estimated Monthly Tuition calculated below

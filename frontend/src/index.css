@@ -42,107 +42,108 @@ html, body {
 }
 
 /* Dashboards (marked data-dashboard) style dark mode with their own dark: classes,
-   so these site-wide overrides skip them. */
+   and surfaces marked data-own-colors (e.g. the gold and silver plan cards) keep the
+   same colours in both themes, so these site-wide overrides skip them. */
 /* ─── Global Dark Mode Overrides ───────────────────────────────────────────── */
 /* Ensure all body text is legible in dark mode */
-.dark h1:not([data-dashboard] *, [data-dashboard]), .dark h2:not([data-dashboard] *, [data-dashboard]), .dark h3:not([data-dashboard] *, [data-dashboard]), .dark h4:not([data-dashboard] *, [data-dashboard]), .dark h5:not([data-dashboard] *, [data-dashboard]), .dark h6:not([data-dashboard] *, [data-dashboard]) {
+.dark h1:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]), .dark h2:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]), .dark h3:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]), .dark h4:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]), .dark h5:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]), .dark h6:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   color: #f1f5f9; /* slate-100 */
 }
-.dark p:not([data-dashboard] *, [data-dashboard]) {
+.dark p:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   color: #cbd5e1; /* slate-300 */
 }
-.dark span:not([data-dashboard] *, [data-dashboard]) {
+.dark span:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   color: inherit;
 }
 
 /* Glass card containers - light bg becomes dark glass in dark mode */
-.dark .bg-white\/30:not([data-dashboard] *, [data-dashboard]),
-.dark .bg-white\/40:not([data-dashboard] *, [data-dashboard]),
-.dark .bg-white\/50:not([data-dashboard] *, [data-dashboard]),
-.dark .bg-white\/60:not([data-dashboard] *, [data-dashboard]) {
+.dark .bg-white\/30:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
+.dark .bg-white\/40:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
+.dark .bg-white\/50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
+.dark .bg-white\/60:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   background-color: rgba(30, 41, 59, 0.7) !important; /* slate-800/70 */
 }
-.dark .bg-white\/20:not([data-dashboard] *, [data-dashboard]) {
+.dark .bg-white\/20:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   background-color: rgba(30, 41, 59, 0.5) !important;
 }
-.dark .bg-white\/10:not([data-dashboard] *, [data-dashboard]) {
+.dark .bg-white\/10:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   background-color: rgba(30, 41, 59, 0.3) !important;
 }
 
 /* Solid white backgrounds become dark */
-.dark .bg-white:not([data-dashboard] *, [data-dashboard]) {
+.dark .bg-white:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   background-color: #1e293b !important; /* slate-800 */
 }
 
 /* Borders */
-.dark .border-white\/50:not([data-dashboard] *, [data-dashboard]),
-.dark .border-white\/60:not([data-dashboard] *, [data-dashboard]) {
+.dark .border-white\/50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
+.dark .border-white\/60:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   border-color: rgba(71, 85, 105, 0.5) !important; /* slate-600/50 */
 }
-.dark .border-slate-200\/90:not([data-dashboard] *, [data-dashboard]) {
+.dark .border-slate-200\/90:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   border-color: rgba(51, 65, 85, 0.9) !important; /* slate-700 */
 }
-.dark .border-slate-100:not([data-dashboard] *, [data-dashboard]) {
+.dark .border-slate-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   border-color: #334155 !important; /* slate-700 */
 }
-.dark .border-slate-200:not([data-dashboard] *, [data-dashboard]) {
+.dark .border-slate-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   border-color: #334155 !important;
 }
-.dark .border-slate-300:not([data-dashboard] *, [data-dashboard]) {
+.dark .border-slate-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   border-color: #475569 !important;
 }
 
 /* Footer */
-.dark footer:not([data-dashboard] *, [data-dashboard]) {
+.dark footer:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   background-color: rgba(15, 23, 42, 0.8) !important;
   border-color: rgba(51, 65, 85, 0.5) !important;
 }
-.dark footer h5:not([data-dashboard] *, [data-dashboard]),
-.dark footer .font-bold:not([data-dashboard] *, [data-dashboard]) {
+.dark footer h5:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
+.dark footer .font-bold:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   color: #94a3b8 !important; /* slate-400 */
 }
-.dark footer a:not([data-dashboard] *, [data-dashboard]),
-.dark footer span:not([data-dashboard] *, [data-dashboard]),
-.dark footer li:not([data-dashboard] *, [data-dashboard]) {
+.dark footer a:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
+.dark footer span:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
+.dark footer li:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   color: #94a3b8 !important;
 }
-.dark footer a:not([data-dashboard] *, [data-dashboard]):hover {
+.dark footer a:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]):hover {
   color: #60a5fa !important;
 }
 
 /* Area pill tags */
-.dark .bg-white\/40:not([data-dashboard] *, [data-dashboard]) {
+.dark .bg-white\/40:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   background-color: rgba(30, 41, 59, 0.7) !important;
 }
 
 /* Blue number badges in subject cards */
-.dark .bg-blue-50:not([data-dashboard] *, [data-dashboard]) {
+.dark .bg-blue-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   background-color: rgba(37, 99, 235, 0.2) !important;
 }
-.dark .bg-indigo-50:not([data-dashboard] *, [data-dashboard]) {
+.dark .bg-indigo-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   background-color: rgba(79, 70, 229, 0.2) !important;
 }
 
 /* FAQ button hover */
-.dark .hover\:bg-slate-50\/50:not([data-dashboard] *, [data-dashboard]):hover {
+.dark .hover\:bg-slate-50\/50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]):hover {
   background-color: rgba(30, 41, 59, 0.5) !important;
 }
 
 /* See More Tutors button */
-.dark .bg-white.border-blue-600:not([data-dashboard] *, [data-dashboard]) {
+.dark .bg-white.border-blue-600:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   background-color: transparent !important;
   color: #60a5fa !important;
   border-color: #3b82f6 !important;
 }
 
 /* Process step number */
-.dark .text-slate-800:not([data-dashboard] *, [data-dashboard]) { color: #e2e8f0 !important; }
-.dark .text-slate-900:not([data-dashboard] *, [data-dashboard]) { color: #f1f5f9 !important; }
-.dark .text-slate-950:not([data-dashboard] *, [data-dashboard]) { color: #f8fafc !important; }
-.dark .text-slate-700:not([data-dashboard] *, [data-dashboard]) { color: #cbd5e1 !important; }
-.dark .text-slate-600:not([data-dashboard] *, [data-dashboard]) { color: #94a3b8 !important; }
-.dark .text-slate-500:not([data-dashboard] *, [data-dashboard]) { color: #94a3b8 !important; }
-.dark .text-slate-400:not([data-dashboard] *, [data-dashboard]) { color: #64748b !important; }
+.dark .text-slate-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #e2e8f0 !important; }
+.dark .text-slate-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #f1f5f9 !important; }
+.dark .text-slate-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #f8fafc !important; }
+.dark .text-slate-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #cbd5e1 !important; }
+.dark .text-slate-600:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #94a3b8 !important; }
+.dark .text-slate-500:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #94a3b8 !important; }
+.dark .text-slate-400:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #64748b !important; }
 
 
 /* ─── Dashboard theme (admin, tutor, parent) ──────────────────────────────────
