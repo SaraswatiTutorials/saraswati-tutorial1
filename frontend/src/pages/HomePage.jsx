@@ -801,7 +801,7 @@ export default function HomePage() {
       a: "The right tuition service should match your child's curriculum, subject needs, learning style, location, schedule, and budget. Saraswati Tutorials helps parents explore suitable home and online tutoring options based on these requirements."
     },
     {
-      q: "Do you provide home tuition across all areas of Bangalore?",
+      q: "Do you provide home tuition across all areas of Bangalore",
       a: "Yes, Saraswati Tutorials provides home tuition services across major areas of Bangalore including Whitefield, HSR Layout, Indiranagar, Jayanagar, Koramangala, JP Nagar, Electronic City, and nearby locations."
     },
     {
