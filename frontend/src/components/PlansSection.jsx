@@ -31,8 +31,8 @@ import { FEE_CONFIG } from "../pricing/feeConfig";
 import { trackEvent } from "../utils/analytics";
 
 const CLASS_OPTIONS = [
-  "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7",
-  "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "Degree",
+  "Grade 1-5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10",
+  "Grade 11", "Grade 12", "Degree",
 ];
 
 const TIMELINE_STEPS = [
@@ -90,7 +90,7 @@ export default function PlansSection() {
   const [activePlan, setActivePlan] = useState(null);
   const [selectedClass, setSelectedClass] = useState(() => {
     const saved = localStorage.getItem("selectedClass");
-    return CLASS_OPTIONS.includes(saved) ? saved : "Grade 6"; // a retired value such as "Grade 1–5" falls back
+    return CLASS_OPTIONS.includes(saved) ? saved : "Grade 6"; // a retired value such as "Grade 3" falls back
   });
   const [selectedBoard, setSelectedBoard] = useState(() => localStorage.getItem("selectedBoard") || "CBSE");
   const detailsRef = useRef(null);

@@ -7,11 +7,7 @@
 // Pricing lives in code only. Nothing here is read from or written to the database.
 
 export const GRADE_GROUPS = [
-  "Grade 1",
-  "Grade 2",
-  "Grade 3",
-  "Grade 4",
-  "Grade 5",
+  "Grades 1–5",
   "Grade 6",
   "Grade 7",
   "Grade 8",
@@ -24,20 +20,13 @@ export const GRADE_GROUPS = [
 
 const ALL_GROUPS = GRADE_GROUPS;
 const CLASS_6_PLUS = GRADE_GROUPS.slice(GRADE_GROUPS.indexOf("Grade 6"));
-// 1-hour sessions: Grade 1 to Grade 10 (not Grade 11, 12 or Degree)
+// 1-hour sessions: Grades 1–5 to Grade 10 (not Grade 11, 12 or Degree)
 const ONE_HOUR_GROUPS = GRADE_GROUPS.slice(0, GRADE_GROUPS.indexOf("Grade 11"));
 
-// Grades 1–5: the 1-hour Advance anchors (3 and 5 days a week); longer sessions
-// are the 1-hour price × hours, nearest ₹50 (e.g. 4750 × 1.5 = 7125 → 7150).
-const byHours = (oneHour, hours) => Math.round((oneHour * hours) / 50) * 50;
 // 5 days at the 3 days hourly rate for the same session length: the 3-day price
 // ÷ 12 hours × 20 hours, nearest ₹50 (e.g. 4500 ÷ 12 = 375/hour × 20 = 7500).
 const fiveDays = (d3) => Math.round((d3 * 5) / 3 / 50) * 50;
-const fromOneHour = (d3, d5) => ({
-  "3_1.0": d3, "3_1.5": byHours(d3, 1.5), "3_2.0": byHours(d3, 2),
-  "5_1.0": fiveDays(d3), "5_1.5": byHours(d5, 1.5), "5_2.0": byHours(d5, 2),
-});
-// Grades 6–10: every 5-day price comes from the 3-day price for that session length.
+// Grades 1–10: every 5-day price comes from the 3-day price for that session length.
 const fromThreeDays = (h1, h15, h2) => ({
   "3_1.0": h1, "3_1.5": h15, "3_2.0": h2,
   "5_1.0": fiveDays(h1), "5_1.5": fiveDays(h15), "5_2.0": fiveDays(h2),
@@ -46,19 +35,16 @@ const fromThreeDays = (h1, h15, h2) => ({
 // Combination keys are `${daysPerWeek}_${hoursPerSession.toFixed(1)}`.
 export const FEE_CONFIG = {
   // Advance plan monthly fees, home tuition, CBSE/ICSE (board multiplier 1.0).
-  // Grades 1–5: the proposed 1-hour Advanced base anchors, scaled by hours.
-  // 5 days × 1 hour (Grades 1–10) is priced from the 3 days × 1 hour hourly rate.
+  // Grades 1–5: one fee for all five classes, the 1-hour Advanced base anchor
+  // (₹4,500) at ₹375 an hour for every session length.
   // Grade 6 to Degree: the ICSE base fee tables (3.2 Grades 6–10, 3.4 Grades 11,
-  // 12 and Graduation). Grades 6–10 price all 5-day sessions at the 3-day hourly
-  // rate, so a longer session always costs more.
+  // 12 and Graduation).
+  // Grades 1–10 price all 5-day sessions at the 3-day hourly rate, so a longer
+  // session always costs more.
   // Foundation and Elite are derived from these (see planMultipliers).
   // A missing value keeps that grade's combination hidden and unquotable.
   advancePrices: {
-    "Grade 1": fromOneHour(4500, 6000),
-    "Grade 2": fromOneHour(4500, 6000),
-    "Grade 3": fromOneHour(4500, 6000),
-    "Grade 4": fromOneHour(4750, 6250),
-    "Grade 5": fromOneHour(5000, 6500),
+    "Grades 1–5": fromThreeDays(4500, 6750, 9000),
     "Grade 6": fromThreeDays(5500, 6750, 7800),
     "Grade 7": fromThreeDays(6000, 7200, 8500),
     "Grade 8": fromThreeDays(5700, 7500, 9000),
