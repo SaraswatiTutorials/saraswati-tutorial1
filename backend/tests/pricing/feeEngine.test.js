@@ -27,8 +27,9 @@ const STANDARD = [[3, 1.5], [3, 2], [5, 1.5], [5, 2]];
 const ELITE = [[3, 1], [3, 1.5], [5, 1], [5, 1.5]];
 const ADVANCE_ORDER = [[3, 1], [3, 1.5], [3, 2], [5, 1], [5, 1.5], [5, 2]];
 
-// Grades 1–5: 1-hour Advanced base anchors [class, 3×1, 5×1]; longer sessions are
-// the 1-hour price × hours, nearest ₹50.
+// Grades 1–5: 1-hour Advanced base anchors [class, 3×1, 5-day base]; longer sessions are
+// the 1-hour price × hours, nearest ₹50. 5×1 (Grades 1–10) is the 3×1 hourly rate
+// × 20 hours, nearest ₹50.
 const ONE_HOUR_ANCHORS = [
   ["1", 4500, 6000], ["2", 4500, 6000], ["3", 4500, 6000], ["4", 4750, 6250],
   ["5", 5000, 6500],
@@ -36,15 +37,16 @@ const ONE_HOUR_ANCHORS = [
 const r50 = (v) => Math.round(v / 50) * 50;
 
 // Advance fee tables (CBSE/ICSE home tuition), [class, 3×1, 3×1.5, 3×2, 5×1, 5×1.5, 5×2].
-// Grades 1–5: from the anchors; Grades 6–10: table 3.2; Grades 11, 12, Graduation:
+// Grades 1–5: from the anchors; Grades 6–10: table 3.2 for 3 days, 5 days at the
+// 3-day hourly rate (× 5/3, nearest ₹50); Grades 11, 12, Graduation:
 // table 3.4 (no 1-hour).
 const ADVANCE_TABLE = [
-  ...ONE_HOUR_ANCHORS.map(([g, d3, d5]) => [g, d3, r50(d3 * 1.5), d3 * 2, d5, r50(d5 * 1.5), d5 * 2]),
-  ["6", 5500, 6750, 7800, 6500, 8250, 9000],
-  ["7", 6000, 7200, 8500, 7000, 9000, 10000],
-  ["8", 5700, 7500, 9000, 7500, 9750, 11000],
-  ["9", 6500, 8000, 9500, 8000, 10500, 12000],
-  ["10", 7000, 8500, 10200, 8500, 11200, 13000],
+  ...ONE_HOUR_ANCHORS.map(([g, d3, d5]) => [g, d3, r50(d3 * 1.5), d3 * 2, r50((d3 * 5) / 3), r50(d5 * 1.5), d5 * 2]),
+  ["6", 5500, 6750, 7800, 9150, 11250, 13000],
+  ["7", 6000, 7200, 8500, 10000, 12000, 14150],
+  ["8", 5700, 7500, 9000, 9500, 12500, 15000],
+  ["9", 6500, 8000, 9500, 10850, 13350, 15850],
+  ["10", 7000, 8500, 10200, 11650, 14150, 17000],
   ["11", null, 9500, 11200, null, 12500, 14500],
   ["12", null, 10500, 12500, null, 14000, 16000],
   ["Degree Courses", null, 11000, 13000, null, 15000, 17500],
@@ -80,9 +82,26 @@ describe("plan prices", () => {
   test("Grades 1–5: longer sessions are the 1-hour price × hours", () => {
     assert.deepEqual(
       ADVANCE_ORDER.map(([d, h]) => calculatePlanPrice("advance", "5", "CBSE", d, h, HOME)),
-      [5000, 7500, 10000, 6500, 9750, 13000]
+      [5000, 7500, 10000, 8350, 9750, 13000]
     );
     assert.equal(calculatePlanPrice("advance", "4", "CBSE", 3, 1.5, HOME), 7150); // 4750 × 1.5 = 7125
+  });
+
+  test("on the same days a week, a longer session always costs more", () => {
+    for (const plan of ["foundation", "advance", "elite"]) {
+      for (const [g] of ADVANCE_TABLE) {
+        for (const board of ["CBSE", "IGCSE", "IB"]) {
+          for (const mode of [HOME, ONLINE]) {
+            for (const d of [3, 5]) {
+              const prices = [1, 1.5, 2]
+                .filter((h) => getComboStatus(plan, g, d, h) === "available")
+                .map((h) => calculatePlanPrice(plan, g, board, d, h, mode));
+              prices.slice(1).forEach((p, i) => assert.ok(p > prices[i], `${plan} ${g} ${board} ${mode} ${d} days: ${prices}`));
+            }
+          }
+        }
+      }
+    }
   });
 
   test("Foundation is Advance − 18% and Elite is Advance + 35%, nearest ₹50", () => {
