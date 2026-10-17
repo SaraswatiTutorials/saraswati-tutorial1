@@ -30,17 +30,27 @@ const ONE_HOUR_GROUPS = GRADE_GROUPS.slice(0, GRADE_GROUPS.indexOf("Grade 11"));
 // Grades 1–5: the 1-hour Advance anchors (3 and 5 days a week); longer sessions
 // are the 1-hour price × hours, nearest ₹50 (e.g. 4750 × 1.5 = 7125 → 7150).
 const byHours = (oneHour, hours) => Math.round((oneHour * hours) / 50) * 50;
+// 5 days at the 3 days hourly rate for the same session length: the 3-day price
+// ÷ 12 hours × 20 hours, nearest ₹50 (e.g. 4500 ÷ 12 = 375/hour × 20 = 7500).
+const fiveDays = (d3) => Math.round((d3 * 5) / 3 / 50) * 50;
 const fromOneHour = (d3, d5) => ({
   "3_1.0": d3, "3_1.5": byHours(d3, 1.5), "3_2.0": byHours(d3, 2),
-  "5_1.0": d5, "5_1.5": byHours(d5, 1.5), "5_2.0": byHours(d5, 2),
+  "5_1.0": fiveDays(d3), "5_1.5": byHours(d5, 1.5), "5_2.0": byHours(d5, 2),
+});
+// Grades 6–10: every 5-day price comes from the 3-day price for that session length.
+const fromThreeDays = (h1, h15, h2) => ({
+  "3_1.0": h1, "3_1.5": h15, "3_2.0": h2,
+  "5_1.0": fiveDays(h1), "5_1.5": fiveDays(h15), "5_2.0": fiveDays(h2),
 });
 
 // Combination keys are `${daysPerWeek}_${hoursPerSession.toFixed(1)}`.
 export const FEE_CONFIG = {
   // Advance plan monthly fees, home tuition, CBSE/ICSE (board multiplier 1.0).
   // Grades 1–5: the proposed 1-hour Advanced base anchors, scaled by hours.
+  // 5 days × 1 hour (Grades 1–10) is priced from the 3 days × 1 hour hourly rate.
   // Grade 6 to Degree: the ICSE base fee tables (3.2 Grades 6–10, 3.4 Grades 11,
-  // 12 and Graduation).
+  // 12 and Graduation). Grades 6–10 price all 5-day sessions at the 3-day hourly
+  // rate, so a longer session always costs more.
   // Foundation and Elite are derived from these (see planMultipliers).
   // A missing value keeps that grade's combination hidden and unquotable.
   advancePrices: {
@@ -49,11 +59,11 @@ export const FEE_CONFIG = {
     "Grade 3": fromOneHour(4500, 6000),
     "Grade 4": fromOneHour(4750, 6250),
     "Grade 5": fromOneHour(5000, 6500),
-    "Grade 6": { "3_1.0": 5500, "3_1.5": 6750, "3_2.0": 7800, "5_1.0": 6500, "5_1.5": 8250, "5_2.0": 9000 },
-    "Grade 7": { "3_1.0": 6000, "3_1.5": 7200, "3_2.0": 8500, "5_1.0": 7000, "5_1.5": 9000, "5_2.0": 10000 },
-    "Grade 8": { "3_1.0": 5700, "3_1.5": 7500, "3_2.0": 9000, "5_1.0": 7500, "5_1.5": 9750, "5_2.0": 11000 },
-    "Grade 9": { "3_1.0": 6500, "3_1.5": 8000, "3_2.0": 9500, "5_1.0": 8000, "5_1.5": 10500, "5_2.0": 12000 },
-    "Grade 10": { "3_1.0": 7000, "3_1.5": 8500, "3_2.0": 10200, "5_1.0": 8500, "5_1.5": 11200, "5_2.0": 13000 },
+    "Grade 6": fromThreeDays(5500, 6750, 7800),
+    "Grade 7": fromThreeDays(6000, 7200, 8500),
+    "Grade 8": fromThreeDays(5700, 7500, 9000),
+    "Grade 9": fromThreeDays(6500, 8000, 9500),
+    "Grade 10": fromThreeDays(7000, 8500, 10200),
     "Grade 11": { "3_1.5": 9500, "3_2.0": 11200, "5_1.5": 12500, "5_2.0": 14500 },
     "Grade 12": { "3_1.5": 10500, "3_2.0": 12500, "5_1.5": 14000, "5_2.0": 16000 },
     "Degree": { "3_1.5": 11000, "3_2.0": 13000, "5_1.5": 15000, "5_2.0": 17500 },
