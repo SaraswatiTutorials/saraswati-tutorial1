@@ -84,6 +84,7 @@ const ADMIN_PAGES = {
   attendance: { title: "Attendance & Class Tracking", section: "Operations" },
   analytics: { title: "Analytics & Visitor Insights", section: "Insights" },
   tncAcceptances: { title: "T&C Acceptances", section: "Compliance" },
+  account: { title: "Change Password", section: "Account" },
 };
 
 const CARD_BATCH_SIZE = 10;
@@ -877,7 +878,7 @@ export default function AdminDashboard() {
 
   function getTargetGradeOption(classGrade) {
     const cg = String(classGrade || "").trim();
-    if (["1 to 5", "1", "2", "3", "4", "5"].includes(cg)) return "Class 1-5 (Primary)";
+    if (["1-5", "1–5", "1 to 5", "1", "2", "3", "4", "5"].includes(cg)) return "Class 1-5 (Primary)";
     if (["6", "7", "8"].includes(cg)) return "Class 6-8 (Middle)";
     if (["9", "10"].includes(cg)) return "Class 9-10 (Secondary)";
     if (["11", "12", "PUC"].includes(cg)) return "Class 11-12 (Senior Secondary)";
@@ -1372,6 +1373,10 @@ export default function AdminDashboard() {
     {
       label: "Compliance",
       items: [{ key: "tncAcceptances", label: "T&C Acceptances", icon: FileCheck2, badge: tncStats.totalAccepted }],
+    },
+    {
+      label: "Account",
+      items: [{ key: "account", label: "Change Password", icon: Lock }],
     },
   ];
   const activePage = ADMIN_PAGES[currentMainTab] || ADMIN_PAGES.leads;
@@ -3512,6 +3517,8 @@ export default function AdminDashboard() {
             refresh={fetchAnalyticsData}
           />
         )}
+
+        {currentMainTab === "account" && <AdminPasswordPanel adminEmail={adminEmail} />}
 
         {currentMainTab === "attendance" && (
           <AdminAttendanceConsole
@@ -5861,6 +5868,108 @@ function ModalInput({ value, onChange, placeholder }) {
       value={value}
       onChange={(e) => onChange(e.target.value)}
     />
+  );
+}
+
+// Lets the signed-in admin set a new password (stored hashed on the server).
+function AdminPasswordPanel({ adminEmail }) {
+  const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const update = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    if (!form.currentPassword || !form.newPassword) return setError("Please fill in every field.");
+    if (form.newPassword.length < 8) return setError("New password must be at least 8 characters.");
+    if (form.newPassword !== form.confirmPassword) return setError("New password and confirmation do not match.");
+    if (form.newPassword === form.currentPassword) return setError("New password must be different from the current password.");
+
+    setSaving(true);
+    try {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`${API_BASE}/auth/change-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ currentPassword: form.currentPassword, newPassword: form.newPassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Could not change the password.");
+      setForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setSuccess("Password changed. Use the new password the next time you log in.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputClass =
+    "w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm font-medium text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition";
+  const fields = [
+    { name: "currentPassword", label: "Current password", autoComplete: "current-password" },
+    { name: "newPassword", label: "New password", autoComplete: "new-password", hint: "At least 8 characters." },
+    { name: "confirmPassword", label: "Confirm new password", autoComplete: "new-password" },
+  ];
+
+  return (
+    <div className="animate-slideFade max-w-lg">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Change Password</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Signed in as {adminEmail || "admin"}. Set a new password for this admin account.
+        </p>
+      </div>
+
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-sm"
+      >
+        {fields.map((f) => (
+          <div key={f.name}>
+            <label htmlFor={`admin-${f.name}`} className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+              {f.label}
+            </label>
+            <input
+              id={`admin-${f.name}`}
+              name={f.name}
+              type="password"
+              autoComplete={f.autoComplete}
+              value={form[f.name]}
+              onChange={update}
+              className={inputClass}
+            />
+            {f.hint && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{f.hint}</p>}
+          </div>
+        ))}
+
+        {error && (
+          <p role="alert" className="flex items-center gap-2 rounded-2xl bg-rose-50 dark:bg-rose-950/40 px-4 py-3 text-sm font-semibold text-rose-700 dark:text-rose-300">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </p>
+        )}
+        {success && (
+          <p role="status" className="flex items-center gap-2 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            {success}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+        >
+          <Lock className="h-4 w-4" />
+          {saving ? "Saving..." : "Change Password"}
+        </button>
+      </form>
+    </div>
   );
 }
 

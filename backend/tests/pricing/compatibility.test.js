@@ -71,14 +71,14 @@ describe("pricing API (no database)", () => {
     return res;
   };
 
-  test("GET /options hides Foundation for Class 5 and returns prices", () => {
-    const res = call("get", "/options", { query: { classGrade: "5", curriculum: "CBSE" } });
+  test("GET /options hides Foundation for Class 1-5 and returns prices", () => {
+    const res = call("get", "/options", { query: { classGrade: "1-5", curriculum: "CBSE" } });
     const plans = Object.fromEntries(res.payload.plans.map((p) => [p.id, p]));
     assert.equal(plans.foundation.available, false);
     assert.equal(plans.advance.available, true);
     const advance36 = plans.advance.options.find((o) => o.days === 3 && o.hours === 1);
-    assert.deepEqual(advance36, { days: 3, hours: 1, status: "available", price: 5000 });
-    assert.equal(plans.advance.options.find((o) => o.days === 3 && o.hours === 1.5).price, 7500);
+    assert.deepEqual(advance36, { days: 3, hours: 1, status: "available", price: 4500 });
+    assert.equal(plans.advance.options.find((o) => o.days === 3 && o.hours === 1.5).price, 6750);
   });
 
   test("GET /options requires a class", () => {

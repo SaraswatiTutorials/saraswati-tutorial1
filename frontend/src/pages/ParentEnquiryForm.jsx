@@ -137,11 +137,7 @@ const dayOptions = [
 ];
 
 const classOptions = [
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
+  "1-5",
   "6",
   "7",
   "8",
@@ -149,21 +145,26 @@ const classOptions = [
   "10",
   "11",
   "12",
-  "PUC",
   "Degree Courses",
 ];
+
+// Maps retired class values (single classes 1–5, "PUC") from saved drafts or the
+// homepage onto the current options; anything else unknown becomes "".
+const normalizeClassGrade = (value) => {
+  const cg = String(value || "").trim();
+  if (["1", "2", "3", "4", "5", "1–5", "1 to 5"].includes(cg)) return "1-5";
+  if (cg === "PUC") return "12";
+  return classOptions.includes(cg) ? cg : "";
+};
 
 const getCurriculumOptions = (classGrade) => {
   if (!classGrade) return [];
   const cg = String(classGrade).trim();
-  if (["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].includes(cg)) {
+  if (["1-5", "6", "7", "8", "9", "10"].includes(cg)) {
     return ["CBSE", "ICSE", "IGCSE", "IB", "NIOS", "Others"];
   }
   if (["11", "12"].includes(cg)) {
     return ["CBSE", "ISC", "IB", "IGCSE", "State Board", "Other"];
-  }
-  if (cg === "PUC") {
-    return ["State Board", "CBSE", "ISC", "NIOS", "Other"];
   }
   if (cg === "Degree Courses") {
     return [
@@ -618,9 +619,13 @@ export default function ParentEnquiryForm() {
         const timingReset = classTimingMode
           ? { classTimingType: "", classTimingSlot: "", startTime: "", endTime: "", classDuration: "" }
           : {};
+        const wards = Array.isArray(savedForm.wards)
+          ? savedForm.wards.map((w) => ({ ...w, classGrade: normalizeClassGrade(w?.classGrade) }))
+          : savedForm.wards;
         return {
           ...initialForm,
           ...savedForm,
+          ...(wards ? { wards } : {}),
           ...timingReset,
         };
       }
@@ -763,7 +768,7 @@ export default function ParentEnquiryForm() {
             cgValue = cgValue.replace("Grade ", "");
           }
           if (cgValue === "Degree") cgValue = "Degree Courses";
-          if (!classOptions.includes(cgValue)) cgValue = ""; // e.g. the retired "1–5"
+          cgValue = normalizeClassGrade(cgValue);
           
           updatedWards[0] = {
             ...updatedWards[0],

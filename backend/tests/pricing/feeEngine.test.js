@@ -19,7 +19,7 @@ import {
 
 const HOME = "Home Tuition / In-Person";
 const ONLINE = "Online / One-to-One Tuition";
-const JUNIOR = ["1", "2", "3", "4", "5", "6", "7"];
+const JUNIOR = ["1-5", "1", "2", "3", "4", "5", "6", "7"]; // single 1–5: older saved enquiries
 const SENIOR = ["8", "9", "10", "11", "12", "PUC", "Degree Courses"];
 const ONE_HOUR = [...JUNIOR, "8", "9", "10"];
 const NO_ONE_HOUR = ["11", "12", "PUC", "Degree Courses"];
@@ -27,21 +27,14 @@ const STANDARD = [[3, 1.5], [3, 2], [5, 1.5], [5, 2]];
 const ELITE = [[3, 1], [3, 1.5], [5, 1], [5, 1.5]];
 const ADVANCE_ORDER = [[3, 1], [3, 1.5], [3, 2], [5, 1], [5, 1.5], [5, 2]];
 
-// Grades 1–5: 1-hour Advanced base anchors [class, 3×1, 5-day base]; longer sessions are
-// the 1-hour price × hours, nearest ₹50. 5×1 (Grades 1–10) is the 3×1 hourly rate
-// × 20 hours, nearest ₹50.
-const ONE_HOUR_ANCHORS = [
-  ["1", 4500, 6000], ["2", 4500, 6000], ["3", 4500, 6000], ["4", 4750, 6250],
-  ["5", 5000, 6500],
-];
 const r50 = (v) => Math.round(v / 50) * 50;
 
 // Advance fee tables (CBSE/ICSE home tuition), [class, 3×1, 3×1.5, 3×2, 5×1, 5×1.5, 5×2].
-// Grades 1–5: from the anchors; Grades 6–10: table 3.2 for 3 days, 5 days at the
-// 3-day hourly rate (× 5/3, nearest ₹50); Grades 11, 12, Graduation:
-// table 3.4 (no 1-hour).
+// Grades 1–5: one class, ₹4,500 anchor at ₹375/hour; Grades 6–10: table 3.2 for
+// 3 days. Grades 1–10: 5 days at the 3-day hourly rate (× 5/3, nearest ₹50).
+// Grades 11, 12, Graduation: table 3.4 (no 1-hour).
 const ADVANCE_TABLE = [
-  ...ONE_HOUR_ANCHORS.map(([g, d3, d5]) => [g, d3, r50(d3 * 1.5), d3 * 2, r50((d3 * 5) / 3), r50(d5 * 1.5), d5 * 2]),
+  ["1-5", 4500, 6750, 9000, 7500, 11250, 15000],
   ["6", 5500, 6750, 7800, 9150, 11250, 13000],
   ["7", 6000, 7200, 8500, 10000, 12000, 14150],
   ["8", 5700, 7500, 9000, 9500, 12500, 15000],
@@ -79,12 +72,19 @@ describe("plan prices", () => {
     }
   });
 
-  test("Grades 1–5: longer sessions are the 1-hour price × hours", () => {
-    assert.deepEqual(
-      ADVANCE_ORDER.map(([d, h]) => calculatePlanPrice("advance", "5", "CBSE", d, h, HOME)),
-      [5000, 7500, 10000, 8350, 9750, 13000]
-    );
-    assert.equal(calculatePlanPrice("advance", "4", "CBSE", 3, 1.5, HOME), 7150); // 4750 × 1.5 = 7125
+  test("Classes 1–5 share one fee; older single-class values 1–5 get the same price", () => {
+    for (const plan of ["advance", "elite"]) {
+      const combined = ADVANCE_ORDER.filter(([d, h]) => getComboStatus(plan, "1-5", d, h) === "available")
+        .map(([d, h]) => calculatePlanPrice(plan, "1-5", "CBSE", d, h, HOME));
+      for (const g of ["1", "2", "3", "4", "5", "Grade 1-5", "1–5"]) {
+        assert.deepEqual(
+          ADVANCE_ORDER.filter(([d, h]) => getComboStatus(plan, g, d, h) === "available")
+            .map(([d, h]) => calculatePlanPrice(plan, g, "CBSE", d, h, HOME)),
+          combined,
+          `${plan} ${g}`
+        );
+      }
+    }
   });
 
   test("on the same days a week, a longer session always costs more", () => {
@@ -263,7 +263,7 @@ describe("session-length and schedule validation", () => {
   test("supported values still calculate, including numeric strings", () => {
     assert.equal(calculatePlanPrice("advance", "9", "CBSE", 3, 1.5, HOME), 8000);
     assert.equal(calculatePlanPrice("advance", "9", "CBSE", "3", "1.5", HOME), 8000);
-    assert.equal(calculatePlanPrice("advance", "9", "CBSE", 5, 2, HOME), 12000);
+    assert.equal(calculatePlanPrice("advance", "9", "CBSE", 5, 2, HOME), 15850);
     assert.equal(calculatePlanPrice("elite", "9", "CBSE", 3, 1, HOME), 8800);
     const q = calculateQuote({ planType: "advance", daysPerWeek: "3", hoursPerDay: "1.5", preferredMode: HOME,
       wards: [{ classGrade: "9", curriculum: "CBSE" }] });
@@ -338,7 +338,7 @@ describe("effective hourly rate (display)", () => {
 
 describe("grade labels", () => {
   test("homepage and enquiry-form labels resolve to the same group and price", () => {
-    const pairs = [["Grade 1", "1"], ["Grade 5", "5"], ["Grade 6", "6"], ["Grade 7", "7"], ["Grade 12", "12"], ["Degree", "Degree Courses"]];
+    const pairs = [["Grade 1-5", "1-5"], ["Grade 1", "1"], ["Grade 5", "5"], ["Grade 6", "6"], ["Grade 7", "7"], ["Grade 12", "12"], ["Degree", "Degree Courses"]];
     for (const [home, form] of pairs) {
       assert.equal(getGradeGroup(home), getGradeGroup(form));
       for (const plan of ["advance", "elite"]) {
@@ -350,8 +350,8 @@ describe("grade labels", () => {
     }
   });
 
-  test("the retired combined 'Class 1–5' value is an unknown class", () => {
-    for (const g of ["1 to 5", "Grade 1–5"]) assert.equal(errorCode(() => calculatePlanPrice("advance", g, "CBSE", 3, 1.5, HOME)), ERROR_CODES.UNKNOWN_GRADE);
+  test("unknown class values are rejected, never defaulted", () => {
+    for (const g of ["0", "13", "Nursery", "1-6", ""]) assert.equal(errorCode(() => calculatePlanPrice("advance", g, "CBSE", 3, 1.5, HOME)), ERROR_CODES.UNKNOWN_GRADE);
   });
 });
 
