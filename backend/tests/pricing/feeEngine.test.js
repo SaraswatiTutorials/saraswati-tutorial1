@@ -155,14 +155,23 @@ describe("availability matrix", () => {
     assert.equal(calculatePlanPrice("advance", "6", "CBSE", 3, 1, ONLINE), 3850); // 5500 × 0.7
   });
 
-  test("1-hour sessions are unavailable for Class 11 to Degree on every plan", () => {
+  test("Class 11 to Degree: 1-hour sessions only on Elite (Advance 1-hour base + 35%)", () => {
     for (const g of NO_ONE_HOUR) {
-      for (const plan of ["foundation", "advance", "elite"]) {
+      for (const plan of ["foundation", "advance"]) {
         assert.equal(getComboStatus(plan, g, 3, 1), "unavailable");
         assert.equal(getComboStatus(plan, g, 5, 1), "unavailable");
         assert.equal(errorCode(() => calculatePlanPrice(plan, g, "CBSE", 3, 1, HOME)), ERROR_CODES.UNAVAILABLE);
       }
+      assert.equal(getComboStatus("elite", g, 3, 1), "available");
+      assert.equal(getComboStatus("elite", g, 5, 1), "available");
     }
+    // 1-hour base = 3×1.5 ÷ 1.5 (nearest ₹50), 5 days = × 5/3; Elite = × 1.35, nearest ₹50
+    const expected = { "11": [8550, 14300], "12": [9450, 15750], "Degree Courses": [9900, 16550] };
+    for (const [g, [d3, d5]] of Object.entries(expected)) {
+      assert.equal(calculatePlanPrice("elite", g, "CBSE", 3, 1, HOME), d3, g);
+      assert.equal(calculatePlanPrice("elite", g, "CBSE", 5, 1, HOME), d5, g);
+    }
+    assert.equal(calculatePlanPrice("elite", "12", "IB", 3, 1, ONLINE), r50(7000 * 1.35 * 1.4 * 0.7)); // 9261 → 9250
   });
 
   test("Foundation never offers 1-hour sessions", () => {
@@ -200,7 +209,7 @@ describe("availability matrix", () => {
     assert.deepEqual(getAvailableOptions("elite", student, HOME).map((o) => [o.days, o.hours]), ELITE);
     const senior = [{ classGrade: "11", curriculum: "CBSE" }];
     assert.deepEqual(getAvailableOptions("advance", senior, HOME).map((o) => [o.days, o.hours]), STANDARD);
-    assert.deepEqual(getAvailableOptions("elite", senior, HOME).map((o) => [o.days, o.hours]), [[3, 1.5], [5, 1.5]]);
+    assert.deepEqual(getAvailableOptions("elite", senior, HOME).map((o) => [o.days, o.hours]), ELITE); // Elite offers 1-hour for every grade
   });
 
   test("siblings in Class 6 and Class 11 are not offered 1-hour (needs every student eligible)", () => {
