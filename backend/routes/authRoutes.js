@@ -1,5 +1,4 @@
 import express from "express";
-import fs from "fs";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
@@ -13,42 +12,34 @@ const router = express.Router();
 const MIN_PASSWORD_LENGTH = 8;
 const normalizeEmail = (email) => (typeof email === "string" ? email.trim().toLowerCase() : "");
 
-// The admin email and password are read from backend/.env itself, so they win
-// over ADMIN_EMAIL / ADMIN_PASSWORD set in the host's environment (dotenv never
-// overrides those). Falls back to process.env when the file has no value.
-// ADMIN_ENV_FILE points the tests at their own file.
-const ADMIN_ENV_FILE = process.env.ADMIN_ENV_FILE || new URL("../.env", import.meta.url);
-const adminEnvCredentials = () => {
-  let file = {};
-  try {
-    file = dotenv.parse(fs.readFileSync(ADMIN_ENV_FILE));
-  } catch {}
-  return {
-    email: normalizeEmail(file.ADMIN_EMAIL || process.env.ADMIN_EMAIL),
-    password: file.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD,
-  };
+// Two admin passwords are accepted:
+// 1. ADMIN_EMAIL / ADMIN_PASSWORD from backend/.env (always works; change it by
+//    editing .env and redeploying).
+// 2. A password the admin set on the dashboard's Change Password page, stored
+//    hashed in the Admin collection with passwordChangedAt. Records without
+//    passwordChangedAt (left by older code, password unknown) are ignored.
+const matchesEnvPassword = (email, password) => {
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+  return Boolean(ADMIN_EMAIL && ADMIN_PASSWORD && email === ADMIN_EMAIL && password === ADMIN_PASSWORD);
 };
 
-// Once an admin sets their own password in the dashboard it is stored (hashed)
-// in the Admin collection with passwordChangedAt, and replaces ADMIN_PASSWORD
-// from .env for that email. Until then, the .env credentials are used. Records
-// without passwordChangedAt (left by older code, password unknown) or without a
-// bcrypt hash are ignored, so they cannot lock the admin out.
 const isBcryptHash = (value) => typeof value === "string" && /^\$2[aby]\$\d{2}\$/.test(value);
 
-const checkAdminPassword = async (email, password) => {
-  if (!email || typeof password !== "string" || !password) return false;
-  const admin = await Admin.findOne({ email });
-  if (admin?.passwordChangedAt && isBcryptHash(admin.password)) return bcrypt.compare(password, admin.password);
+const matchesDashboardPassword = async (email, password) => {
+  const admin = await Admin.findOne({ email: normalizeEmail(email) });
+  if (!admin?.passwordChangedAt || !isBcryptHash(admin.password)) return false;
+  return bcrypt.compare(password, admin.password);
+};
 
-  const env = adminEnvCredentials();
-  return Boolean(env.email && env.password && email === env.email && password === env.password);
+const checkAdminPassword = async (email, password) => {
+  if (typeof email !== "string" || !email || typeof password !== "string" || !password) return false;
+  return matchesEnvPassword(email, password) || (await matchesDashboardPassword(email, password));
 };
 
 router.post("/login", async (req, res) => {
   try {
-    const email = normalizeEmail(req.body.email);
-    const { password } = req.body;
+    const { email, password } = req.body;
 
     if (!(await checkAdminPassword(email, password))) {
       return res.status(401).json({ message: "Invalid admin credentials" });
@@ -70,9 +61,10 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// Sets the dashboard password. The .env password keeps working as well.
 router.post("/change-password", verifyToken(["admin"]), async (req, res) => {
   try {
-    const email = normalizeEmail(req.user.email);
+    const email = req.user.email;
     const { currentPassword, newPassword } = req.body;
 
     if (typeof newPassword !== "string" || newPassword.length < MIN_PASSWORD_LENGTH) {
@@ -86,7 +78,11 @@ router.post("/change-password", verifyToken(["admin"]), async (req, res) => {
     }
 
     const hash = await bcrypt.hash(newPassword, 12);
-    await Admin.findOneAndUpdate({ email }, { email, password: hash, passwordChangedAt: new Date() }, { upsert: true });
+    await Admin.findOneAndUpdate(
+      { email: normalizeEmail(email) },
+      { email: normalizeEmail(email), password: hash, passwordChangedAt: new Date() },
+      { upsert: true }
+    );
 
     res.json({ message: "Password changed" });
   } catch (error) {
