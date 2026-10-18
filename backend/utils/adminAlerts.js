@@ -65,6 +65,9 @@ export async function notifyAdminOfNewEnquiry(lead) {
     messageBody,
     templateName: NEW_ENQUIRY_TEMPLATE_NAME,
     templateVars,
+    // Always the approved template, even inside the 24-hour chat window, so the
+    // wording edited in Odoo is what the admin receives (not messageBody above).
+    forceTemplate: true,
   });
 
   if (result.success) {

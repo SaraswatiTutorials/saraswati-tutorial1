@@ -238,6 +238,9 @@ export async function checkMissedClassWarnings() {
           templateName: MISSED_CLASS_TEMPLATE_NAME,
           // Order matters: {{1}} = tutor name, {{2}} = student name
           templateVars: { tutor_name: teacherName, student_name: studentName },
+          // Always the approved template (wording is edited in Odoo), even
+          // inside the 24-hour chat window.
+          forceTemplate: true,
         });
         if (result.success) {
           console.log(`[Missed Class Warning] Sent to ${teacherName} (${phoneNumber}).`);
