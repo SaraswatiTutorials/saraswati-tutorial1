@@ -20,7 +20,8 @@ export const GRADE_GROUPS = [
 
 const ALL_GROUPS = GRADE_GROUPS;
 const CLASS_6_PLUS = GRADE_GROUPS.slice(GRADE_GROUPS.indexOf("Grade 6"));
-// 1-hour sessions: Grades 1–5 to Grade 10 (not Grade 11, 12 or Degree)
+// Advance 1-hour sessions: Grades 1–5 to Grade 10 (not Grade 11, 12 or Degree);
+// Elite offers 1-hour sessions for every grade.
 const ONE_HOUR_GROUPS = GRADE_GROUPS.slice(0, GRADE_GROUPS.indexOf("Grade 11"));
 
 // 5 days at the 3 days hourly rate for the same session length: the 3-day price
@@ -31,6 +32,13 @@ const fromThreeDays = (h1, h15, h2) => ({
   "3_1.0": h1, "3_1.5": h15, "3_2.0": h2,
   "5_1.0": fiveDays(h1), "5_1.5": fiveDays(h15), "5_2.0": fiveDays(h2),
 });
+// Grade 11, 12 and Degree (table 3.4 has no 1-hour fee): a 1-hour base at the
+// 3 days × 1.5 hours hourly rate (÷ 1.5, nearest ₹50), 5 days at the 3-day
+// hourly rate. Only Elite offers it (Advance + 35%).
+const withOneHour = (prices) => {
+  const h1 = Math.round(prices["3_1.5"] / 1.5 / 50) * 50;
+  return { "3_1.0": h1, "5_1.0": fiveDays(h1), ...prices };
+};
 
 // Combination keys are `${daysPerWeek}_${hoursPerSession.toFixed(1)}`.
 export const FEE_CONFIG = {
@@ -50,9 +58,9 @@ export const FEE_CONFIG = {
     "Grade 8": fromThreeDays(5700, 7500, 9000),
     "Grade 9": fromThreeDays(6500, 8000, 9500),
     "Grade 10": fromThreeDays(7000, 8500, 10200),
-    "Grade 11": { "3_1.5": 9500, "3_2.0": 11200, "5_1.5": 12500, "5_2.0": 14500 },
-    "Grade 12": { "3_1.5": 10500, "3_2.0": 12500, "5_1.5": 14000, "5_2.0": 16000 },
-    "Degree": { "3_1.5": 11000, "3_2.0": 13000, "5_1.5": 15000, "5_2.0": 17500 },
+    "Grade 11": withOneHour({ "3_1.5": 9500, "3_2.0": 11200, "5_1.5": 12500, "5_2.0": 14500 }),
+    "Grade 12": withOneHour({ "3_1.5": 10500, "3_2.0": 12500, "5_1.5": 14000, "5_2.0": 16000 }),
+    "Degree": withOneHour({ "3_1.5": 11000, "3_2.0": 13000, "5_1.5": 15000, "5_2.0": 17500 }),
   },
 
   // Applied to the Advance price: Foundation = Advance − 18%, Elite = Advance + 35%.
@@ -91,9 +99,9 @@ export const FEE_CONFIG = {
       { combo: "5_2.0", groups: ALL_GROUPS },
     ],
     elite: [
-      { combo: "3_1.0", groups: ONE_HOUR_GROUPS },
+      { combo: "3_1.0", groups: ALL_GROUPS },
       { combo: "3_1.5", groups: ALL_GROUPS },
-      { combo: "5_1.0", groups: ONE_HOUR_GROUPS },
+      { combo: "5_1.0", groups: ALL_GROUPS },
       { combo: "5_1.5", groups: ALL_GROUPS },
     ],
   },
