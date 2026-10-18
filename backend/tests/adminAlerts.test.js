@@ -6,8 +6,9 @@ const lead = {
   requirementId: "REQ-00123",
   parentName: "Sunita Sharma",
   phone: "9876543210",
+  address: "12 Lokhandwala Road, Mumbai",
   area: "Andheri West",
-  geoInfo: { city: "Mumbai" },
+  geoInfo: { city: "Delhi" }, // IP guess, must not be used when the form has a location
   pincode: "400058",
   preferredMode: "Home Tuition",
   wards: [
@@ -23,7 +24,7 @@ test("template values are in {{1}}–{{6}} order", () => {
     "Sunita Sharma",
     "9876543210",
     "Aarav (Class 8, CBSE: Maths, Science); Diya (Class 5, ICSE: English)",
-    "Andheri West, Mumbai, 400058",
+    "12 Lokhandwala Road, Mumbai, Andheri West, 400058",
     "Home Tuition",
   ]);
 });
@@ -36,6 +37,16 @@ test("missing details become N/A and line breaks are removed (WhatsApp rejects b
   assert.equal(templateVars.students, "Student");
   assert.equal(templateVars.location, "N/A");
   assert.equal(templateVars.mode, "N/A");
+});
+
+test("location is what the parent entered, not the IP-detected city", () => {
+  // REQ-00362: form address Marathahalli, IP said Delhi
+  const typed = buildNewEnquiryAlert({ address: "marathahalli, Mumbai, Maharashtra", area: "", pincode: "", geoInfo: { city: "Delhi" } });
+  assert.equal(typed.templateVars.location, "marathahalli, Mumbai, Maharashtra");
+  // area already part of the address is not repeated
+  assert.equal(buildNewEnquiryAlert({ address: "Andheri West, Mumbai", area: "Andheri West" }).templateVars.location, "Andheri West, Mumbai");
+  // nothing entered: fall back to the detected city, clearly marked
+  assert.equal(buildNewEnquiryAlert({ geoInfo: { city: "Delhi" } }).templateVars.location, "Delhi (detected)");
 });
 
 test("message text", () => {

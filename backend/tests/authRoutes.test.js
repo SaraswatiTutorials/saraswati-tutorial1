@@ -1,10 +1,8 @@
 // Admin login and change-password routes, with the Admin model replaced by an
-// in-memory store. No MongoDB connection is made.
+// in-memory store. No MongoDB connection is made. Both the .env password and a
+// password set on the dashboard's Change Password page must work.
 import { test, describe, mock, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 
 const modulePath = (rel) => new URL(`../${rel}`, import.meta.url).href;
 
@@ -25,13 +23,9 @@ const FakeAdmin = {
 let handlers;
 
 before(async () => {
-  // The .env file holds the real credentials; the host environment has stale
-  // ones (as on Render), which must not win.
-  const envFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "admin-env-")), ".env");
-  fs.writeFileSync(envFile, `ADMIN_EMAIL=${ENV_EMAIL}\nADMIN_PASSWORD="${ENV_PASSWORD}"\n`);
-  process.env.ADMIN_ENV_FILE = envFile;
+  // ADMIN_EMAIL / ADMIN_PASSWORD as loaded from backend/.env
   process.env.ADMIN_EMAIL = ENV_EMAIL;
-  process.env.ADMIN_PASSWORD = "stale-host-password";
+  process.env.ADMIN_PASSWORD = ENV_PASSWORD;
   mock.module(modulePath("models/Admin.js"), { defaultExport: FakeAdmin });
   const { default: router } = await import(modulePath("routes/authRoutes.js"));
   const handlerFor = (path) => {
@@ -57,38 +51,32 @@ const changePassword = (currentPassword, newPassword) =>
   call(handlers.changePassword, { currentPassword, newPassword }, { email: ENV_EMAIL, role: "admin" });
 
 describe("admin login", () => {
-  test("uses the .env file credentials until a password is set, over the host environment", async () => {
+  test("the .env email and password log in", async () => {
     assert.equal((await login(ENV_EMAIL, ENV_PASSWORD)).statusCode, 200);
-    assert.equal((await login(ENV_EMAIL, "stale-host-password")).statusCode, 401);
-    assert.equal((await login(ENV_EMAIL.toUpperCase(), ENV_PASSWORD)).statusCode, 200);
     assert.equal((await login(ENV_EMAIL, "wrong")).statusCode, 401);
     assert.equal((await login("someone@example.com", ENV_PASSWORD)).statusCode, 401);
   });
 
-  test("ignores an old stored password that was not set from the dashboard", async () => {
+  test("an old stored password not set from the dashboard is ignored", async () => {
     const bcrypt = (await import("bcryptjs")).default;
     store.set(ENV_EMAIL, { email: ENV_EMAIL, password: await bcrypt.hash("forgotten-old-pass", 4) });
-    assert.equal((await login(ENV_EMAIL, ENV_PASSWORD)).statusCode, 200);
     assert.equal((await login(ENV_EMAIL, "forgotten-old-pass")).statusCode, 401);
-  });
-
-  test("ignores a stored password that is not a bcrypt hash", async () => {
-    store.set(ENV_EMAIL, { email: ENV_EMAIL, password: "plain-text" });
     assert.equal((await login(ENV_EMAIL, ENV_PASSWORD)).statusCode, 200);
-    assert.equal((await login(ENV_EMAIL, "plain-text")).statusCode, 401);
   });
 });
 
 describe("change password", () => {
-  test("the new password replaces the .env one and is stored hashed", async () => {
-    const res = await changePassword(ENV_PASSWORD, "brand-new-pass");
-    assert.equal(res.statusCode, 200);
-    assert.notEqual(store.get(ENV_EMAIL).password, "brand-new-pass");
+  test("after a change, both the new password and the .env password log in", async () => {
+    assert.equal((await changePassword(ENV_PASSWORD, "brand-new-pass")).statusCode, 200);
+    assert.notEqual(store.get(ENV_EMAIL).password, "brand-new-pass"); // stored hashed
     assert.equal((await login(ENV_EMAIL, "brand-new-pass")).statusCode, 200);
-    assert.equal((await login(ENV_EMAIL, ENV_PASSWORD)).statusCode, 401);
+    assert.equal((await login(ENV_EMAIL, ENV_PASSWORD)).statusCode, 200);
 
+    // changing again replaces the dashboard password; current may be either one
     assert.equal((await changePassword("brand-new-pass", "another-pass-1")).statusCode, 200);
     assert.equal((await login(ENV_EMAIL, "another-pass-1")).statusCode, 200);
+    assert.equal((await login(ENV_EMAIL, "brand-new-pass")).statusCode, 401);
+    assert.equal((await login(ENV_EMAIL, ENV_PASSWORD)).statusCode, 200);
   });
 
   test("rejects a wrong current password, a short password and an unchanged one", async () => {

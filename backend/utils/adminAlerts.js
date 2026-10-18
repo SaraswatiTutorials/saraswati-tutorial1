@@ -24,9 +24,22 @@ function describeStudents(lead) {
     .join("; ");
 }
 
+// The location the parent typed in the form (address, area, pincode). The city
+// guessed from their internet connection (geoInfo) is often wrong, so it is
+// only used when the form has no location, and marked as detected.
+function describeLocation(lead) {
+  const parts = [];
+  for (const part of [lead.address, lead.area, lead.pincode]) {
+    const text = String(part ?? "").trim();
+    if (text && !parts.some((p) => p.toLowerCase().includes(text.toLowerCase()))) parts.push(text);
+  }
+  if (parts.length) return parts.join(", ");
+  return lead.geoInfo?.city ? `${lead.geoInfo.city} (detected)` : "";
+}
+
 // Template values in order: {{1}} Req ID, {{2}} parent, {{3}} phone, {{4}} students, {{5}} location, {{6}} mode
 export function buildNewEnquiryAlert(lead) {
-  const location = [lead.area, lead.geoInfo?.city, lead.pincode].filter(Boolean).join(", ");
+  const location = describeLocation(lead);
   const values = {
     requirement_id: templateValue(lead.requirementId),
     parent_name: templateValue(lead.parentName),
