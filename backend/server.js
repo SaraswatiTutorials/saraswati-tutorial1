@@ -23,6 +23,7 @@ import broadcastDashboardRoutes from "./routes/broadcastDashboardRoutes.js";
 import broadcastOdooRoutes from "./routes/broadcastOdooRoutes.js";
 import tncRoutes from "./routes/tncRoutes.js";
 import pricingRoutes, { pricingErrorHandler } from "./routes/pricingRoutes.js";
+import geoRoutes from "./routes/geoRoutes.js";
 
 import { startReminderScheduler, startRetryScheduler, startSyncScheduler } from "./utils/reminderScheduler.js";
 import BroadcastLog from "./models/BroadcastLog.js";
@@ -97,6 +98,7 @@ app.use("/api/analytics",        analyticsRoutes);
 app.use("/api/attendance",       attendanceRoutes);
 app.use("/api/tnc",              tncRoutes);
 app.use("/api/pricing",          pricingRoutes);
+app.use("/api/geo",              geoRoutes);
 app.use("/api/pricing",          pricingErrorHandler); // generic errors, no stack traces
 
 // ── Broadcast Dashboard APIs ──────────────────────────────────────────────────

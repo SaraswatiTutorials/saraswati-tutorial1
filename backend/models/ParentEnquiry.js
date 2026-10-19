@@ -87,6 +87,22 @@ const parentEnquirySchema = new mongoose.Schema(
       trim: true,
     },
 
+    city: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    latitude: {
+      type: Number,
+      default: null,
+    },
+
+    longitude: {
+      type: Number,
+      default: null,
+    },
+
     startTime: {
       type: String,
       default: "",

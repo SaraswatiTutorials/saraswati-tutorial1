@@ -20,11 +20,11 @@ import {
   GraduationCap,
   Sparkles,
   X,
-  Search,
   Loader2,
 } from "lucide-react";
 
 import { API_BASE } from "../config";
+import { LocationField } from "../components/LocationPicker";
 
 const DRAFT_KEY = "tutorRegistrationDraft";
 
@@ -49,6 +49,12 @@ const initialFormData = {
   whatsapp: "",
   city: "",
   fullAddress: "",
+  area: "",
+  pincode: "",
+  placeLabel: "",
+  houseDetails: "",
+  latitude: null,
+  longitude: null,
   grades: [],
   boards: [],
   subjects: [],
@@ -130,123 +136,6 @@ const timingGroups = {
   "Evening 4 PM – 8 PM": ["4-5 PM", "5-6 PM", "6-7 PM", "7-8 PM"],
 };
 
-const bangaloreAreaGroups = {
-  "East Bangalore": [
-    "Whitefield",
-    "Marathahalli",
-    "Brookefield",
-    "Kundalahalli",
-    "AECS Layout",
-    "ITPL",
-    "Hoodi",
-    "KR Puram",
-    "Mahadevapura",
-    "Kadugodi",
-    "Varthur",
-    "Bellandur",
-    "Sarjapur Road",
-    "HSR Layout",
-  ],
-  "South-East": [
-    "HSR Layout",
-    "Sarjapur",
-    "Electronic City",
-    "Bommanahalli",
-    "BTM Layout",
-    "Silk Board",
-  ],
-  "Central Bangalore": [
-    "Indiranagar",
-    "Domlur",
-    "MG Road",
-    "Ulsoor",
-    "Richmond Town",
-    "Jayanagar",
-    "JP Nagar",
-    "Banashankari",
-    "Basavanagudi",
-  ],
-  "North Bangalore": [
-    "Hebbal",
-    "RT Nagar",
-    "Nagawara",
-    "Hennur",
-    "Jakkur",
-    "Yelahanka",
-  ],
-  "West Bangalore": [
-    "Rajajinagar",
-    "Malleshwaram",
-    "Yeshwanthpur",
-    "Vijayanagar",
-    "Basaveshwar Nagar",
-  ],
-  "Other Areas": [
-    "Kengeri",
-    "Bannerghatta Road",
-    "Kanakapura Road",
-    "Thanisandra",
-  ],
-};
-
-const mumbaiAreaGroups = {
-  "South Mumbai": [
-    "Colaba",
-    "Cuffe Parade",
-    "Nariman Point",
-    "Marine Drive",
-    "Dadar",
-    "Prabhadevi",
-    "Worli",
-    "Lower Parel",
-    "Byculla",
-    "Mazagaon",
-  ],
-  "Western Suburbs": [
-    "Bandra",
-    "Khar",
-    "Santacruz",
-    "Vile Parle",
-    "Andheri",
-    "Jogeshwari",
-    "Goregaon",
-    "Malad",
-    "Kandivali",
-    "Borivali",
-    "Dahisar",
-  ],
-  "Eastern Suburbs": [
-    "Kurla",
-    "Ghatkopar",
-    "Vikhroli",
-    "Kanjurmarg",
-    "Bhandup",
-    "Mulund",
-    "Chembur",
-    "Govandi",
-    "Mankhurd",
-    "Powai",
-  ],
-  "Thane Region": [
-    "Thane West",
-    "Thane East",
-    "Ghodbunder Road",
-    "Kalwa",
-    "Mumbra",
-  ],
-  "Navi Mumbai": [
-    "Vashi",
-    "Koparkhairane",
-    "Ghansoli",
-    "Airoli",
-    "Nerul",
-    "Belapur",
-    "Kharghar",
-    "Panvel",
-    "Seawoods",
-  ],
-};
-
 export default function TutorRegistration() {
   const navigate = useNavigate();
 
@@ -261,7 +150,6 @@ export default function TutorRegistration() {
       return saved?.step || 1;
     } catch { return 1; }
   });
-  const [search, setSearch] = useState("");
   const [formData, setFormData] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
@@ -319,10 +207,6 @@ export default function TutorRegistration() {
   // Cloud draft sync state
   const [draftSyncStatus, setDraftSyncStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
 
-  const isMumbai = formData.city === "Mumbai";
-  const areaGroups = isMumbai ? mumbaiAreaGroups : bangaloreAreaGroups;
-
-  const [openGroup, setOpenGroup] = useState(defaultIsMumbai ? "Western Suburbs" : "East Bangalore");
   // Always starts unticked; the tutor ticks it themselves if WhatsApp = phone
   const [sameAsMobile, setSameAsMobile] = useState(false);
 
@@ -481,7 +365,14 @@ export default function TutorRegistration() {
       setFormData((prev) => ({
         ...prev,
         city: value,
-        locations: [], // Reset selected locations when city changes
+        locations: [],
+        latitude: null,
+        longitude: null,
+        area: "",
+        pincode: "",
+        placeLabel: "",
+        houseDetails: "",
+        fullAddress: "",
       }));
       setOpenGroup(value === "Mumbai" ? "Western Suburbs" : "East Bangalore");
     } else {
@@ -584,7 +475,6 @@ export default function TutorRegistration() {
   const validateStep3 = () => {
     const nextErrors = {
       city: validateField("city", formData.city),
-      fullAddress: validateField("fullAddress", formData.fullAddress),
       maxTravelDistance: validateField("maxTravelDistance", formData.maxTravelDistance),
     };
 
@@ -592,8 +482,10 @@ export default function TutorRegistration() {
       nextErrors.vehicleNumber = "Enter vehicle number";
     }
 
-    if (!formData.locations.length) {
-      nextErrors.locations = "Select at least one teaching location";
+    if (formData.latitude == null || formData.longitude == null) {
+      nextErrors.location = "Add your location on the map";
+    } else if (!formData.houseDetails || formData.houseDetails.trim().length < 3) {
+      nextErrors.location = "Enter house, flat, or building details";
     }
 
     if (!formData.photo) return "Profile photo is required";
@@ -819,7 +711,13 @@ export default function TutorRegistration() {
 
       await axios.post(`${API_BASE}/tutors`, {
         ...formData,
-        locations: formData.locations.map((loc) => `${loc}, ${isMumbai ? "Mumbai" : "Bangalore"}`),
+        locations: formData.area
+          ? [`${formData.area}${formData.city ? `, ${formData.city}` : ""}`]
+          : [],
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+        area: formData.area || "",
+        pincode: formData.pincode || "",
         photo: finalPhotoUrl,
         documents: {
           idProof:  finalIdProofUrl,
@@ -907,8 +805,10 @@ export default function TutorRegistration() {
   const isStep3Ready =
     formData.city &&
     formData.fullAddress &&
+    formData.latitude != null &&
+    formData.longitude != null &&
+    (formData.houseDetails || "").trim().length >= 3 &&
     formData.maxTravelDistance &&
-    formData.locations.length > 0 &&
     formData.hasVehicle &&
     (formData.hasVehicle === "no" || formData.vehicleNumber.trim()) &&
     // Accept either a File object (just selected) or an already-uploaded URL
@@ -1382,7 +1282,11 @@ export default function TutorRegistration() {
                         onChange={handleChange}
                         onBlur={handleBlur}
                         error={touched.city ? errors.city : ""}
-                        options={cityOptions}
+                        options={
+                          cityOptions.includes(formData.city) || !formData.city
+                            ? cityOptions
+                            : [formData.city, ...cityOptions]
+                        }
                         placeholder="Select City"
                       />
 
@@ -1400,139 +1304,42 @@ export default function TutorRegistration() {
                       />
                     </div>
 
-                    <InputField
-                      icon={MapPin}
-                      label="Full Address (with Area & PIN Code)"
+                    <LocationField
+                      label="Your location"
                       required
-                      name="fullAddress"
-                      type="textarea"
-                      value={formData.fullAddress}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      placeholder="Enter complete house/flat number, building name, street, area/locality, and 6-digit PIN code"
-                      error={touched.fullAddress ? errors.fullAddress : ""}
+                      biasCity={formData.city}
+                      error={errors.location || (touched.fullAddress ? errors.fullAddress : "")}
+                      emptyText="Add the area where you can teach"
+                      value={{
+                        latitude: formData.latitude,
+                        longitude: formData.longitude,
+                        area: formData.area,
+                        city: formData.city,
+                        pincode: formData.pincode,
+                        placeLabel: formData.placeLabel,
+                        houseDetails: formData.houseDetails,
+                      }}
+                      onChange={(location) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          latitude: location.latitude,
+                          longitude: location.longitude,
+                          area: location.area || "",
+                          pincode: location.pincode || "",
+                          placeLabel: location.placeLabel || "",
+                          houseDetails: location.houseDetails || "",
+                          fullAddress: location.fullAddress || "",
+                          city: location.city || prev.city,
+                          locations: location.area ? [location.area] : [],
+                        }));
+                        setErrors((prev) => ({
+                          ...prev,
+                          location: "",
+                          fullAddress: "",
+                          city: location.city ? "" : prev.city,
+                        }));
+                      }}
                     />
-                  </div>
-
-                  {/* Teaching Locations Picker */}
-                  <div className="rounded-[2rem] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm dark:shadow-none">
-                    <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-center">
-                      <div>
-                        <h3 className="text-xl font-black text-slate-900 dark:text-white">
-                          Select Locations Where You Can Teach
-                        </h3>
-                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                          Choose all preferred areas. Parents will see your preferred locations.
-                        </p>
-                      </div>
-
-                      <span className="rounded-full bg-blue-50 dark:bg-blue-950/40 px-4 py-2 text-xs font-black text-blue-700 dark:text-blue-300">
-                        {formData.locations.length} selected
-                      </span>
-                    </div>
-
-                    {formData.locations.length > 0 && (
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        {formData.locations.map((loc) => (
-                          <span
-                            key={loc}
-                            className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-sm font-bold text-blue-700 ring-1 ring-blue-100"
-                          >
-                            {loc}
-                            <button
-                              type="button"
-                              onClick={() => handleMulti("locations", loc)}
-                              className="rounded-full text-blue-500 hover:text-red-500"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="relative mb-5">
-                      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="Search location..."
-                        className="h-13 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-11 py-3 text-sm outline-none transition focus:border-slate-950 dark:focus:border-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-900/30 text-slate-800 dark:text-slate-100"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="max-h-[300px] space-y-3 overflow-y-auto pr-1">
-                      {Object.entries(areaGroups).map(([group, locations]) => {
-                        const filtered = locations.filter((area) =>
-                          area.toLowerCase().includes(search.toLowerCase())
-                        );
-
-                        if (filtered.length === 0) return null;
-
-                        return (
-                          <div
-                            key={group}
-                            className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
-                          >
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setOpenGroup(openGroup === group ? null : group)
-                              }
-                              className="flex w-full items-center justify-between bg-slate-50 dark:bg-slate-800 px-4 py-3 text-left"
-                            >
-                              <span className="font-black text-slate-800 dark:text-slate-100 dark:text-slate-200">
-                                {group}
-                              </span>
-                              <span className="rounded-full bg-white dark:bg-slate-950 px-3 py-1 text-sm font-black text-slate-500 shadow-sm">
-                                {openGroup === group ? "−" : "+"}
-                              </span>
-                            </button>
-
-                            {openGroup === group && (
-                              <div className="grid gap-2 p-4 sm:grid-cols-2 md:grid-cols-3">
-                                {filtered.map((area) => {
-                                  const active = formData.locations.includes(area);
-
-                                  return (
-                                    <button
-                                      type="button"
-                                      key={area}
-                                      onClick={() => handleMulti("locations", area)}
-                                      className={`rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${
-                                        active
-                                          ? "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
-                                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                                      }`}
-                                    >
-                                      {active ? "\u2713 " : ""}
-                                      {area}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                      {Object.values(areaGroups)
-                        .flat()
-                        .filter((area) =>
-                          area.toLowerCase().includes(search.toLowerCase())
-                        ).length === 0 && (
-                        <p className="rounded-2xl bg-slate-50 dark:bg-slate-800/40 p-5 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
-                          No locations found
-                        </p>
-                      )}
-                    </div>
-
-                    {errors.locations && (
-                      <p className="mt-3 text-sm font-bold text-red-600">
-                        {errors.locations}
-                      </p>
-                    )}
                   </div>
 
                   {/* Vehicle Availability */}

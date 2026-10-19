@@ -34,6 +34,12 @@ import { notifyAdminOfNewEnquiry } from "../utils/adminAlerts.js";
 
 const router = express.Router();
 
+function toCoordinate(value) {
+  if (value === "" || value == null) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 // ============================================================
 // HELPER: Compute tutor statistics from ParentEnquiry records
 // ============================================================
@@ -474,6 +480,11 @@ router.post("/", async (req, res) => {
     // â”€â”€ Step 2: Save to MongoDB FIRST (parent is never blocked by Odoo) â”€â”€â”€â”€â”€â”€â”€
     const enquiry = new ParentEnquiry({
       ...req.body,
+      area: req.body.area || "",
+      pincode: req.body.pincode || "",
+      city: req.body.city || "",
+      latitude: toCoordinate(req.body.latitude),
+      longitude: toCoordinate(req.body.longitude),
       totalClasses: finalTotalClasses,
       status: req.body.status || "New Lead",
       requirementId,

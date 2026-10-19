@@ -17,6 +17,12 @@ import mongoose from "mongoose";
 
 const router = express.Router();
 
+function toCoordinate(value) {
+  if (value === "" || value == null) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 // Helper to dynamically calculate and append tutor statistics from ParentEnquiry
 async function appendStatsToTutor(tutor) {
   const assignedLeads = await ParentEnquiry.find({
@@ -395,11 +401,15 @@ router.post("/", async (req, res) => {
       area: body.area || "",
       fullAddress: body.fullAddress || "",
       pincode: body.pincode || "",
+      latitude: toCoordinate(body.latitude),
+      longitude: toCoordinate(body.longitude),
       grades: Array.isArray(body.grades) ? body.grades : [],
       boards: Array.isArray(body.boards) ? body.boards : [],
       subjects: Array.isArray(body.subjects) ? body.subjects : [],
       timings: Array.isArray(body.timings) ? body.timings : [],
-      locations: Array.isArray(body.locations) ? body.locations : [],
+      locations: Array.isArray(body.locations) && body.locations.length
+        ? body.locations
+        : (body.area ? [body.area] : []),
       maxTravelDistance: body.maxTravelDistance || "",
     };
 

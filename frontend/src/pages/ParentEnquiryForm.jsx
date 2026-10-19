@@ -47,6 +47,7 @@ import {
 } from "../pricing/feeEngine";
 import { FEE_CONFIG } from "../pricing/feeConfig";
 import FeeBreakdown from "../components/FeeBreakdown";
+import { LocationField } from "../components/LocationPicker";
 import { API_BASE } from "../config";
 import { trackEvent } from "../utils/analytics";
 import DemoParentDashboard from "./DemoParentDashboard";
@@ -101,6 +102,13 @@ const initialForm = {
   phone: "",
   email: "",
   address: "",
+  area: "",
+  pincode: "",
+  city: "",
+  placeLabel: "",
+  houseDetails: "",
+  latitude: null,
+  longitude: null,
   preferredGender: "",
   preferredMode: "",
   // No timing is pre-selected: the parent must choose "Fixed Timing" or "Flexible"
@@ -985,8 +993,10 @@ export default function ParentEnquiryForm() {
         newErrors.email = "Please enter a valid email address";
       }
 
-      if (!form.address.trim()) {
-        newErrors.address = "Address is required";
+      if (form.latitude == null || form.longitude == null) {
+        newErrors.address = "Select your location on the map";
+      } else if (!form.houseDetails || form.houseDetails.trim().length < 3) {
+        newErrors.address = "Enter house, flat, or building details";
       }
     }
 
@@ -1117,7 +1127,9 @@ export default function ParentEnquiryForm() {
       Mumbai: "Mumbai, Maharashtra",
     };
     const suffix = citySuffixes[selectedCity] || selectedCity;
-    const finalAddress = form.address.trim() ? `${form.address.trim()}, ${suffix}` : suffix;
+    const finalAddress = form.latitude != null
+      ? form.address.trim()
+      : (form.address.trim() ? `${form.address.trim()}, ${suffix}` : suffix);
 
     // Flexible timing sends no clock time, so reminders and attendance never assume one
     const isFixedTiming = form.classTimingType === "Fixed Timing";
@@ -1131,6 +1143,11 @@ export default function ParentEnquiryForm() {
       classDuration: classDur,
       preferredDays: prefDays,
       address: finalAddress,
+      area: form.area || "",
+      pincode: form.pincode || "",
+      city: form.city || selectedCity,
+      latitude: form.latitude == null ? null : Number(form.latitude),
+      longitude: form.longitude == null ? null : Number(form.longitude),
       wards: form.wards.map((ward) => ({
         studentName: ward.studentName,
         classGrade: ward.classGrade,
@@ -1397,16 +1414,38 @@ export default function ParentEnquiryForm() {
                     icon={Mail}
                   />
 
-                  <Input
-                    label={requiredLabel("Address")}
-                    type="text"
-                    name="address"
-                    value={form.address}
-                    onChange={handleChange}
-                    error={errors.address}
-                    placeholder="House/Flat No, Street, Area, City, State, Pincode"
-                    icon={MapPin}
-                  />
+                  <div className="md:col-span-2">
+                    <LocationField
+                      label="Address"
+                      required
+                      biasCity={form.city || selectedCity}
+                      error={errors.address}
+                      emptyText="Add the student's home location"
+                      value={{
+                        latitude: form.latitude,
+                        longitude: form.longitude,
+                        area: form.area,
+                        city: form.city,
+                        pincode: form.pincode,
+                        placeLabel: form.placeLabel,
+                        houseDetails: form.houseDetails,
+                      }}
+                      onChange={(location) => {
+                        setForm((prev) => ({
+                          ...prev,
+                          latitude: location.latitude,
+                          longitude: location.longitude,
+                          area: location.area || "",
+                          pincode: location.pincode || "",
+                          city: location.city || prev.city || selectedCity,
+                          placeLabel: location.placeLabel || "",
+                          houseDetails: location.houseDetails || "",
+                          address: location.fullAddress || "",
+                        }));
+                        setErrors((prev) => ({ ...prev, address: "" }));
+                      }}
+                    />
+                  </div>
                 </motion.div>
               </motion.section>
             )}

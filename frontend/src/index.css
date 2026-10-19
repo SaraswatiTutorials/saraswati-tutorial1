@@ -33,6 +33,34 @@ html, body {
   backdrop-filter: blur(24px);
 }
 
+.location-map-canvas,
+.location-map-canvas .leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #0b1220;
+  font-family: inherit;
+}
+
+.location-pin-icon {
+  background: transparent;
+  border: none;
+}
+
+.location-pin-hint {
+  background: #ffffff;
+  color: #0f172a;
+  border: none;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+.location-pin-hint::before {
+  border-top-color: #ffffff;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
