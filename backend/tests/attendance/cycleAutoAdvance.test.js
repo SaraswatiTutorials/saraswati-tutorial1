@@ -41,6 +41,8 @@ class FakeAttendance {
   static findOne(q) { return new Query(logs.filter((l) => matches(l, q)), true); }
   static async exists(q) { return logs.some((l) => matches(l, q)) ? { _id: 1 } : null; }
   static async countDocuments(q) { return logs.filter((l) => matches(l, q)).length; }
+  static async findById(id) { return logs.find((l) => l._id === id) || null; }
+  static async findByIdAndDelete(id) { logs = logs.filter((l) => l._id !== id); }
 }
 
 class FakeParentEnquiry {
@@ -127,6 +129,21 @@ async function mark(date, status = "Done") {
   };
   const body = { parentEnquiryId: "lead-1", tutorId: "tutor-1", status, date, topicsCovered: "Algebra", missedReason: "Sick" };
   await markHandler({ body, headers: {} }, res);
+  return res;
+}
+
+// Admin routes on /log/:logId
+async function adminLog(method, logId, body = {}) {
+  const { default: router } = await import(modulePath("routes/attendanceRoutes.js"));
+  const layer = router.stack.find((l) => l.route?.path === "/log/:logId" && l.route.methods[method]);
+  const handle = layer.route.stack[layer.route.stack.length - 1].handle;
+  const res = {
+    statusCode: 200,
+    payload: null,
+    status(code) { this.statusCode = code; return this; },
+    json(data) { this.payload = data; return this; },
+  };
+  await handle({ params: { logId }, body, headers: {} }, res);
   return res;
 }
 
@@ -236,6 +253,126 @@ describe("Cycle ends when its month is over", () => {
 
     assert.equal(lead.currentPackageCycle, 1);
     assert.equal(logs.length, 8);
+  });
+});
+
+describe("Classes marked late for a month that already ended", () => {
+  test("a class dated inside the ended month counts toward that month", async () => {
+    const lead = makeLead();
+    addLogs("2026-01-05", 8); // month is 5 Jan – 4 Feb
+    await mark("2026-02-10"); // Cycle 2 starts
+
+    const res = await mark("2026-01-20");
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(logs.at(-1).packageCycle, 1);
+    assert.equal(res.payload.session.sessionNumber, 9);
+    assert.equal(lead.currentPackageCycle, 2);
+    assert.equal(lead.completedClasses, 1, "Cycle 2's count is unchanged");
+    assert.equal(lead.packageHistory[0].completedClasses, 9);
+    assert.equal(res.payload.message, "Attendance recorded successfully. Counted in Month 1 (9/12 classes).");
+  });
+
+  test("the current cycle's month doesn't move earlier", async () => {
+    const { currentCycleEndDate } = await import(modulePath("utils/packageCycle.js"));
+    const lead = makeLead();
+    addLogs("2026-01-05", 8);
+    await mark("2026-02-10");
+
+    await mark("2026-01-20");
+
+    assert.equal(await currentCycleEndDate(lead), "2026-03-09");
+  });
+
+  test("filling an earlier month to 12/12 doesn't start another cycle", async () => {
+    const lead = makeLead();
+    addLogs("2026-01-05", 11);
+    await mark("2026-02-10");
+
+    await mark("2026-01-20");
+
+    assert.equal(lead.currentPackageCycle, 2);
+    assert.equal(lead.packageHistory.length, 1);
+    assert.equal(lead.packageHistory[0].completedClasses, 12);
+  });
+
+  test("re-marking an old record saved without a cycle keeps it in Cycle 1", async () => {
+    const lead = makeLead({ currentPackageCycle: 2, packageHistory: [{ cycle: 1, totalClasses: 12, completedClasses: 5 }] });
+    addLogs("2026-01-05", 5, { cycle: undefined });
+    addLogs("2026-02-10", 1, { cycle: 2 });
+
+    await mark("2026-01-06", "Missed");
+
+    assert.equal(logs[1].packageCycle, 1);
+    assert.equal(lead.packageHistory[0].completedClasses, 4);
+    assert.equal(lead.completedClasses, 1, "Cycle 2's count is unchanged");
+  });
+
+  test("an earlier month that is already full doesn't take more classes", async () => {
+    const lead = makeLead({ currentPackageCycle: 2, packageHistory: [{ cycle: 1, totalClasses: 12, completedClasses: 12 }] });
+    addLogs("2026-01-01", 12, { cycle: 1 });
+    addLogs("2026-01-20", 1, { cycle: 2 });
+
+    await mark("2026-01-15");
+
+    assert.equal(logs.at(-1).packageCycle, 2);
+    assert.equal(lead.currentPackageCycle, 2);
+  });
+});
+
+describe("Admin changes to a class in an ended month", () => {
+  function endedMonth() {
+    const lead = makeLead({
+      currentPackageCycle: 2,
+      packageHistory: [{ cycle: 1, totalClasses: 12, completedClasses: 8 }],
+    });
+    addLogs("2026-01-05", 8, { cycle: 1 });
+    addLogs("2026-02-10", 1, { cycle: 2 });
+    return lead;
+  }
+
+  test("changing a class to Missed lowers that month's count", async () => {
+    const lead = endedMonth();
+    const res = await adminLog("put", logs[0]._id, { status: "Missed", missedReason: "Student Unavailable" });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(lead.packageHistory[0].completedClasses, 7);
+    assert.equal(lead.completedClasses, 0, "the current month is untouched");
+  });
+
+  test("deleting a class lowers that month's count", async () => {
+    const lead = endedMonth();
+    const res = await adminLog("delete", logs[0]._id);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(lead.packageHistory[0].completedClasses, 7);
+  });
+
+  test("a future date is rejected", async () => {
+    endedMonth();
+    const res = await adminLog("put", logs[0]._id, { date: daysAgo(-1) });
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(logs[0].date, "2026-01-05");
+  });
+});
+
+describe("Class date checks", () => {
+  test("a future date is rejected", async () => {
+    makeLead();
+    const res = await mark(daysAgo(-1));
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.payload.message, "Attendance can't be marked for a future date.");
+    assert.equal(logs.length, 0);
+  });
+
+  test("a date in another format is rejected", async () => {
+    makeLead();
+    const res = await mark("20/01/2026");
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(logs.length, 0);
   });
 });
 
