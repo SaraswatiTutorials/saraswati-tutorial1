@@ -35,6 +35,8 @@ export default function TeacherDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Server's confirmation after marking, e.g. which month a late class was counted in
+  const [notice, setNotice] = useState("");
   const [currentTab, setCurrentTab] = useState("active"); // "active" or "history"
   const [historyLogs, setHistoryLogs] = useState({}); // studentId -> array of logs
   const [loadingHistoryLogsId, setLoadingHistoryLogsId] = useState(null);
@@ -48,6 +50,7 @@ export default function TeacherDashboard() {
           Authorization: `Bearer ${token}`
         }
       });
+      if (isSessionExpired(res)) return;
       const data = await res.json();
       if (res.ok) {
         setHistoryLogs(prev => ({ 
@@ -82,7 +85,9 @@ export default function TeacherDashboard() {
   const navigate = useNavigate();
   const tutorId = localStorage.getItem("tutorId");
   const tutorName = localStorage.getItem("tutorName") || "Teacher";
-  const tutorCode = localStorage.getItem("tutorCode") || "";
+  // Older logins saved a missing code as the string "null"
+  const storedCode = localStorage.getItem("tutorCode");
+  const tutorCode = storedCode && storedCode !== "null" ? storedCode : "";
   const token = localStorage.getItem("tutorToken");
 
   const missedReasons = [
@@ -108,7 +113,14 @@ export default function TeacherDashboard() {
       return;
     }
     fetchStudents();
-  }, [tutorId, token]);
+    // Mount only: re-running after a logout clears the token would redirect again and drop the login message
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(""), 8000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   async function fetchStudents() {
     setLoading(true);
@@ -119,6 +131,7 @@ export default function TeacherDashboard() {
           Authorization: `Bearer ${token}`
         }
       });
+      if (isSessionExpired(res)) return;
       const data = await res.json();
       if (res.ok) {
         setStudents(data.students);
@@ -132,12 +145,19 @@ export default function TeacherDashboard() {
     }
   }
 
-  function handleLogout() {
+  function handleLogout(message) {
     localStorage.removeItem("tutorToken");
     localStorage.removeItem("tutorId");
     localStorage.removeItem("tutorName");
     localStorage.removeItem("tutorCode");
-    navigate("/teacher/login");
+    navigate("/teacher/login", typeof message === "string" ? { state: { message } } : undefined);
+  }
+
+  // A rejected token (expired, or signed with an old server secret) can't recover by retrying
+  function isSessionExpired(res) {
+    if (res.status !== 401) return false;
+    handleLogout("Your session has expired. Please sign in again.");
+    return true;
   }
 
   function openMarkModal(student, type) {
@@ -188,6 +208,13 @@ export default function TeacherDashboard() {
     // Validations
     if (!classDate) {
       setModalError("Please select a date.");
+      setSubmitting(false);
+      return;
+    }
+
+    // Typed dates can get past the picker's max
+    if (classDate > getLocalDateString()) {
+      setModalError("You can't mark attendance for a future date.");
       setSubmitting(false);
       return;
     }
@@ -245,6 +272,7 @@ export default function TeacherDashboard() {
         },
         body: JSON.stringify(payload)
       });
+      if (isSessionExpired(res)) return;
 
       const data = await res.json();
       if (res.ok) {
@@ -256,6 +284,7 @@ export default function TeacherDashboard() {
         if (historyLogs[selectedStudent._id]) {
           fetchHistoryLogs(selectedStudent._id);
         }
+        setNotice(data.message || "");
         setShowModal(false);
       } else {
         if (data.updatedStudentCard) {
@@ -326,7 +355,9 @@ export default function TeacherDashboard() {
             </div>
             <div>
               <h1 className="text-base font-semibold tracking-tight">{tutorName}</h1>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-wider uppercase">Tutor ID: {tutorCode}</p>
+              {tutorCode && (
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-wider uppercase">Tutor ID: {tutorCode}</p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -451,6 +482,23 @@ export default function TeacherDashboard() {
                   </button>
                 )}
               </div>
+            </div>
+          )}
+
+          {notice && (
+            <div className="flex items-start justify-between gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-3.5 sm:p-4" role="status">
+              <div className="flex min-w-0 items-start gap-2.5">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <p className="break-words text-sm font-medium leading-snug text-emerald-900 dark:text-emerald-200">{notice}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotice("")}
+                aria-label="Dismiss"
+                className="shrink-0 rounded-lg p-1 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
           )}
 
@@ -802,6 +850,7 @@ export default function TeacherDashboard() {
                     type="date"
                     required
                     value={classDate}
+                    max={getLocalDateString()}
                     onChange={(e) => setClassDate(e.target.value)}
                     className="w-full h-11 px-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />

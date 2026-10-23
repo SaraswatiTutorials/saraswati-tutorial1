@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { API_BASE } from "../config";
 
 export default function TeacherLogin() {
+  const location = useLocation();
   const [identifier, setIdentifier] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(location.state?.message || "");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -35,7 +36,7 @@ export default function TeacherLogin() {
       localStorage.setItem("tutorToken", data.token);
       localStorage.setItem("tutorId", data.tutor.id);
       localStorage.setItem("tutorName", data.tutor.name);
-      localStorage.setItem("tutorCode", data.tutor.tutorCode);
+      localStorage.setItem("tutorCode", data.tutor.tutorCode || "");
       
       navigate("/teacher/dashboard");
     } catch (err) {

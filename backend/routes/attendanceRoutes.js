@@ -26,6 +26,9 @@ import {
   currentCycleEndDate,
   advanceToNextCycle,
   completeCycle,
+  cycleForClassDate,
+  refreshPastCycleCount,
+  todayIST,
 } from "../utils/packageCycle.js";
 
 export { addOneMonth };
@@ -312,6 +315,15 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
       return res.status(400).json({ success: false, message: "Missing required fields (parentEnquiryId, tutorId, status, date)." });
     }
 
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ success: false, message: "Date must be in YYYY-MM-DD format." });
+    }
+
+    // A future date files the class in the wrong cycle and later collides with the real class that day
+    if (date > todayIST()) {
+      return res.status(400).json({ success: false, message: "Attendance can't be marked for a future date." });
+    }
+
     if (status === "Done" && !topicsCovered?.trim()) {
       return res.status(400).json({ success: false, message: "Topics covered is required for completed classes." });
     }
@@ -395,7 +407,8 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
       }
       existing.tutorId = tutor._id;
       existing.tutorName = tutor.name;
-      if (!existing.packageCycle) existing.packageCycle = activeCycle;
+      // Records saved without a cycle belong to Cycle 1 (see cycleFilterFor)
+      if (!existing.packageCycle) existing.packageCycle = 1;
       existing.timestamp = new Date();
 
       if (!existing.externalAttendanceId) {
@@ -410,9 +423,10 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
     } else {
       // ── CREATE NEW ATTENDANCE RECORD ─────────────────────────────
       isUpdate = false;
+      const classCycle = await cycleForClassDate(lead, date);
       const countInCycle = await Attendance.countDocuments({
         parentEnquiryId: lead._id,
-        ...cycleFilter,
+        ...cycleFilterFor(classCycle),
       });
       const sessionNumber = countInCycle + 1;
 
@@ -423,7 +437,7 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
         websiteStudentId: lead.websiteStudentId || "",
         tutorId: tutor._id,
         tutorName: tutor.name,
-        packageCycle: activeCycle,
+        packageCycle: classCycle,
         sessionNumber,
         status,
         topicsCovered: status === "Done" ? (topicsCovered?.trim() || "") : "",
@@ -443,6 +457,8 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
       await attendanceDoc.save();
     }
 
+    const logCycle = attendanceDoc.packageCycle || 1;
+
     // Recalculate completed count for active cycle
     const newCompletedCount = await Attendance.countDocuments({
       parentEnquiryId: lead._id,
@@ -451,8 +467,13 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
     });
 
     let cycleNotice = "";
-    const cycleCompleted = newCompletedCount >= activeTotal && activeTotal > 0;
-    if (cycleCompleted) {
+    const cycleCompleted = logCycle === activeCycle && newCompletedCount >= activeTotal && activeTotal > 0;
+    if (logCycle !== activeCycle) {
+      // Class for an earlier cycle: update that cycle's archived count, the current cycle is unchanged
+      const past = await refreshPastCycleCount(lead, logCycle);
+      if (past.changed) await lead.save({ validateBeforeSave: false });
+      cycleNotice = ` Counted in Month ${logCycle} (${past.done}/${past.total} classes).`;
+    } else if (cycleCompleted) {
       // All classes done: archive this cycle and start the next one automatically
       await completeCycle(lead, newCompletedCount);
       cycleNotice = ` Month ${activeCycle} is now completed (${newCompletedCount}/${activeTotal} classes)!`;
@@ -889,6 +910,9 @@ router.delete("/log/:logId", verifyToken(["admin"]), async (req, res) => {
         syncLeadAttendanceSummaryToOdoo(lead).catch((odooErr) => {
           console.error("[Odoo Sync Error after delete log]:", odooErr.message);
         });
+      } else if (logCycle < activeCycle) {
+        const past = await refreshPastCycleCount(lead, logCycle);
+        if (past.changed) await lead.save({ validateBeforeSave: false });
       }
     }
 
@@ -905,6 +929,13 @@ router.delete("/log/:logId", verifyToken(["admin"]), async (req, res) => {
 router.put("/log/:logId", verifyToken(["admin"]), async (req, res) => {
   try {
     const { status, date, topicsCovered, missedReason, customReason, classStartTime, classEndTime } = req.body;
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ message: "Date must be in YYYY-MM-DD format." });
+    }
+    if (date && date > todayIST()) {
+      return res.status(400).json({ message: "Attendance can't be dated in the future." });
+    }
+
     const log = await Attendance.findById(req.params.logId);
     if (!log) return res.status(404).json({ message: "Log not found." });
 
@@ -965,6 +996,9 @@ router.put("/log/:logId", verifyToken(["admin"]), async (req, res) => {
         syncLeadAttendanceSummaryToOdoo(lead).catch((odooErr) => {
           console.error("[Odoo Lead Summary Sync Error after log edit]:", odooErr.message);
         });
+      } else if (logCycle < activeCycle) {
+        const past = await refreshPastCycleCount(lead, logCycle);
+        if (past.changed) await lead.save({ validateBeforeSave: false });
       }
     }
 

@@ -66,6 +66,48 @@ export async function currentCycleEndDate(lead) {
   return first?.date ? addOneMonth(first.date) : "";
 }
 
+// Cycle a new class goes into. A class dated before the current cycle began belongs to the
+// earlier cycle whose month covers its date, while that cycle still has classes left
+// (e.g. classes the tutor marks late, after the month already rolled over).
+// Anything else goes into the current cycle.
+export async function cycleForClassDate(lead, date) {
+  const current = lead.currentPackageCycle || 1;
+  const firstDate = async (cycle) =>
+    (await Attendance.findOne({ parentEnquiryId: lead._id, ...cycleFilterFor(cycle) })
+      .sort({ date: 1 })
+      .select("date")
+      .lean())?.date || "";
+
+  const currentStart = await firstDate(current);
+  if (currentStart && date >= currentStart) return current;
+
+  for (let cycle = current - 1; cycle >= 1; cycle--) {
+    const start = await firstDate(cycle);
+    if (!start || date < start) continue;
+    if (date > addOneMonth(start)) return current;
+    const total = (lead.packageHistory || []).find((h) => h.cycle === cycle)?.totalClasses || lead.totalClasses || 12;
+    const done = await Attendance.countDocuments({
+      parentEnquiryId: lead._id,
+      ...cycleFilterFor(cycle),
+      status: "Done",
+    });
+    return done < total ? cycle : current;
+  }
+  return current;
+}
+
+// Recount Done classes of an earlier cycle into its packageHistory entry (caller saves the lead)
+export async function refreshPastCycleCount(lead, cycle) {
+  const done = await Attendance.countDocuments({
+    parentEnquiryId: lead._id,
+    ...cycleFilterFor(cycle),
+    status: "Done",
+  });
+  const entry = (lead.packageHistory || []).find((h) => h.cycle === cycle);
+  if (entry) entry.completedClasses = done;
+  return { done, total: entry?.totalClasses || lead.totalClasses || 12, changed: Boolean(entry) };
+}
+
 // Archive the current cycle into packageHistory and start the next one (caller saves the lead)
 export function advanceToNextCycle(lead, doneCount) {
   const currentCycle = lead.currentPackageCycle || 1;
