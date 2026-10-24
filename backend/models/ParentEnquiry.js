@@ -413,9 +413,47 @@ const parentEnquirySchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // Admin "delete" archives the enquiry instead of erasing it, so it can be restored
+    archived: {
+      type: Boolean,
+      default: false,
+    },
+
+    archivedAt: {
+      type: Date,
+      default: null,
+    },
+
+    archivedBy: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );
+
+// Archived enquiries are left out of every query, as if deleted, unless the query
+// filters on `archived` itself or sets { includeArchived: true }
+export function hideArchived() {
+  if (this.getOptions().includeArchived) return;
+  if (Object.prototype.hasOwnProperty.call(this.getFilter(), "archived")) return;
+  this.where({ archived: { $ne: true } });
+}
+
+export function hideArchivedInAggregate() {
+  if (this.options?.includeArchived) return;
+  const first = this.pipeline()[0];
+  if (first?.$match && Object.prototype.hasOwnProperty.call(first.$match, "archived")) return;
+  this.pipeline().unshift({ $match: { archived: { $ne: true } } });
+}
+
+parentEnquirySchema.pre(
+  ["find", "findOne", "countDocuments", "distinct", "findOneAndUpdate", "updateOne", "updateMany"],
+  { query: true, document: false },
+  hideArchived
+);
+parentEnquirySchema.pre("aggregate", hideArchivedInAggregate);
 
 // Indexing for scalability and performance
 parentEnquirySchema.index({ assignedTutor: 1 });

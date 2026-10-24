@@ -7,6 +7,7 @@ import { createLead, updateLead, updateLeadAssignment, syncTutorStats, addOdooCh
 import { verifyToken } from "../middleware/authMiddleware.js";
 import { resolveGeo } from "../utils/geoLookup.js";
 import { applyPricingPolicy } from "../utils/pricing/submissionValidation.js";
+import { nextEnquiryIds } from "../utils/requirementId.js";
 import Tutor from "../models/Tutor.js";
 import TutorRegistrationDraft from "../models/TutorRegistrationDraft.js";
 import Enquiry from "../models/Enquiry.js";
@@ -137,6 +138,41 @@ router.get("/", verifyToken(["admin"]), async (req, res) => {
     res.json(synchronizedData);
   } catch (error) {
     console.error("Parent enquiry fetch error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// =============================================================
+// GET archived parent enquiries, newest archive first
+// GET /api/parent-enquiries/archived
+// =============================================================
+router.get("/archived", verifyToken(["admin"]), async (req, res) => {
+  try {
+    const data = await ParentEnquiry.find({ archived: true }).sort({ archivedAt: -1 });
+    res.json(data);
+  } catch (error) {
+    console.error("Archived enquiry fetch error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// =============================================================
+// RESTORE an archived parent enquiry
+// POST /api/parent-enquiries/:id/restore
+// =============================================================
+router.post("/:id/restore", verifyToken(["admin"]), async (req, res) => {
+  try {
+    const enquiry = await ParentEnquiry.findOne({ _id: req.params.id, archived: true });
+    if (!enquiry) return res.status(404).json({ message: "Archived enquiry not found" });
+
+    enquiry.archived = false;
+    enquiry.archivedAt = null;
+    enquiry.archivedBy = "";
+    await enquiry.save({ validateBeforeSave: false });
+    console.log(`[ParentEnquiry] ${enquiry.requirementId} restored by ${req.user?.email || "admin"}`);
+    res.json({ message: "Enquiry restored", enquiry });
+  } catch (error) {
+    console.error("Parent enquiry restore error:", error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -432,38 +468,7 @@ router.post("/", async (req, res) => {
     let requirementId = "";
     let websiteStudentId = "";
     try {
-      const count = await ParentEnquiry.countDocuments({});
-      let nextNumber = count + 1;
-
-      // Never go below the highest ID already issued — otherwise deleting a lead
-      // lowers the count and the next lead reuses an existing REQ/STU ID.
-      const latest = await ParentEnquiry.findOne({ requirementId: /^REQ-\d{5}$/ })
-        .sort({ requirementId: -1 })
-        .select("requirementId")
-        .lean();
-      if (latest) {
-        nextNumber = Math.max(nextNumber, Number(latest.requirementId.slice(4)) + 1);
-      }
-
-      // Skip any number that is already taken
-      const idsFor = (n) => {
-        const padded = String(n).padStart(5, "0");
-        return { requirementId: `REQ-${padded}`, websiteStudentId: `STU-${padded}` };
-      };
-      while (
-        await ParentEnquiry.exists({
-          $or: [
-            { requirementId: idsFor(nextNumber).requirementId },
-            { websiteStudentId: idsFor(nextNumber).websiteStudentId },
-          ],
-        })
-      ) {
-        nextNumber += 1;
-      }
-
-      const seq = String(nextNumber).padStart(5, "0");
-      requirementId = `REQ-${seq}`;
-      websiteStudentId = `STU-${seq}`;
+      ({ requirementId, websiteStudentId } = await nextEnquiryIds());
       console.log("[ParentEnquiry] Generated IDs:", requirementId, websiteStudentId);
     } catch (seqErr) {
       console.error("[ParentEnquiry] Failed to generate sequential IDs:", seqErr.message);
@@ -659,9 +664,11 @@ router.post("/:id/sync-odoo", verifyToken(["admin"]), async (req, res) => {
     let requirementId = lead.requirementId;
     let websiteStudentId = lead.websiteStudentId;
     if (!requirementId) {
-      const count = await ParentEnquiry.countDocuments({});
-      requirementId = `REQ-${String(count).padStart(5, "0")}`;
+      // Counting enquiries here reused IDs of other leads; take a fresh one instead
+      const fresh = await nextEnquiryIds();
+      requirementId = fresh.requirementId;
       lead.requirementId = requirementId;
+      if (!websiteStudentId) websiteStudentId = lead.websiteStudentId = fresh.websiteStudentId;
     }
     if (!websiteStudentId) {
       const seq = requirementId.replace(/\D/g, "");
@@ -727,11 +734,18 @@ router.get("/confirm", async (req, res) => {
 // DELETE parent enquiry
 // DELETE /api/parent-enquiries/:id
 // =============================================================
+// Archives rather than erases: the enquiry leaves every list but can be restored
 router.delete("/:id", verifyToken(["admin"]), async (req, res) => {
   try {
-    const enquiry = await ParentEnquiry.findByIdAndDelete(req.params.id);
+    const enquiry = await ParentEnquiry.findById(req.params.id);
     if (!enquiry) return res.status(404).json({ message: "Enquiry not found" });
-    res.json({ message: "Enquiry deleted successfully" });
+
+    enquiry.archived = true;
+    enquiry.archivedAt = new Date();
+    enquiry.archivedBy = req.user?.email || "admin";
+    await enquiry.save({ validateBeforeSave: false });
+    console.log(`[ParentEnquiry] ${enquiry.requirementId} archived by ${enquiry.archivedBy}`);
+    res.json({ message: "Enquiry archived", enquiry });
   } catch (error) {
     console.error("Parent enquiry delete error:", error);
     res.status(500).json({ message: error.message });
