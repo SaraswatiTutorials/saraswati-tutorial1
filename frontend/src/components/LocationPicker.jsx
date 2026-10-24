@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { LocateFixed, Loader2, MapPin, Search, X } from "lucide-react";
@@ -274,10 +275,13 @@ export function LocationPickerSheet({ biasCity = "", initial, onClose, onSave })
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/70 sm:items-center">
-      <div className="relative flex h-[100dvh] w-full flex-col bg-[#0b1220] text-white sm:h-[min(880px,94dvh)] sm:max-w-2xl sm:overflow-hidden sm:rounded-3xl sm:shadow-2xl">
-        <div className="flex items-center gap-3 px-4 py-4">
+  // Rendered on <body>: the forms open this inside animated/blurred sections, which would
+  // make `fixed` relative to that section and push the Save button off screen
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/70 sm:items-center sm:p-4">
+      {/* Scrolls inside itself on short screens (the page behind is locked), so Save is always reachable */}
+      <div className="relative flex h-[100dvh] w-full flex-col overflow-y-auto overscroll-contain bg-[#0b1220] text-white sm:h-[min(820px,92dvh)] sm:max-w-2xl sm:rounded-3xl sm:shadow-2xl">
+        <div className="flex shrink-0 items-center gap-3 px-4 py-4">
           <button
             type="button"
             onClick={onClose}
@@ -289,7 +293,7 @@ export function LocationPickerSheet({ biasCity = "", initial, onClose, onSave })
           <h2 className="text-lg font-black">Select your location</h2>
         </div>
 
-        <div className="relative z-[650] px-4 pb-3">
+        <div className="relative z-[650] shrink-0 px-4 pb-3">
           <Search className="pointer-events-none absolute left-8 top-3.5 h-4 w-4 text-slate-400" />
           <input
             ref={searchRef}
@@ -320,7 +324,7 @@ export function LocationPickerSheet({ biasCity = "", initial, onClose, onSave })
           )}
         </div>
 
-        <div className="relative z-0 min-h-[240px] flex-1">
+        <div className="relative z-0 min-h-[220px] flex-1">
           <div ref={mapEl} className="location-map-canvas absolute inset-0" />
           <button
             type="button"
@@ -333,7 +337,7 @@ export function LocationPickerSheet({ biasCity = "", initial, onClose, onSave })
           </button>
         </div>
 
-        <div className="space-y-3 border-t border-white/10 bg-[#10182a] px-4 py-4">
+        <div className="shrink-0 space-y-3 border-t border-white/10 bg-[#10182a] px-4 py-4">
           <div className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-3">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Selected place</p>
             <p className="mt-1 text-sm font-bold text-white">
@@ -404,6 +408,7 @@ export function LocationPickerSheet({ biasCity = "", initial, onClose, onSave })
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
