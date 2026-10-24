@@ -900,7 +900,7 @@ router.delete("/log/:logId", verifyToken(["admin"]), async (req, res) => {
       if (logCycle === activeCycle) {
         const completedCount = await Attendance.countDocuments({
           parentEnquiryId,
-          packageCycle: activeCycle,
+          ...cycleFilterFor(activeCycle),
           status: "Done",
         });
         lead.completedClasses = Math.min(lead.totalClasses || 12, completedCount);

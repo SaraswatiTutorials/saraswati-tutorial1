@@ -348,6 +348,15 @@ describe("Admin changes to a class in an ended month", () => {
     assert.equal(lead.packageHistory[0].completedClasses, 7);
   });
 
+  test("deleting a class in Month 1 still counts records saved without a cycle", async () => {
+    const lead = makeLead({ completedClasses: 5 });
+    addLogs("2026-01-05", 5, { cycle: undefined });
+
+    await adminLog("delete", logs[0]._id);
+
+    assert.equal(lead.completedClasses, 4);
+  });
+
   test("a future date is rejected", async () => {
     endedMonth();
     const res = await adminLog("put", logs[0]._id, { date: daysAgo(-1) });
