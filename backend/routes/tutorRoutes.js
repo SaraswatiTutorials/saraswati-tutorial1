@@ -126,13 +126,16 @@ router.post("/draft", async (req, res) => {
     const draft = await TutorRegistrationDraft.findOneAndUpdate(
       { phone: phone.trim() },
       {
-        stepReached: stepReached || 1,
-        formData: formData || {},
-        sameAsMobile: sameAsMobile !== false,
-        geoInfo: geoInfo || {},
-        ipAddress: ipAddress || clientIp,
-        visitor_id: visitor_id || "",
-        session_id: session_id || "",
+        $set: {
+          formData: formData || {},
+          sameAsMobile: sameAsMobile !== false,
+          geoInfo: geoInfo || {},
+          ipAddress: ipAddress || clientIp,
+          visitor_id: visitor_id || "",
+          session_id: session_id || "",
+        },
+        // The form auto-saves from whatever step is open; keep the furthest step reached
+        $max: { stepReached: Number(stepReached) || 1 },
       },
       { new: true, upsert: true }
     );

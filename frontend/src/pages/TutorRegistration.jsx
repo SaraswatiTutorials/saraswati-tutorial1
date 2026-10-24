@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import imageCompression from "browser-image-compression";
@@ -206,6 +206,9 @@ export default function TutorRegistration() {
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
   // Cloud draft sync state
   const [draftSyncStatus, setDraftSyncStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
+  // Set while submitting and after: stops auto-saves re-creating the draft the server just deleted
+  const submittingRef = useRef(false);
+  const canSaveDraft = () => !submittingRef.current && /^\d{10}$/.test(formData.phone || "");
 
   // Always starts unticked; the tutor ticks it themselves if WhatsApp = phone
   const [sameAsMobile, setSameAsMobile] = useState(false);
@@ -253,12 +256,30 @@ export default function TutorRegistration() {
           };
           localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
         } catch {}
-        // Also silently push to backend if phone is known
-        if (formData.phone) { saveDraftToServer(step, formData, sameAsMobile, uploadedUrls); }
+        // Also push to backend; keepalive lets the request finish even if the page is closing
+        if (canSaveDraft()) {
+          saveDraftToServer(step, formData, sameAsMobile, uploadedUrls, { keepalive: true });
+        }
       }
     };
+    // pagehide covers closing the tab on iPhone, where visibilitychange is not always sent
+    const handlePageHide = () => {
+      if (canSaveDraft()) saveDraftToServer(step, formData, sameAsMobile, uploadedUrls, { keepalive: true });
+    };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [step, formData, sameAsMobile, uploadedUrls]);
+
+  // Auto-save to the backend a moment after the tutor stops typing, once the phone is valid,
+  // so someone who leaves part-way through a step (before Continue) still appears in Tutor Drafts
+  useEffect(() => {
+    if (!canSaveDraft()) return;
+    const timer = setTimeout(() => saveDraftToServer(step, formData, sameAsMobile, uploadedUrls), 2000);
+    return () => clearTimeout(timer);
   }, [step, formData, sameAsMobile, uploadedUrls]);
 
 
@@ -568,15 +589,16 @@ export default function TutorRegistration() {
   // ─── Backend draft sync ──────────────────────────────────────────────────────
   // Mirrors the ParentEnquiry saveDraft pattern.
   // Called on every validated step advance and on tab-hide.
-  const saveDraftToServer = async (stepReached, currentFormData, currentSameAsMobile, currentUploadedUrls) => {
+  const saveDraftToServer = async (stepReached, currentFormData, currentSameAsMobile, currentUploadedUrls, { keepalive = false } = {}) => {
     const phone = currentFormData.phone;
-    if (!phone) return; // phone is the key; cannot save without it
+    if (!phone || submittingRef.current) return; // phone is the key; never re-create a draft once submitted
 
     const urls = currentUploadedUrls || uploadedUrls;
     setDraftSyncStatus("saving");
     try {
       await fetch(`${API_BASE}/tutors/draft`, {
         method: "POST",
+        keepalive,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone,
@@ -659,6 +681,8 @@ export default function TutorRegistration() {
       return;
     }
 
+    submittingRef.current = true;
+    let registered = false;
     try {
       setLoading(true);
 
@@ -727,6 +751,7 @@ export default function TutorRegistration() {
         status: "pending",
       });
 
+      registered = true;
       localStorage.removeItem(DRAFT_KEY);
       navigate("/thank-you?type=tutor");
     } catch (err) {
@@ -739,6 +764,8 @@ export default function TutorRegistration() {
       );
     } finally {
       setLoading(false);
+      // Submission failed: keep saving the draft while they fix it
+      if (!registered) submittingRef.current = false;
     }
   };
 
