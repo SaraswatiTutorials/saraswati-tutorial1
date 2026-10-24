@@ -362,6 +362,15 @@ router.post("/draft", async (req, res) => {
     let finalIp = ipAddress || clientIp;
     let finalGeo = geoInfo || {};
 
+    // The form auto-saves every few seconds: reuse the location already on the draft
+    // instead of looking the IP up again each time
+    if (!finalGeo.city || finalGeo.city === "Unknown City") {
+      const existing = await ParentEnquiryDraft.findOne({ emailOrPhone: emailOrPhone.trim() })
+        .select("geoInfo")
+        .lean();
+      if (existing?.geoInfo?.city && existing.geoInfo.city !== "Unknown City") finalGeo = existing.geoInfo;
+    }
+
     if (!finalGeo.city || finalGeo.city === "Unknown City") {
       const resolved = await resolveGeo(finalIp);
       if (resolved.city !== "Unknown City") {
@@ -378,7 +387,11 @@ router.post("/draft", async (req, res) => {
 
     const draft = await ParentEnquiryDraft.findOneAndUpdate(
       { emailOrPhone: emailOrPhone.trim() },
-      { stepReached, formData, geoInfo: finalGeo, ipAddress: finalIp, visitor_id, session_id, utm_source, utm_medium, utm_campaign, utm_content, utm_term },
+      {
+        $set: { formData, geoInfo: finalGeo, ipAddress: finalIp, visitor_id, session_id, utm_source, utm_medium, utm_campaign, utm_content, utm_term },
+        // The form auto-saves from whatever step is open; keep the furthest step reached
+        $max: { stepReached: Number(stepReached) || 1 },
+      },
       { new: true, upsert: true }
     );
 

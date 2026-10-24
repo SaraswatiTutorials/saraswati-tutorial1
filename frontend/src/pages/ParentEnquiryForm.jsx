@@ -599,6 +599,13 @@ const getBenefitIcon = (title, planTheme) => {
 
 const DRAFT_KEY = "parentEnquiryDraft";
 
+// Server drafts are keyed by the parent's phone (required on step 1) once it has 10+ digits,
+// so a half-typed number or email never creates a stray draft
+function draftKeyFor(form) {
+  const phone = String(form?.phone || "").trim();
+  return phone.replace(/\D/g, "").length >= 10 ? phone : "";
+}
+
 export default function ParentEnquiryForm() {
   const navigate = useNavigate();
 
@@ -642,6 +649,8 @@ export default function ParentEnquiryForm() {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  // Set while submitting and after: stops auto-saves re-creating the draft the server just cleared
+  const submittingRef = useRef(false);
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState({});
   const [openNotes, setOpenNotes] = useState({});
@@ -669,10 +678,26 @@ export default function ParentEnquiryForm() {
           const draft = { step, form };
           localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
         } catch {}
+        // keepalive lets the request finish even if the page is closing
+        saveDraft(step, form, { keepalive: true });
       }
     };
+    // pagehide covers closing the tab on iPhone, where visibilitychange is not always sent
+    const handlePageHide = () => saveDraft(step, form, { keepalive: true });
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [step, form]);
+
+  // Auto-save to the backend a moment after the parent stops typing, once the phone is complete,
+  // so a parent who leaves part-way through a step (before Continue) still appears in Incomplete Drafts
+  useEffect(() => {
+    if (!draftKeyFor(form)) return;
+    const timer = setTimeout(() => saveDraft(step, form), 2000);
+    return () => clearTimeout(timer);
   }, [step, form]);
 
   useEffect(() => {
@@ -1058,13 +1083,14 @@ export default function ParentEnquiryForm() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const saveDraft = async (nextStepNumber, currentForm = form) => {
-    const emailOrPhone = currentForm.email || currentForm.phone;
-    if (!emailOrPhone) return;
+  const saveDraft = async (nextStepNumber, currentForm = form, { keepalive = false } = {}) => {
+    const emailOrPhone = draftKeyFor(currentForm);
+    if (!emailOrPhone || submittingRef.current) return;
 
     try {
       await fetch(`${API_BASE}/parent-enquiries/draft`, {
         method: "POST",
+        keepalive,
         headers: {
           "Content-Type": "application/json",
         },
@@ -1183,6 +1209,7 @@ export default function ParentEnquiryForm() {
     }
 
     setSubmitting(true);
+    submittingRef.current = true;
     setMessage("");
 
     try {
@@ -1211,6 +1238,8 @@ export default function ParentEnquiryForm() {
       navigate("/thank-you");
     } catch (error) {
       setMessage(error.message || "Something went wrong.");
+      // Submission failed: keep saving the draft while they fix it
+      submittingRef.current = false;
     } finally {
       setSubmitting(false);
     }
