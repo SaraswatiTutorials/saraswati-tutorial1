@@ -49,7 +49,9 @@ import {
   FileCheck2,
   BarChart3,
   ClipboardCheck,
-  Inbox
+  Inbox,
+  Archive,
+  RotateCcw
 } from "lucide-react";
 import { API_BASE } from "../config";
 import ThemeToggle from "../components/ThemeToggle";
@@ -1296,9 +1298,13 @@ export default function AdminDashboard() {
 
       if (res.ok) {
         setParentEnquiries((prev) => prev.filter((item) => item._id !== id));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.message || "Could not archive this enquiry. Please try again.");
       }
     } catch (err) {
       console.log(err);
+      alert("Could not reach the server. The enquiry was not archived.");
     }
   };
 
@@ -2124,9 +2130,32 @@ export default function AdminDashboard() {
                   <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
                 )}
               </button>
+              <button
+                onClick={() => setLeadTab("archived")}
+                className={`pb-4 text-sm font-semibold transition-all relative cursor-pointer ${
+                  leadTab === "archived"
+                    ? "text-indigo-600 dark:text-indigo-400"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                }`}
+              >
+                Archived
+                {leadTab === "archived" && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
+                )}
+              </button>
             </div>
 
-            {leadTab === "active" ? (
+            {leadTab === "archived" ? (
+              <ArchivedLeads
+                onRestored={(enquiry) =>
+                  setParentEnquiries((prev) =>
+                    [enquiry, ...prev.filter((item) => item._id !== enquiry._id)].sort(
+                      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+                    )
+                  )
+                }
+              />
+            ) : leadTab === "active" ? (
               filteredParentEnquiries.length === 0 ? (
                 <EmptyState text="No parent leads found for this search or filter." />
               ) : (
@@ -2225,11 +2254,11 @@ export default function AdminDashboard() {
                               onClick={toggleMatching}
                             />
                             <IconAction
-                              label="Delete enquiry"
-                              icon={Trash2}
+                              label="Archive enquiry"
+                              icon={Archive}
                               tone="rose"
                               onClick={() => {
-                                if (window.confirm("Delete this enquiry?")) {
+                                if (window.confirm(`Archive ${enquiryLabel(p)}?\n\nIt moves to the Archived tab and can be restored from there.`)) {
                                   handleDeleteParentEnquiry(p._id);
                                 }
                               }}
@@ -5373,6 +5402,94 @@ function SectionHeader({ title, subtitle, icon: Icon }) {
         </h2>
         {subtitle && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
       </div>
+    </div>
+  );
+}
+
+// "REQ-00367 – Rima Sengupta (Aishani Ray)", so confirmations name the exact enquiry
+function enquiryLabel(p) {
+  const students = (p.wards || []).map((w) => w.studentName).filter(Boolean).join(", ");
+  return `${p.requirementId || "Enquiry"} – ${p.parentName || "Unknown parent"}${students ? ` (${students})` : ""}`;
+}
+
+function ArchivedLeads({ onRestored }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [restoringId, setRestoringId] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/parent-enquiries/archived`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
+        });
+        const data = await res.json().catch(() => []);
+        if (cancelled) return;
+        if (res.ok) setItems(Array.isArray(data) ? data : []);
+        else setError(data.message || "Could not load archived enquiries.");
+      } catch {
+        if (!cancelled) setError("Could not reach the server.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const restore = async (p) => {
+    if (!window.confirm(`Restore ${enquiryLabel(p)}?\n\nIt goes back to Active Leads.`)) return;
+    setRestoringId(p._id);
+    try {
+      const res = await fetch(`${API_BASE}/parent-enquiries/${p._id}/restore`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setItems((prev) => prev.filter((item) => item._id !== p._id));
+        onRestored?.(data.enquiry);
+      } else {
+        alert(data.message || "Could not restore this enquiry.");
+      }
+    } catch {
+      alert("Could not reach the server. The enquiry was not restored.");
+    } finally {
+      setRestoringId(null);
+    }
+  };
+
+  if (loading) return <EmptyState text="Loading archived enquiries…" />;
+  if (error) return <EmptyState text={error} />;
+  if (items.length === 0) return <EmptyState text="No archived enquiries. Enquiries you archive appear here and can be restored." />;
+
+  return (
+    <div className="space-y-3">
+      {items.map((p) => (
+        <div
+          key={p._id}
+          className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-slate-900 p-4 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="min-w-0">
+            <p className="break-words text-sm font-semibold text-slate-900 dark:text-white">{enquiryLabel(p)}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Submitted {formatSubmittedDate(p.createdAt)} · Archived{" "}
+              {p.archivedAt ? new Date(p.archivedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—"}
+              {p.archivedBy ? ` by ${p.archivedBy}` : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => restore(p)}
+            disabled={restoringId === p._id}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 cursor-pointer"
+          >
+            <RotateCcw className="h-4 w-4" />
+            {restoringId === p._id ? "Restoring…" : "Restore"}
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
