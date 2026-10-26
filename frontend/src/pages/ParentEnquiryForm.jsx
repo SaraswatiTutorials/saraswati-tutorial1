@@ -51,6 +51,7 @@ import { LocationField } from "../components/LocationPicker";
 import { API_BASE } from "../config";
 import { trackEvent } from "../utils/analytics";
 import DemoParentDashboard from "./DemoParentDashboard";
+import FeedbackWidget from "../components/FeedbackWidget";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -2688,6 +2689,11 @@ export default function ParentEnquiryForm() {
           selectedPlan={form.planType || "advance"}
         />
       )}
+      <FeedbackWidget
+        source="parent-enquiry"
+        contact={{ name: form.parentName, phone: form.phone }}
+        step={step}
+      />
     </div>
   );
 }

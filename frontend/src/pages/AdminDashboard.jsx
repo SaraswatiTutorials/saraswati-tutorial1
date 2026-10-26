@@ -51,9 +51,11 @@ import {
   ClipboardCheck,
   Inbox,
   Archive,
-  RotateCcw
+  RotateCcw,
+  MessageSquare
 } from "lucide-react";
 import { API_BASE } from "../config";
+import { FEEDBACK_CATEGORY_LABELS, FEEDBACK_SOURCE_LABELS } from "../data/feedbackConfig";
 import ThemeToggle from "../components/ThemeToggle";
 import AdminLayout from "../components/admin/AdminLayout";
 import { formatClassTimeRange, formatTime12, classTimeError, logMinutes, formatHours, plannedClassMinutes } from "../utils/classTime";
@@ -85,6 +87,7 @@ const ADMIN_PAGES = {
   tutorDrafts: { title: "Tutor Drafts", section: "Tutors" },
   attendance: { title: "Attendance & Class Tracking", section: "Operations" },
   analytics: { title: "Analytics & Visitor Insights", section: "Insights" },
+  feedback: { title: "Feedback", section: "Insights" },
   tncAcceptances: { title: "T&C Acceptances", section: "Compliance" },
   account: { title: "Change Password", section: "Account" },
 };
@@ -419,6 +422,13 @@ export default function AdminDashboard() {
   const [tncStats, setTncStats]             = useState({ totalAccepted: 0, totalDismissed: 0, total: 0 });
   const [tncFilter, setTncFilter]           = useState("all");  // "all" | "accepted" | "dismissed"
   const [tncLoading, setTncLoading]         = useState(false);
+
+  // Feedback (from the parent enquiry and tutor registration forms)
+  const [feedbackRecords, setFeedbackRecords] = useState([]);
+  const [feedbackCounts, setFeedbackCounts]   = useState({ total: 0, "parent-enquiry": 0, "tutor-registration": 0 });
+  const [feedbackFilter, setFeedbackFilter]   = useState("all"); // "all" | "parent-enquiry" | "tutor-registration"
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [visibleFeedbackCount, setVisibleFeedbackCount] = useState(CARD_BATCH_SIZE);
   const [dismissedAlerts, setDismissedAlerts] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("dismissedAlerts") || "[]");
@@ -609,6 +619,31 @@ export default function AdminDashboard() {
       console.error("[TNC] fetch error:", err);
     } finally {
       setTncLoading(false);
+    }
+  };
+
+  const fetchFeedback = async (sourceFilter = "all") => {
+    setFeedbackLoading(true);
+    try {
+      const token = localStorage.getItem("adminToken");
+      const query = sourceFilter !== "all" ? `?source=${sourceFilter}` : "";
+      const res = await fetch(`${API_BASE}/feedback${query}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
+      if (res.ok) {
+        const data = await res.json();
+        setFeedbackRecords(data.records || []);
+        setVisibleFeedbackCount(CARD_BATCH_SIZE);
+        setFeedbackCounts({ total: data.total || 0, ...data.counts });
+      }
+    } catch (err) {
+      console.error("[Feedback] fetch error:", err);
+    } finally {
+      setFeedbackLoading(false);
     }
   };
 
@@ -938,6 +973,7 @@ export default function AdminDashboard() {
     fetchDashboardCounts();
     fetchFirstBatch().then(() => fetchData());
     fetchAlerts();
+    fetchFeedback();
   }, []);
 
   // One card per person (see keepUniqueRecords). A lead with a tutor assigned, and a tutor
@@ -1349,6 +1385,7 @@ export default function AdminDashboard() {
     setCurrentMainTab(key);
     if (key === "attendance") fetchData();
     if (key === "tncAcceptances") fetchTncRecords(tncFilter);
+    if (key === "feedback") fetchFeedback(feedbackFilter);
     window.scrollTo({ top: 0 });
   };
 
@@ -1374,7 +1411,10 @@ export default function AdminDashboard() {
     },
     {
       label: "Insights",
-      items: [{ key: "analytics", label: "Analytics", icon: BarChart3 }],
+      items: [
+        { key: "analytics", label: "Analytics", icon: BarChart3 },
+        { key: "feedback", label: "Feedback", icon: MessageSquare, badge: feedbackCounts.total },
+      ],
     },
     {
       label: "Compliance",
@@ -1720,6 +1760,123 @@ export default function AdminDashboard() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ───────────────── FEEDBACK PANEL ───────────────── */}
+        {currentMainTab === "feedback" && (
+          <div className="animate-slideFade">
+            {/* Header */}
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  Feedback &amp; Issues
+                </h2>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Issues parents and tutors reported with the Feedback button on the enquiry and registration forms.
+                </p>
+              </div>
+              <button
+                onClick={() => fetchFeedback(feedbackFilter)}
+                className="flex items-center gap-2 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50 dark:bg-indigo-900/20 px-4 py-2.5 text-sm font-bold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-100 dark:hover:bg-indigo-900/40 cursor-pointer"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </button>
+            </div>
+
+            {/* Stats row */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              {[
+                { label: "Total",              value: feedbackCounts.total,                  color: "text-slate-700 dark:text-slate-200",  bg: "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" },
+                { label: "Parent Enquiry",     value: feedbackCounts["parent-enquiry"],     color: "text-blue-700 dark:text-blue-300",     bg: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700" },
+                { label: "Tutor Registration", value: feedbackCounts["tutor-registration"], color: "text-violet-700 dark:text-violet-300", bg: "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-700" },
+              ].map(s => (
+                <div key={s.label} className={`rounded-2xl border p-4 text-center ${s.bg}`}>
+                  <p className={`text-2xl font-bold ${s.color}`}>{s.value || 0}</p>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">{s.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Filter */}
+            <div className="mb-4 flex gap-2 flex-wrap">
+              {["all", "parent-enquiry", "tutor-registration"].map(f => (
+                <button
+                  key={f}
+                  onClick={() => { setFeedbackFilter(f); fetchFeedback(f); }}
+                  className={`rounded-xl px-4 py-1.5 text-xs font-bold transition cursor-pointer ${
+                    feedbackFilter === f
+                      ? "bg-indigo-600 text-white shadow"
+                      : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  {f === "all" ? "All" : FEEDBACK_SOURCE_LABELS[f]}
+                </button>
+              ))}
+            </div>
+
+            {/* Cards */}
+            {feedbackLoading ? (
+              <div className="py-16 text-center">
+                <RefreshCw className="mx-auto h-8 w-8 text-indigo-400 animate-spin mb-3" />
+                <p className="text-sm text-slate-400">Loading feedback…</p>
+              </div>
+            ) : feedbackRecords.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-16 text-center">
+                <MessageSquare className="mx-auto mb-4 h-12 w-12 text-slate-300 dark:text-slate-600" />
+                <p className="text-base font-bold text-slate-400 dark:text-slate-500">No feedback yet</p>
+                <p className="mt-1 text-sm text-slate-400 dark:text-slate-600">Issues appear here when parents or tutors send them with the Feedback button.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {feedbackRecords.slice(0, visibleFeedbackCount).map((fb) => (
+                  <div key={fb._id} className="glass-card rounded-2xl p-5">
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                        fb.source === "tutor-registration"
+                          ? "bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300"
+                          : "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
+                      }`}>
+                        {FEEDBACK_SOURCE_LABELS[fb.source] || fb.source}
+                      </span>
+                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                        {FEEDBACK_CATEGORY_LABELS[fb.category] || "Other"}
+                      </span>
+                      {fb.step > 0 && (
+                        <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">On step {fb.step}</span>
+                      )}
+                      <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 font-medium">
+                        {formatSubmittedDate(fb.createdAt)}
+                      </span>
+                    </div>
+                    <p className="whitespace-pre-wrap break-words text-sm text-slate-800 dark:text-slate-200">{fb.message}</p>
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <User className="h-3.5 w-3.5" />
+                        {fb.name || <span className="italic font-normal">No name</span>}
+                      </span>
+                      {fb.phone ? (
+                        <a href={`tel:${fb.phone}`} className="flex items-center gap-1 text-indigo-600 dark:text-indigo-300 hover:underline">
+                          <Phone className="h-3.5 w-3.5" />
+                          {fb.phone}
+                        </a>
+                      ) : (
+                        <span className="flex items-center gap-1 italic font-normal">
+                          <Phone className="h-3.5 w-3.5" />
+                          No phone
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {feedbackRecords.length > visibleFeedbackCount && (
+                  <ShowMoreButton onShowMore={() => setVisibleFeedbackCount((count) => count + CARD_BATCH_SIZE)}>
+                    Show 10 more ({feedbackRecords.length - visibleFeedbackCount} remaining)
+                  </ShowMoreButton>
+                )}
               </div>
             )}
           </div>

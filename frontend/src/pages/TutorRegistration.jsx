@@ -25,6 +25,7 @@ import {
 
 import { API_BASE } from "../config";
 import { LocationField } from "../components/LocationPicker";
+import FeedbackWidget from "../components/FeedbackWidget";
 
 const DRAFT_KEY = "tutorRegistrationDraft";
 
@@ -1661,6 +1662,12 @@ export default function TutorRegistration() {
           }
         }
       `}</style>
+
+      <FeedbackWidget
+        source="tutor-registration"
+        contact={{ name: formData.name, phone: formData.phone }}
+        step={step}
+      />
     </>
   );
 }
