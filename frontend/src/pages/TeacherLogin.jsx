@@ -1,6 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { ArrowRight, BadgeCheck, Loader2 } from "lucide-react";
 import { API_BASE } from "../config";
+import "@fontsource-variable/inter";
+import PortalLogin from "../components/portal/PortalLogin";
+
+const LOGIN_FEATURES = [
+  "Mark each class as done or missed in a few taps",
+  "Track every student's monthly classes and hours",
+  "Parents see your updates straight away",
+];
 
 export default function TeacherLogin() {
   const location = useLocation();
@@ -8,6 +17,13 @@ export default function TeacherLogin() {
   const [error, setError] = useState(location.state?.message || "");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Already signed in: go straight to the dashboard (not after a sign-out or expired session)
+  useEffect(() => {
+    if (!location.state?.message && localStorage.getItem("tutorToken") && localStorage.getItem("tutorId")) {
+      navigate("/teacher/dashboard", { replace: true });
+    }
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -37,7 +53,7 @@ export default function TeacherLogin() {
       localStorage.setItem("tutorId", data.tutor.id);
       localStorage.setItem("tutorName", data.tutor.name);
       localStorage.setItem("tutorCode", data.tutor.tutorCode || "");
-      
+
       navigate("/teacher/dashboard");
     } catch (err) {
       setError("Server connection failed. Please try again.");
@@ -47,67 +63,67 @@ export default function TeacherLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-tr from-slate-900 via-indigo-950 to-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center px-4">
-        <h2 className="text-3xl font-extrabold text-white tracking-tight sm:text-4xl">
-          Saraswati Tutorials
-        </h2>
-        <p className="mt-2 text-sm text-indigo-200">
-          Teacher Portal — Attendance Management
-        </p>
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
-        <div className="bg-white/10 backdrop-blur-md py-8 px-6 shadow-xl rounded-3xl border border-white/10 sm:px-10">
-          <div className="mb-6">
-            <h3 className="text-xl font-bold text-white">Sign In</h3>
-            <p className="text-xs text-indigo-300 mt-1">
-              Enter your registered Tutor Code, Email address, or Phone number.
-            </p>
-          </div>
-
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="identifier" className="block text-sm font-semibold text-white">
-                Tutor Credentials
-              </label>
-              <div className="mt-1">
-                <input
-                  id="identifier"
-                  type="text"
-                  required
-                  placeholder="e.g. TUT0001, name@email.com, 9876543210"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  className="appearance-none block w-full px-4 h-12 bg-white/5 border border-white/10 rounded-2xl placeholder-slate-400 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-all"
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div className="rounded-xl bg-rose-500/10 border border-rose-500/25 p-3">
-                <p className="text-xs font-medium text-rose-300">{error}</p>
-              </div>
-            )}
-
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-2xl shadow-sm text-sm font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? "Verifying..." : "Verify & Access"}
-              </button>
-            </div>
-          </form>
-          
-          <div className="mt-6 border-t border-white/5 pt-4 text-center">
-            <p className="text-xs text-slate-400">
-              Need assistance? Contact the administrator.
-            </p>
+    <PortalLogin
+      portal="Tutor Portal"
+      headline="Your classes and students, all in one place."
+      features={LOGIN_FEATURES}
+      title="Tutor sign in"
+      subtitle="Use your Tutor Code (e.g. TUT0218), registered email, or full mobile number."
+      footer={
+        <div className="space-y-2">
+          <p>
+            Not registered yet?{" "}
+            <a href="/tutor-verification" className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">Become a tutor</a>
+          </p>
+          <p>
+            Are you a parent?{" "}
+            <a href="/parent/login" className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">Parent sign in</a>
+          </p>
+        </div>
+      }
+    >
+      <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+        <div>
+          <label htmlFor="identifier" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Tutor Code, email or mobile
+          </label>
+          <div className="flex h-12 items-center rounded-xl border border-slate-300 bg-white transition focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-900">
+            <BadgeCheck className="ml-3.5 h-4 w-4 shrink-0 text-slate-400" />
+            <input
+              id="identifier"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="TUT0001 / name@email.com / 98765 43210"
+              value={identifier}
+              onChange={(e) => {
+                setIdentifier(e.target.value);
+                if (error) setError("");
+              }}
+              className="h-full min-w-0 flex-1 bg-transparent px-3 text-base font-medium text-slate-900 placeholder:text-sm placeholder:text-slate-400 focus:outline-none dark:text-white"
+            />
           </div>
         </div>
-      </div>
-    </div>
+
+        {error && (
+          <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+          {loading ? "Signing in..." : "Sign in"}
+        </button>
+        <p className="text-center text-xs text-slate-400 dark:text-slate-500">
+          Only approved tutors can sign in. Need help? Contact the Saraswati team.
+        </p>
+      </form>
+    </PortalLogin>
   );
 }
