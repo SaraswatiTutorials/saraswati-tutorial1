@@ -119,7 +119,8 @@ export default function App() {
               </TutorProtectedRoute>
             }
           />
-          <Route path="/parent/attendance" element={<ParentPortal />} />
+          <Route path="/parent/login" element={<ParentPortal />} />
+          <Route path="/parent/attendance" element={<Navigate to="/parent/login" replace />} />
 
           {/* Admin Login */}
           <Route path="/admin-login" element={<AdminLogin />} />

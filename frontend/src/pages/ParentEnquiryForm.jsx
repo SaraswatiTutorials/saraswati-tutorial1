@@ -1046,16 +1046,16 @@ export default function ParentEnquiryForm() {
             "Subjects Required is required";
         }
       });
+
+      if (!form.preferredGender.trim()) {
+        newErrors.preferredGender = "Preferred Gender is required";
+      }
     }
 
     // Step 3: Tutor preferences & plan validation
     if (currentStep === 3) {
       if (!form.preferredMode.trim()) {
         newErrors.preferredMode = "Preferred Mode is required";
-      }
-
-      if (!form.preferredGender.trim()) {
-        newErrors.preferredGender = "Preferred Gender is required";
       }
 
       if (!form.planType) {
@@ -1201,6 +1201,14 @@ export default function ParentEnquiryForm() {
 
     if (step !== totalSteps) {
       nextStep();
+      return;
+    }
+
+    // A draft saved before the gender picker moved to step 2 can reach step 3 without it
+    if (!validateStep(2)) {
+      setMessage("Please complete the student details (including preferred tutor gender) before submitting.");
+      setStep(2);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -1676,6 +1684,52 @@ export default function ParentEnquiryForm() {
                     ))}
                   </AnimatePresence>
                 </motion.div>
+
+                {/* Preferred Gender Selector Sliding Tabs */}
+                <motion.div variants={itemVariants} className="space-y-3 rounded-[2.2rem] border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md p-5 shadow-sm dark:shadow-none md:p-7">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-200">
+                    {requiredLabel("Preferred Gender of Tutor")}
+                  </label>
+                  <div className="relative flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1.5 border border-slate-200/50 dark:border-slate-700">
+                    {[
+                      { id: "Male", label: "Male Tutor", icon: User },
+                      { id: "Female", label: "Female Tutor", icon: User },
+                      { id: "Flexible", label: "Flexible", icon: Users }
+                    ].map((gender) => {
+                      const isSelected = form.preferredGender === gender.id;
+                      const GenderIcon = gender.icon;
+                      return (
+                        <button
+                          type="button"
+                          key={gender.id}
+                          onClick={() => {
+                            setForm(prev => ({ ...prev, preferredGender: gender.id }));
+                            setErrors(prev => ({ ...prev, preferredGender: "" }));
+                          }}
+                          className={`relative flex flex-1 items-center justify-center gap-2 py-3 px-3 text-xs font-extrabold rounded-xl transition-all duration-300 cursor-pointer z-10 ${
+                            isSelected ? "text-white" : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                          }`}
+                        >
+                          {isSelected && (
+                            <motion.div
+                              layoutId="activeGenderBg"
+                              className="absolute inset-0 bg-slate-900 dark:bg-blue-600 rounded-xl -z-10 shadow-sm"
+                              transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                            />
+                          )}
+                          <GenderIcon className="h-4 w-4" />
+                          <span>{gender.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {errors.preferredGender && (
+                    <p className="mt-1.5 text-xs font-bold text-red-650 flex items-center gap-1">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-650" />
+                      {errors.preferredGender}
+                    </p>
+                  )}
+                </motion.div>
               </motion.section>
             )}
 
@@ -1697,13 +1751,13 @@ export default function ParentEnquiryForm() {
                   />
                 </motion.div>
 
-                <motion.div variants={itemVariants} className="grid gap-6 md:grid-cols-2">
+                <motion.div variants={itemVariants} className="space-y-4">
                   {/* Preferred Mode Select Cards */}
-                  <div className="md:col-span-2 space-y-3">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                  <div className="space-y-4">
+                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-200">
                       {requiredLabel("Preferred Mode of Tuition")}
                     </label>
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-5 sm:grid-cols-2">
                       {[
                         {
                           id: "Online / One-to-One Tuition",
@@ -1761,58 +1815,13 @@ export default function ParentEnquiryForm() {
                     )}
                   </div>
 
-                  {/* Preferred Gender Selector Sliding Tabs */}
-                  <div className="md:col-span-2 space-y-3">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                      {requiredLabel("Preferred Gender of Tutor")}
-                    </label>
-                    <div className="relative flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1.5 border border-slate-200/50 dark:border-slate-700">
-                      {[
-                        { id: "Male", label: "Male Tutor", icon: User },
-                        { id: "Female", label: "Female Tutor", icon: User },
-                        { id: "Flexible", label: "Flexible", icon: Users }
-                      ].map((gender) => {
-                        const isSelected = form.preferredGender === gender.id;
-                        const GenderIcon = gender.icon;
-                        return (
-                          <button
-                            type="button"
-                            key={gender.id}
-                            onClick={() => {
-                              setForm(prev => ({ ...prev, preferredGender: gender.id }));
-                              setErrors(prev => ({ ...prev, preferredGender: "" }));
-                            }}
-                            className={`relative flex flex-1 items-center justify-center gap-2 py-3 px-3 text-xs font-extrabold rounded-xl transition-all duration-300 cursor-pointer z-10 ${
-                              isSelected ? "text-white" : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                            }`}
-                          >
-                            {isSelected && (
-                              <motion.div
-                                layoutId="activeGenderBg"
-                                className="absolute inset-0 bg-slate-900 dark:bg-blue-600 rounded-xl -z-10 shadow-sm"
-                                transition={{ type: "spring", stiffness: 350, damping: 28 }}
-                              />
-                            )}
-                            <GenderIcon className="h-4 w-4" />
-                            <span>{gender.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {errors.preferredGender && (
-                      <p className="mt-1.5 text-xs font-bold text-red-650 flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-650" />
-                        {errors.preferredGender}
-                      </p>
-                    )}
-                  </div>
                 </motion.div>
 
                 {/* Plan Selection UI */}
-                <motion.div variants={itemVariants} className="mt-8">
+                <motion.div variants={itemVariants} className="mt-12">
                   {form.planType ? (
-                    <div className="flex flex-col gap-6">
-                      <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 backdrop-blur-md p-6 shadow-xl dark:shadow-none">
+                    <div className="flex flex-col gap-8">
+                      <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 backdrop-blur-md p-6 md:p-8 shadow-xl dark:shadow-none">
                         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                           <div className="flex items-center gap-4">
                             <div className={`p-4 rounded-2xl ${
@@ -1930,13 +1939,13 @@ export default function ParentEnquiryForm() {
                             </button>
                           </div>
                         </div>
-                        <div className="mt-5">
+                        <div className="mt-7">
                           <FeeBreakdown quote={feeQuote} showSummary />
                         </div>
                       </div>
 
                       {/* Preferred Days Selector */}
-                      <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 backdrop-blur-md p-6 shadow-xl dark:shadow-none">
+                      <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 backdrop-blur-md p-6 md:p-8 shadow-xl dark:shadow-none">
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <h4 className="text-lg font-black text-slate-800 dark:text-slate-100">
                             Select Preferred Days <span className="text-red-500">*</span>
@@ -1949,7 +1958,7 @@ export default function ParentEnquiryForm() {
                           Please choose exactly {form.daysPerWeek} days when the child is available for tutoring classes.
                         </p>
                         
-                        <div className="mt-4 flex flex-wrap gap-2">
+                        <div className="mt-6 flex flex-wrap gap-3">
                           {dayOptions.map((day) => {
                             const active = form.preferredDays.includes(day);
                             return (
@@ -1975,7 +1984,7 @@ export default function ParentEnquiryForm() {
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-6 flex flex-col gap-4">
+                    <div className="mt-6 flex flex-col gap-6">
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-black text-slate-800">
                           Choose Your Preferred Plan <span className="text-red-500">*</span>
@@ -2023,7 +2032,7 @@ export default function ParentEnquiryForm() {
                               key={plan.id}
                               data-own-colors
                               onClick={() => handleOpenPlanModal(plan)}
-                              className={`relative overflow-hidden premium-shine-card w-[290px] sm:w-[320px] md:w-full flex-shrink-0 snap-center rounded-[2rem] border p-5 flex flex-col justify-between h-[250px] cursor-pointer transition-all duration-300 group hover:scale-[1.02] ${cardBgClass} ${textClass} ${hoverShadowClass}`}
+                              className={`relative overflow-hidden premium-shine-card w-[290px] sm:w-[320px] md:w-full flex-shrink-0 snap-center rounded-[2rem] border p-6 flex flex-col justify-between h-[270px] cursor-pointer transition-all duration-300 group hover:scale-[1.02] ${cardBgClass} ${textClass} ${hoverShadowClass}`}
                             >
                               {/* Subtle shine effect overlay on hover */}
                               <div className="shine-overlay pointer-events-none" />
@@ -2412,7 +2421,7 @@ export default function ParentEnquiryForm() {
                   return (
                     <motion.div
                       variants={itemVariants}
-                      className={`mt-8 rounded-3xl border bg-white/90 dark:bg-slate-900/80 backdrop-blur-md p-6 shadow-xl dark:shadow-none transition-colors ${
+                      className={`mt-12 rounded-3xl border bg-white/90 dark:bg-slate-900/80 backdrop-blur-md p-6 md:p-8 shadow-xl dark:shadow-none transition-colors ${
                         errors.classTiming ? "border-red-400" : "border-slate-200 dark:border-slate-700"
                       }`}
                     >
@@ -2595,7 +2604,7 @@ export default function ParentEnquiryForm() {
                 })()}
 
                 {/* Final Pricing Consent Declaration Checkbox at the end of Step 3 (Preference) */}
-                <motion.div variants={itemVariants} className="mt-8 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 p-5 shadow-sm dark:shadow-none">
+                <motion.div variants={itemVariants} className="mt-12 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 p-5 md:p-7 shadow-sm dark:shadow-none">
                   <div className="flex items-start gap-3">
                     <input
                       type="checkbox"

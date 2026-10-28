@@ -2065,14 +2065,13 @@ export default function AdminDashboard() {
                                         </div>
                                         <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{doc.label}</span>
                                       </div>
-                                      <a
-                                        href={doc.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                                      <button
+                                        type="button"
+                                        onClick={() => openStoredDocument(doc.url)}
+                                        className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                                       >
                                         Open ↗
-                                      </a>
+                                      </button>
                                     </div>
                                   ))}
                                 </div>
@@ -5771,6 +5770,40 @@ function Badge({ text, color = "slate" }) {
   );
 }
 
+// Cloudinary blocks direct PDF links (401), so PDFs open through a signed link from the backend.
+// The tab is opened before the request so the browser doesn't treat it as a popup.
+async function openStoredDocument(url) {
+  if (!url) return;
+  if (!/\.pdf$/i.test(url)) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  const tab = window.open("", "_blank");
+  try {
+    const res = await fetch(`${API_BASE}/tutors/document-link`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+      },
+      body: JSON.stringify({ url }),
+    });
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const { url: openUrl } = await res.json();
+    if (tab) {
+      tab.opener = null;
+      tab.location.href = openUrl;
+    } else {
+      window.open(openUrl, "_blank", "noopener,noreferrer");
+    }
+  } catch (err) {
+    console.error("Could not open document:", err);
+    if (tab) tab.close();
+    alert("Could not open this document. Please log in again and retry.");
+  }
+}
+
 function DocumentLink({ href, label }) {
   if (!href) {
     return (
@@ -5782,15 +5815,14 @@ function DocumentLink({ href, label }) {
   }
 
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/50 dark:border-indigo-900/60 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 transition duration-200 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 hover:border-indigo-300"
+    <button
+      type="button"
+      onClick={() => openStoredDocument(href)}
+      className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/50 dark:border-indigo-900/60 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 transition duration-200 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 hover:border-indigo-300 cursor-pointer"
     >
       <FileDown className="h-3.5 w-3.5" />
       {label}
-    </a>
+    </button>
   );
 }
 
@@ -5829,7 +5861,7 @@ function ProtectedDocumentLink({ href, label, password }) {
       return;
     }
 
-    window.open(href, "_blank", "noopener,noreferrer");
+    openStoredDocument(href);
   };
 
   if (!href) {

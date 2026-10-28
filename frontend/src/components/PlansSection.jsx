@@ -738,25 +738,8 @@ function PlanCard({ plan, isActive, isSelectedAny, isCenter, position, onClick }
       transformStyle: "preserve-3d"
     };
 
-    if (isSelectedAny) {
-      if (isActive) {
-        return {
-          ...style,
-          transform: "perspective(1000px) rotateY(0deg) scale(1)",
-          opacity: 1,
-          filter: "blur(0px)"
-        };
-      } else {
-        return {
-          ...style,
-          transform: "perspective(1000px) rotateY(0deg) scale(0.92)",
-          opacity: 0.3,
-          filter: "blur(1px)"
-        };
-      }
-    }
-
-    if (isCenter) {
+    // Other plans keep their normal carousel look after one is chosen, so they don't read as locked
+    if (isActive || isCenter) {
       return {
         ...style,
         transform: "perspective(1000px) rotateY(0deg) scale(1)",
@@ -827,9 +810,7 @@ function PlanCard({ plan, isActive, isSelectedAny, isCenter, position, onClick }
       // Gold and black cards look the same in both themes (silver has its own dark: styles)
       data-own-colors={isSilver ? undefined : ""}
       style={getCardStyle()}
-      className={`relative overflow-hidden rounded-[2rem] sm:rounded-[2.2rem] border flex flex-col min-h-[460px] h-auto sm:min-h-[500px] md:min-h-[520px] pb-4 cursor-pointer group ${getCardThemeClasses()} ${getActiveStateClasses()} ${
-        isSelectedAny && !isActive ? "pointer-events-none md:pointer-events-auto" : ""
-      }`}
+      className={`relative overflow-hidden rounded-[2rem] sm:rounded-[2.2rem] border flex flex-col min-h-[460px] h-auto sm:min-h-[500px] md:min-h-[520px] pb-4 cursor-pointer group ${getCardThemeClasses()} ${getActiveStateClasses()}`}
     >
       {/* Subtle shine effect overlay on hover */}
       <div className="shine-overlay pointer-events-none" />
@@ -848,6 +829,11 @@ function PlanCard({ plan, isActive, isSelectedAny, isCenter, position, onClick }
             <Star className={`h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0 ${getStarColor()}`} />
             <span className="truncate">{plan.badge}</span>
           </div>
+          {isActive && (
+            <span className="ml-1.5 inline-flex items-center rounded-full bg-emerald-500 px-2.5 py-1 text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-white align-top">
+              ✓ Selected
+            </span>
+          )}
 
           {/* Plan Name */}
           <h3 className="text-[17px] sm:text-[20px] md:text-2xl font-black tracking-tight leading-snug">{plan.title}</h3>
@@ -935,7 +921,7 @@ function PlanCard({ plan, isActive, isSelectedAny, isCenter, position, onClick }
           <span className="flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-current/20 shrink-0">
             <ArrowRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
           </span>
-          <span className="truncate">Explore Plan Details</span>
+          <span className="truncate">{isActive ? "Selected · Hide Details" : isSelectedAny ? "Switch to This Plan" : "Explore Plan Details"}</span>
           <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
         </div>
       </div>

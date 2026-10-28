@@ -6,6 +6,7 @@ import BroadcastLog from "../models/BroadcastLog.js";
 import fetch from "node-fetch";
 import { createLead, upsertMasterTutor } from "../utils/odooService.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
+import { getDocumentOpenUrl } from "../utils/documentLink.js";
 import jwt from "jsonwebtoken";
 import {
   buildCentralizedQuery,
@@ -189,6 +190,15 @@ router.delete("/drafts/:id", verifyToken(["admin"]), async (req, res) => {
     console.error("[TutorDraft] Delete error:", error);
     res.status(500).json({ message: error.message });
   }
+});
+
+// POST /api/tutors/document-link — a link the admin can open for a stored tutor document
+router.post("/document-link", verifyToken(["admin"]), (req, res) => {
+  const { url } = req.body || {};
+  if (typeof url !== "string" || !url.startsWith("https://")) {
+    return res.status(400).json({ message: "A document URL is required" });
+  }
+  res.json({ url: getDocumentOpenUrl(url) });
 });
 
 // GET single tutor
