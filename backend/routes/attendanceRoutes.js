@@ -10,6 +10,7 @@ import {
   deleteOdooAttendanceLog,
 } from "../utils/odooService.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
+import { tutorLoginQuery, parentPhoneQuery } from "../utils/loginMatch.js";
 import {
   parseClassTime,
   usualClassTime,
@@ -34,6 +35,11 @@ import {
 export { addOneMonth };
 
 const router = express.Router();
+
+// Admins act for any tutor; a tutor's token only covers their own id
+function isOwnTutorId(req, tutorId) {
+  return req.user?.role !== "tutor" || (tutorId != null && String(tutorId) === String(req.user.id));
+}
 
 // =============================================================
 // Helper: Date operations and cycle breakdown calculations
@@ -222,17 +228,8 @@ router.post("/tutor-login", async (req, res) => {
       return res.status(400).json({ message: "Identifier (code, email, or phone) is required." });
     }
 
-    const cleanIdentifier = String(identifier).trim();
-
-    // Query tutor
-    const tutor = await Tutor.findOne({
-      $or: [
-        { tutorCode: { $regex: new RegExp(`^${cleanIdentifier}$`, "i") } },
-        { email: { $regex: new RegExp(`^${cleanIdentifier}$`, "i") } },
-        { phone: { $regex: cleanIdentifier.slice(-10) } },
-        { whatsapp: { $regex: cleanIdentifier.slice(-10) } },
-      ],
-    });
+    const query = tutorLoginQuery(identifier);
+    const tutor = query ? await Tutor.findOne(query) : null;
 
     if (!tutor) {
       return res.status(401).json({ message: "Tutor not found with the provided credentials." });
@@ -272,6 +269,9 @@ router.post("/tutor-login", async (req, res) => {
 router.get("/tutor/:tutorId/students", verifyToken(["admin", "tutor"]), async (req, res) => {
   try {
     const { tutorId } = req.params;
+    if (!isOwnTutorId(req, tutorId)) {
+      return res.status(403).json({ message: "You can only view your own students." });
+    }
 
     // Retrieve active student parent enquiries for this tutor
     // Exclude cancelled/rejected/lost
@@ -345,6 +345,10 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
     // Fetch parent enquiry and tutor info
     const lead = await ParentEnquiry.findById(parentEnquiryId);
     if (!lead) return res.status(404).json({ success: false, message: "Student enquiry not found." });
+
+    if (!isOwnTutorId(req, tutorId) || !isOwnTutorId(req, lead.assignedTutorId)) {
+      return res.status(403).json({ success: false, message: "You can only mark attendance for your own students." });
+    }
 
     const tutor = await Tutor.findById(tutorId);
     if (!tutor) return res.status(404).json({ success: false, message: "Tutor not found." });
@@ -625,6 +629,9 @@ router.get("/logs/:parentEnquiryId", verifyToken(["admin", "tutor"]), async (req
     const { parentEnquiryId } = req.params;
     const lead = await ParentEnquiry.findById(parentEnquiryId);
     if (!lead) return res.status(404).json({ message: "Student enquiry not found." });
+    if (!isOwnTutorId(req, lead.assignedTutorId)) {
+      return res.status(403).json({ message: "You can only view your own students." });
+    }
 
     const allLogs = await Attendance.find({ parentEnquiryId }).sort({ date: 1, timestamp: 1 });
     const cycles = computeCycleBreakdown(lead, allLogs);
@@ -652,21 +659,13 @@ router.post("/parent-login", async (req, res) => {
       return res.status(400).json({ message: "Phone number is required." });
     }
 
-    // Normalize phone number: extract all digits
-    const digits = String(phone).replace(/\D/g, "");
-    if (digits.length < 5) {
-      return res.status(400).json({ message: "Please enter a valid phone number." });
+    // The full number only: a partial one would show another family's records
+    const query = parentPhoneQuery(phone);
+    if (!query) {
+      return res.status(400).json({ message: "Please enter your full 10-digit phone number." });
     }
-    const last10 = digits.slice(-10);
-    // Flexible regex allowing spaces/hyphens/dots between digits
-    const flexiblePattern = last10.split("").join("[\\s\\-\\.]*");
 
-    const enquiries = await ParentEnquiry.find({
-      $or: [
-        { phone: { $regex: last10 } },
-        { phone: { $regex: flexiblePattern } },
-      ],
-    }).sort({ createdAt: -1 });
+    const enquiries = await ParentEnquiry.find(query).sort({ createdAt: -1 });
 
     if (!enquiries.length) {
       return res.status(404).json({ message: "No active student enquiry found for this phone number." });
@@ -691,6 +690,7 @@ router.post("/parent-login", async (req, res) => {
           card,
           cycles,
           logs: [...allLogs].reverse(),
+          parentName: lead.parentName || "",
         };
       })
     );

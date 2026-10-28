@@ -1,625 +1,387 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { API_BASE } from "../config";
-import ThemeToggle from "../components/ThemeToggle";
-import { formatClassTimeRange } from "../utils/classTime";
 import "@fontsource-variable/inter";
-import { 
-  Search, 
-  Phone, 
-  Calendar, 
-  Clock, 
-  BookOpen, 
-  XCircle, 
-  CheckCircle2, 
-  ChevronDown, 
-  ChevronUp, 
-  User,
-  Activity,
+import {
+  Phone,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Target,
+  Hourglass,
   FileDown,
-  Info
+  FileText,
+  LogOut,
+  Loader2,
+  GraduationCap,
+  ArrowRight,
+  Sparkles,
 } from "lucide-react";
+import PortalShell, { headerIconButton } from "../components/portal/PortalShell";
+import PortalLogin from "../components/portal/PortalLogin";
+import {
+  cardClass,
+  formatDay,
+  monthName,
+  StatTile,
+  ProgressRing,
+  StatusPill,
+  ClassHistory,
+  EmptyState,
+} from "../components/portal/PortalParts";
+import { formatHours } from "../utils/classTime";
+import { downloadAttendanceReport } from "../utils/attendanceReport";
+
+// Keeps the parent signed in across a refresh of this tab
+const SESSION_KEY = "parentPortalPhone";
+
+const LOGIN_FEATURES = [
+  "See every class your child attended, with the topics covered",
+  "Know about missed classes and the reason straight away",
+  "Download the monthly attendance report as a PDF",
+];
+
+const hasTutor = (item) => Boolean(item.card.assignedTutorId) || (item.card.tutorName && item.card.tutorName !== "Not Assigned");
+
+function readSavedPhone() {
+  try {
+    return sessionStorage.getItem(SESSION_KEY) || "";
+  } catch {
+    return "";
+  }
+}
 
 export default function ParentPortal() {
-  const [phone, setPhone] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [phone, setPhone] = useState(readSavedPhone);
+  const [loading, setLoading] = useState(() => Boolean(readSavedPhone()));
   const [error, setError] = useState("");
-  const [data, setData] = useState(null); // Array of { card, logs }
-  const [expandedCardId, setExpandedCardId] = useState(null);
-  const [pdfGeneratingId, setPdfGeneratingId] = useState(null);
-  const [parentCycleFilter, setParentCycleFilter] = useState({}); // cardId -> cycleNum | 'all'
+  const [results, setResults] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
 
-  // Helper to dynamically load external scripts for PDF generation
-  const loadScript = (url) => {
-    return new Promise((resolve, reject) => {
-      const existingScript = document.querySelector(`script[src="${url}"]`);
-      if (existingScript) {
-        resolve();
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = url;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
-      document.head.appendChild(script);
-    });
-  };
-
-  async function handleSearch(e) {
-    e.preventDefault();
-    if (!phone.trim()) {
-      setError("Please enter a valid phone number.");
-      return;
-    }
+  async function signIn(number) {
     setError("");
     setLoading(true);
-    setData(null);
-
     try {
       const res = await fetch(`${API_BASE}/attendance/parent-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone })
+        body: JSON.stringify({ phone: number }),
       });
-
-      const resData = await res.json();
-
+      const data = await res.json();
       if (!res.ok) {
-        setError(resData.message || "Failed to find records.");
-        setLoading(false);
+        setError(data.message || "We couldn't find any records for this number.");
+        try { sessionStorage.removeItem(SESSION_KEY); } catch {}
         return;
       }
-
-      setData(resData.results);
-      if (resData.results.length > 0) {
-        setExpandedCardId(resData.results[0].card._id); // Expand first card by default
-      }
-    } catch (err) {
-      setError("Failed to connect to the server.");
+      setResults(data.results);
+      const first = data.results.find(hasTutor) || data.results[0];
+      setSelectedId(first?.card._id || null);
+      try { sessionStorage.setItem(SESSION_KEY, number); } catch {}
+    } catch {
+      setError("We couldn't reach the server. Check your internet connection and try again.");
     } finally {
       setLoading(false);
     }
   }
 
-  function toggleCard(cardId) {
-    setExpandedCardId(expandedCardId === cardId ? null : cardId);
-  }
+  // Signed in earlier in this tab: load their records again
+  useEffect(() => {
+    const saved = readSavedPhone();
+    if (saved) signIn(saved);
+  }, []);
 
-  // Client-Side PDF Generation and Download
-  async function generatePDFReport(card, logs) {
-    setPdfGeneratingId(card._id);
-    try {
-      // Dynamically load jsPDF and jsPDF AutoTable from CDN
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js");
-
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4"
-      });
-
-      // 1. Saraswati Tutorials Branding
-      doc.setFillColor(30, 41, 59); // dark slate-800 background for top header banner
-      doc.rect(0, 0, 210, 32, "F");
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(22);
-      doc.setTextColor(255, 255, 255);
-      doc.text("SARASWATI TUTORIALS", 14, 18);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(199, 210, 254); // indigo-200
-      doc.text("Verified Home Tuitions & Academic Excellence", 14, 25);
-
-      // Print Date
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(8);
-      const printDateStr = `Report Generated: ${new Date().toLocaleString()}`;
-      doc.text(printDateStr, 155, 25);
-
-      // 2. Student & Teacher Details Section
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(79, 70, 229); // indigo-600
-      doc.text("STUDENT & TUITION DETAILS", 14, 42);
-
-      // Draw horizontal dividing line
-      doc.setDrawColor(226, 232, 240); // slate-200
-      doc.setLineWidth(0.5);
-      doc.line(14, 45, 196, 45);
-
-      // Grid of Details
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139); // slate-500
-      doc.text("Student Name:", 14, 52);
-      doc.text("Teacher Name:", 14, 58);
-      doc.text("Current Cycle:", 14, 64);
-      doc.text("Requirement ID:", 110, 52);
-      doc.text("Class Schedule:", 110, 58);
-      doc.text("Cycle Dates:", 110, 64);
-
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(30, 41, 59); // slate-800
-      doc.text(card.studentName, 42, 52);
-      doc.text(card.tutorName, 42, 58);
-      doc.text(card.currentMonthLabel || `Month ${card.currentPackageCycle || 1}`, 42, 64);
-      doc.text(card.requirementId, 138, 52);
-      doc.text(card.classSchedule, 138, 58);
-      doc.text(card.cycleDates || "Active", 138, 64);
-
-      // 3. Attendance Summary Box
-      doc.setFillColor(248, 250, 252); // light grey-50 box
-      doc.setDrawColor(226, 232, 240); // border
-      doc.rect(14, 70, 182, 22, "FD");
-
-      // Table Headers in Summary Box
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(148, 163, 184); // slate-400
-      doc.text("TOTAL CLASSES", 18, 76);
-      doc.text("COMPLETED (DONE)", 62, 76);
-      doc.text("MISSED CLASSES", 112, 76);
-      doc.text("REMAINING", 158, 76);
-
-      // Summary Values
-      doc.setFontSize(13);
-      doc.setTextColor(30, 41, 59); // slate-800
-      doc.text(String(card.totalClasses), 18, 84);
-      doc.setTextColor(16, 185, 129); // emerald-600
-      doc.text(String(card.completedClasses), 62, 84);
-      doc.setTextColor(239, 68, 68); // rose-600
-      doc.text(String(card.missedClasses), 112, 84);
-      doc.setTextColor(79, 70, 229); // indigo-600
-      doc.text(String(card.remainingClasses), 158, 84);
-
-      // 4. Date-wise Attendance Timeline Header
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(79, 70, 229);
-      doc.text("DATE-WISE CLASS HISTORY LOG", 14, 102);
-      doc.line(14, 105, 196, 105);
-
-      // 5. Build Class Log Table
-      const tableBody = logs.map((log, index) => {
-        const classNumber = logs.length - index;
-        const details = log.status === "Done" 
-          ? `Topics: ${log.topicsCovered}` 
-          : `Reason: ${log.missedReason === "Other" ? log.customReason : log.missedReason}`;
-        
-        // Class time goes under the date (plain hyphen: PDF fonts may lack the en dash)
-        const classTime = formatClassTimeRange(log.classStartTime, log.classEndTime).replace(" – ", " - ");
-        return [
-          `Class ${classNumber} (M${log.packageCycle || 1})`,
-          classTime ? `${log.date}\n${classTime}` : log.date,
-          log.status === "Done" ? "Done" : "Missed",
-          details,
-          log.tutorName
-        ];
-      });
-
-      doc.autoTable({
-        startY: 108,
-        head: [["Session", "Date", "Status", "Topics Covered / Missed Reason", "Teacher"]],
-        body: tableBody,
-        headStyles: { 
-          fillColor: [79, 70, 229], 
-          textColor: [255, 255, 255], 
-          fontSize: 9,
-          fontStyle: "bold"
-        },
-        columnStyles: {
-          0: { cellWidth: 20 },
-          1: { cellWidth: 28 },
-          2: { cellWidth: 20 },
-          3: { cellWidth: 84 },
-          4: { cellWidth: 30 }
-        },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        didParseCell: function (table) {
-          // Color code Status column (column index 2)
-          if (table.section === "body" && table.column.index === 2) {
-            const statusVal = table.cell.raw;
-            if (statusVal === "Done") {
-              table.cell.styles.textColor = [16, 185, 129];
-              table.cell.styles.fontStyle = "bold";
-            } else {
-              table.cell.styles.textColor = [239, 68, 68];
-              table.cell.styles.fontStyle = "bold";
-            }
-          }
-        },
-        margin: { left: 14, right: 14 },
-        styles: { font: "helvetica", fontSize: 8.5 }
-      });
-
-      // Save the PDF file
-      const filename = `Saraswati_Attendance_${card.studentName.replace(/\s+/g, "_")}.pdf`;
-      doc.save(filename);
-
-    } catch (err) {
-      console.error(err);
-      alert("Failed to generate and download PDF report. Error: " + err.message);
-    } finally {
-      setPdfGeneratingId(null);
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (phone.replace(/\D/g, "").length < 10) {
+      setError("Enter the full 10-digit number you registered with.");
+      return;
     }
+    signIn(phone.trim());
   }
 
-  return (
-    <div data-dashboard className="min-h-screen bg-[#f5f4f0] dark:bg-slate-950 pb-16 text-slate-800 dark:text-slate-100 transition-colors duration-200">
-      {/* Brand Header */}
-      <header className="sticky top-0 z-30 bg-[#f5f4f0]/85 dark:bg-slate-950/85 backdrop-blur text-slate-900 dark:text-white">
-        <div className="mx-auto max-w-3xl px-4 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white">
-              S
-            </div>
-            <h1 className="text-base font-semibold tracking-tight">Saraswati Tutorials</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Parent Portal</span>
-            <ThemeToggle buttonClassName="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-sm transition hover:text-indigo-600 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer" />
-          </div>
-        </div>
-      </header>
+  function signOut() {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+    setResults(null);
+    setSelectedId(null);
+    setPhone("");
+    setError("");
+  }
 
-      <main className="mx-auto max-w-3xl px-4 mt-8">
-        
-        {/* Search Panel */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Check Class Attendance & Progress</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Enter your registered parent phone number to verify class details, timeline logs, and progress.
+  if (!results) {
+    return (
+      <PortalLogin
+        portal="Parent Portal"
+        headline="Follow your child's learning, class by class."
+        features={LOGIN_FEATURES}
+        title="Parent sign in"
+        subtitle="Enter the mobile number you used when you booked tuition with us."
+        footer={
+          <div className="space-y-2">
+            <p>
+              New to Saraswati Tutorials?{" "}
+              <a href="/parent-enquiry" className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">Book a free demo</a>
+            </p>
+            <p>
+              Are you a tutor?{" "}
+              <a href="/teacher/login" className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">Tutor sign in</a>
             </p>
           </div>
-
-          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 dark:text-slate-500">
-                <Phone className="h-4 w-4" />
+        }
+      >
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <div>
+            <label htmlFor="parent-phone" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Mobile number
+            </label>
+            <div className="flex h-12 items-center rounded-xl border border-slate-300 bg-white transition focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-900">
+              <span className="flex h-full items-center gap-1.5 border-r border-slate-200 px-3 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <Phone className="h-4 w-4" /> +91
               </span>
               <input
+                id="parent-phone"
                 type="tel"
-                required
-                placeholder="Registered phone number (e.g. 9876543210)"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                placeholder="98765 43210"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full h-12 pl-10 pr-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition-all text-slate-800 dark:text-white"
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  if (error) setError("");
+                }}
+                className="h-full min-w-0 flex-1 bg-transparent px-3 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white"
               />
             </div>
-            
-            <button
-              type="submit"
-              disabled={loading}
-              className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-semibold text-white text-xs shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              {loading ? "Searching..." : (
-                <>
-                  <Search className="h-4 w-4" />
-                  Fetch History
-                </>
-              )}
-            </button>
-          </form>
+          </div>
 
           {error && (
-            <div className="mt-4 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/60 p-3 text-xs font-bold text-rose-700 dark:text-rose-400">
+            <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
               {error}
-            </div>
+            </p>
           )}
-        </div>
 
-        {/* Attendance Data Display */}
-        {data && (
-          <div className="mt-8 space-y-6">
-            <div className="flex items-center justify-between px-1">
-              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Active Tuitions ({data.length})</h3>
-              <p className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                <Info className="h-3 w-3" /> Click cards to show timelines
-              </p>
-            </div>
-            
-            {data.map((item) => {
-              const card = item.card;
-              const logs = item.logs;
-              const isExpanded = expandedCardId === card._id;
-              const percent = Math.min(100, Math.round((card.completedClasses / card.totalClasses) * 100)) || 0;
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+            {loading ? "Finding your records..." : "View my child's progress"}
+          </button>
+        </form>
+      </PortalLogin>
+    );
+  }
 
+  const tuitions = results.filter(hasTutor);
+  const pending = results.filter((item) => !hasTutor(item));
+  const selected = tuitions.find((item) => item.card._id === selectedId) || tuitions[0];
+  const parentName = results.find((item) => item.parentName)?.parentName || "";
+  const digits = phone.replace(/\D/g, "").slice(-10);
+
+  return (
+    <PortalShell
+      portal="Parent Portal"
+      actions={
+        <button type="button" onClick={signOut} className={`${headerIconButton} sm:w-auto sm:gap-2 sm:px-4`} aria-label="Sign out" title="Sign out">
+          <LogOut className="h-4 w-4" />
+          <span className="hidden text-sm font-semibold sm:inline">Sign out</span>
+        </button>
+      }
+    >
+      <div className="animate-fadeIn space-y-6">
+        <section>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Welcome back</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+            {parentName ? `Hello, ${parentName}` : "Hello"}
+          </h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Signed in with +91 {digits.slice(0, 5)} {digits.slice(5)}
+          </p>
+        </section>
+
+        {tuitions.length > 1 && (
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-none" role="tablist" aria-label="Choose a student">
+            {tuitions.map(({ card }) => {
+              const active = card._id === selected?.card._id;
               return (
-                <div 
-                  key={card._id} 
-                  className="bg-white dark:bg-slate-900 rounded-2xl shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none overflow-hidden"
+                <button
+                  key={card._id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSelectedId(card._id)}
+                  className={`shrink-0 rounded-2xl border px-4 py-2.5 text-left transition cursor-pointer ${
+                    active
+                      ? "border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                  }`}
                 >
-                  {/* Summary Card Header */}
-                  <div 
-                    onClick={() => toggleCard(card._id)}
-                    className="p-6 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-all"
-                  >
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-lg">
-                            {card.requirementId}
-                          </span>
-                          <span className="text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-2.5 py-0.5 rounded-lg">
-                            {card.currentMonthLabel || `Month ${card.currentPackageCycle || 1} (Cycle ${card.currentPackageCycle || 1})`}
-                          </span>
-                          {card.cycleDates && (
-                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg">
-                              {card.cycleDates}
-                            </span>
-                          )}
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-lg border ${
-                            card.currentAttendanceStatus === "Done"
-                              ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300"
-                              : card.currentAttendanceStatus === "Missed"
-                              ? "bg-rose-50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/60 text-rose-700 dark:text-rose-400"
-                              : "bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-900/40 text-amber-700 dark:text-amber-300"
-                          }`}>
-                            {card.currentAttendanceStatus === "Done" ? "Done Today" : card.currentAttendanceStatus === "Missed" ? "Missed Today" : "Pending Today"}
-                          </span>
-                        </div>
-                        <h4 className="text-base font-bold text-slate-800 dark:text-white mt-1">{card.studentName}</h4>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-bold text-slate-500 dark:text-slate-400 pt-1">
-                          <div className="flex items-center gap-1">
-                            <User className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
-                            <span>Teacher: {card.tutorName}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
-                            <span>Schedule: {card.classSchedule}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-slate-100 dark:border-slate-800 pt-3 md:pt-0">
-                        {/* Counter */}
-                        <div className="text-right">
-                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider whitespace-nowrap">Attendance Summary</span>
-                          <strong className="text-sm font-semibold text-slate-800 dark:text-slate-200">{card.completedClasses} / {card.totalClasses} Classes</strong>
-                        </div>
-                        
-                        {/* Chevron Toggle */}
-                        <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400">
-                          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Progress bar for summary */}
-                    <div>
-                      <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-indigo-600 rounded-full transition-all duration-300"
-                          style={{ width: `${percent}%` }}
-                        ></div>
-                      </div>
-                      <div className="flex justify-between mt-1 text-xs font-bold text-slate-400 dark:text-slate-500">
-                        <span>{percent}% Classes Completed</span>
-                        <span>Remaining: {card.remainingClasses}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Expandable History Detail */}
-                  {isExpanded && (
-                    <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 p-6 animate-slideFade">
-                      
-                      {/* Attendance Grid Summary details */}
-                      <div className="grid grid-cols-4 gap-2 mb-6 text-center">
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 shadow-sm">
-                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase">Total</span>
-                          <strong className="text-base font-bold text-slate-800 dark:text-white mt-0.5 block">{card.totalClasses}</strong>
-                        </div>
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 shadow-sm">
-                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase">Completed</span>
-                          <strong className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">{card.completedClasses}</strong>
-                        </div>
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 shadow-sm">
-                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase">Missed</span>
-                          <strong className="text-base font-bold text-rose-600 dark:text-rose-400 mt-0.5 block">{card.missedClasses}</strong>
-                        </div>
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 shadow-sm">
-                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase">Remaining</span>
-                          <strong className="text-base font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 block">{card.remainingClasses}</strong>
-                        </div>
-                      </div>
-
-                      {/* Download PDF CTA */}
-                      <div className="mb-6 flex justify-end gap-2 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(`${API_BASE}/attendance/download-history/${card._id}?cycle=all`, "_blank");
-                          }}
-                          className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow transition-all flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <FileDown className="h-4 w-4" />
-                          Download History CSV
-                        </button>
-                        <button
-                          type="button"
-                          disabled={pdfGeneratingId === card._id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            generatePDFReport(card, logs);
-                          }}
-                          className="h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                          <FileDown className="h-4 w-4" />
-                          {pdfGeneratingId === card._id ? "Generating PDF..." : "Download Attendance Report (PDF)"}
-                        </button>
-                      </div>
-
-                      {/* Class Log Timeline */}
-                      <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-4 border-b border-slate-200/80 dark:border-slate-800 pb-2">Class Attendance Timeline</h5>
-                      
-                      {logs.length === 0 ? (
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none flex flex-col items-center justify-center gap-2">
-                          <Activity className="h-6 w-6 text-slate-300" />
-                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">No classes logged yet for this tuition.</p>
-                        </div>
-                      ) : (() => {
-                        const leadCycles = card.cycles || item.cycles || [];
-                        const logCycles = logs.map(l => l.packageCycle || 1);
-                        const maxCycle = Math.max(card.currentPackageCycle || 1, ...logCycles, ...(leadCycles.map(c => c.cycleNumber || 1)), 1);
-                        const availableCycles = [];
-                        for (let cyc = 1; cyc <= maxCycle; cyc++) {
-                          availableCycles.push(cyc);
-                        }
-                        const currentSelectedCycle = parentCycleFilter[card._id] !== undefined
-                          ? parentCycleFilter[card._id]
-                          : (card.currentPackageCycle || 1);
-
-                        const filteredLogs = currentSelectedCycle === "all"
-                          ? logs
-                          : logs.filter(l => (l.packageCycle || 1) === currentSelectedCycle);
-
-                        const selectedCycleObj = leadCycles.find(c => c.cycleNumber === currentSelectedCycle);
-
-                        return (
-                          <div className="space-y-4">
-                            {/* Cycle Tabs */}
-                            <div className="flex items-center gap-1.5 border-b border-slate-200/80 dark:border-slate-800 pb-2.5 overflow-x-auto">
-                              <span className="text-xs font-bold text-slate-400 uppercase mr-1 shrink-0">Month:</span>
-                              {availableCycles.map((cyc) => {
-                                const isSelected = currentSelectedCycle === cyc;
-                                const isCurrent = (card.currentPackageCycle || 1) === cyc;
-                                return (
-                                  <button
-                                    key={cyc}
-                                    type="button"
-                                    onClick={() => setParentCycleFilter(prev => ({ ...prev, [card._id]: cyc }))}
-                                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                                      isSelected
-                                        ? "bg-indigo-600 text-white shadow-sm"
-                                        : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                    }`}
-                                  >
-                                    Month {cyc}
-                                    {isCurrent && (
-                                      <span className={`text-xs px-1.5 py-0.2 rounded font-semibold ${isSelected ? "bg-indigo-800 text-white" : "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400"}`}>
-                                        Active
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })}
-                              <button
-                                type="button"
-                                onClick={() => setParentCycleFilter(prev => ({ ...prev, [card._id]: "all" }))}
-                                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
-                                  currentSelectedCycle === "all"
-                                    ? "bg-indigo-600 text-white shadow-sm"
-                                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                }`}
-                              >
-                                All Months ({logs.length})
-                              </button>
-                            </div>
-
-                            {/* Cycle Date info banner if available */}
-                            {selectedCycleObj && (
-                              <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 px-3.5 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800">
-                                <span>Month {selectedCycleObj.cycleNumber} ({selectedCycleObj.dates})</span>
-                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{selectedCycleObj.completedClasses} / {selectedCycleObj.totalClasses} Completed</span>
-                              </div>
-                            )}
-
-                            {filteredLogs.length === 0 ? (
-                              <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none flex flex-col items-center justify-center gap-2">
-                                <Activity className="h-6 w-6 text-slate-300" />
-                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                                  No classes logged for Month {currentSelectedCycle}.
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="relative pl-4 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[1.5px] before:bg-slate-200 dark:before:bg-slate-800">
-                                {filteredLogs.map((log, index) => {
-                                  const classIndex = filteredLogs.length - index;
-                                  return (
-                                    <div 
-                                      key={log._id}
-                                      className="relative pl-5"
-                                    >
-                                      {/* Circle icon marker on line */}
-                                      <div className="absolute -left-[19px] top-1 z-10">
-                                        {log.status === "Done" ? (
-                                          <div className="h-4.5 w-4.5 rounded-full bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 flex items-center justify-center">
-                                            <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                                          </div>
-                                        ) : (
-                                          <div className="h-4.5 w-4.5 rounded-full bg-rose-100 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-900/60 flex items-center justify-center">
-                                            <XCircle className="h-3 w-3 text-rose-600 dark:text-rose-400" />
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      {/* Timeline Card */}
-                                      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-[0_1px_3px_rgba(15,23,42,0.05)] dark:shadow-none">
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                                          <h6 className="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5 flex-wrap">
-                                            <span>Class {classIndex}</span>
-                                            <span className="text-slate-300 dark:text-slate-700">•</span>
-                                            <span className="bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold px-1.5 py-0.2 rounded">
-                                              Month {log.packageCycle || 1}
-                                            </span>
-                                            <span className="text-slate-300 dark:text-slate-700">•</span>
-                                            <span className="text-slate-500 dark:text-slate-400 font-bold">
-                                              {log.date}
-                                              {formatClassTimeRange(log.classStartTime, log.classEndTime) ? ` · ${formatClassTimeRange(log.classStartTime, log.classEndTime)}` : ""}
-                                            </span>
-                                          </h6>
-                                          <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
-                                            log.status === "Done" 
-                                              ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300" 
-                                              : "bg-rose-50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/60 text-rose-700 dark:text-rose-400"
-                                          }`}>
-                                            {log.status === "Done" ? "Completed" : "Missed"}
-                                          </span>
-                                        </div>
-
-                                        {log.status === "Done" ? (
-                                          <div className="space-y-1">
-                                            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider">Topics Covered</span>
-                                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950/40 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
-                                              {log.topicsCovered}
-                                            </p>
-                                          </div>
-                                        ) : (
-                                          <div className="space-y-1">
-                                            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 block uppercase tracking-wider">Missed Reason</span>
-                                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950/40 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
-                                              {log.missedReason === "Other" ? log.customReason : log.missedReason}
-                                            </p>
-                                          </div>
-                                        )}
-                                        
-                                        <div className="mt-3 flex justify-between items-center text-xs font-bold text-slate-400 dark:text-slate-500">
-                                          <span>Logged by: {log.tutorName}</span>
-                                          <span>Updated: {new Date(log.timestamp).toLocaleDateString()}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-                </div>
+                  <span className="block text-sm font-semibold">{card.studentName}</span>
+                  <span className={`block text-xs ${active ? "text-indigo-100" : "text-slate-500 dark:text-slate-400"}`}>
+                    with {card.tutorName}
+                  </span>
+                </button>
               );
             })}
           </div>
         )}
-      </main>
+
+        {selected ? (
+          <TuitionView key={selected.card._id} item={selected} />
+        ) : (
+          <EmptyState
+            icon={GraduationCap}
+            title="Classes haven't started yet"
+            text="We're arranging the right tutor for your child. Attendance will show here once classes begin."
+          />
+        )}
+
+        {pending.length > 0 && (
+          <section>
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Enquiries in progress</h2>
+            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Our team is finding a tutor for these.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {pending.map(({ card }) => (
+                <div key={card._id} className={`${cardClass} flex items-center gap-3 p-4`}>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{card.studentName}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {card.requirementId} · {card.leadStatus || "Tutor being assigned"}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </PortalShell>
+  );
+}
+
+function TuitionView({ item }) {
+  const { card, logs } = item;
+  const currentCycle = card.currentPackageCycle || 1;
+  const [month, setMonth] = useState(currentCycle);
+  const [downloading, setDownloading] = useState(false);
+  const hoursThisMonth = card.cycles?.find((c) => c.cycleNumber === currentCycle)?.doneMinutes;
+
+  async function downloadPdf() {
+    setDownloading(true);
+    try {
+      await downloadAttendanceReport(card, logs);
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't create the PDF report. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className={`${cardClass} overflow-hidden`}>
+        <div className="flex flex-col gap-6 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+                {card.requirementId}
+              </span>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                {monthName(card.currentMonthLabel, currentCycle)} in progress
+              </span>
+            </div>
+            <h2 className="mt-3 text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">{card.studentName}</h2>
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                  {card.tutorName.charAt(0).toUpperCase()}
+                </span>
+                <div className="min-w-0">
+                  <dt className="text-xs text-slate-500 dark:text-slate-400">Tutor</dt>
+                  <dd className="truncate font-semibold text-slate-800 dark:text-slate-100">{card.tutorName}</dd>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                  <Calendar className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <dt className="text-xs text-slate-500 dark:text-slate-400">Schedule</dt>
+                  <dd className="font-semibold text-slate-800 dark:text-slate-100">{card.classSchedule}</dd>
+                </div>
+              </div>
+            </dl>
+          </div>
+
+          <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/50 sm:flex-col sm:gap-2 sm:bg-transparent sm:p-0 sm:text-center dark:sm:bg-transparent">
+            <ProgressRing done={card.completedClasses} total={card.totalClasses} />
+            <div>
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">This month</p>
+              {card.cycleDateRange && <p className="text-xs text-slate-500 dark:text-slate-400">{card.cycleDateRange}</p>}
+            </div>
+          </div>
+        </div>
+
+        {card.latestLogDate && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 bg-slate-50/70 px-5 py-3 text-sm dark:border-slate-800 dark:bg-slate-950/40 sm:px-6">
+            <span className="text-slate-500 dark:text-slate-400">Last class</span>
+            <span className="font-semibold text-slate-800 dark:text-slate-100">{formatDay(card.latestLogDate)}</span>
+            <StatusPill status={card.currentAttendanceStatus} />
+          </div>
+        )}
+      </section>
+
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatTile label="Completed" value={card.completedClasses} tone="emerald" icon={CheckCircle2} hint="this month" />
+        <StatTile label="Missed" value={card.missedClasses} tone="rose" icon={XCircle} hint="this month" />
+        <StatTile label="Remaining" value={card.remainingClasses} tone="indigo" icon={Target} hint={`of ${card.totalClasses} classes`} />
+        <StatTile label="Hours taught" value={formatHours(hoursThisMonth) || "0 hrs"} icon={Hourglass} hint="this month" />
+      </section>
+
+      <section>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Class history</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Every class marked by the tutor, newest first.</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={downloadPdf}
+              disabled={downloading}
+              className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 sm:flex-none cursor-pointer"
+            >
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              {downloading ? "Preparing..." : "PDF report"}
+            </button>
+            <a
+              href={`${API_BASE}/attendance/download-history/${card._id}?cycle=all`}
+              className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 sm:flex-none"
+            >
+              <FileDown className="h-4 w-4" /> Excel (CSV)
+            </a>
+          </div>
+        </div>
+
+        <ClassHistory
+          logs={logs}
+          cycles={card.cycles || []}
+          currentCycle={currentCycle}
+          selected={month}
+          onSelect={setMonth}
+          showTutor
+        />
+      </section>
+
+      {card.classDuration && card.classDuration !== "Not provided" && (
+        <p className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+          <Clock className="h-3.5 w-3.5" /> Planned class length: {card.classDuration}
+        </p>
+      )}
     </div>
   );
 }
