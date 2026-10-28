@@ -53,6 +53,7 @@ export default function TeacherLogin() {
       localStorage.setItem("tutorId", data.tutor.id);
       localStorage.setItem("tutorName", data.tutor.name);
       localStorage.setItem("tutorCode", data.tutor.tutorCode || "");
+      localStorage.setItem("tutorPhoto", data.tutor.photo || "");
 
       navigate("/teacher/dashboard");
     } catch (err) {

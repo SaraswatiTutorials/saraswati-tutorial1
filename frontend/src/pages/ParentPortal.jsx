@@ -16,6 +16,7 @@ import {
   GraduationCap,
   ArrowRight,
   Sparkles,
+  Camera,
 } from "lucide-react";
 import PortalShell, { headerIconButton } from "../components/portal/PortalShell";
 import PortalLogin from "../components/portal/PortalLogin";
@@ -28,9 +29,13 @@ import {
   StatusPill,
   ClassHistory,
   EmptyState,
+  Avatar,
+  PhotoPicker,
 } from "../components/portal/PortalParts";
+import { ParentAssignments } from "../components/portal/Assignments";
 import { formatHours } from "../utils/classTime";
 import { downloadAttendanceReport } from "../utils/attendanceReport";
+import { uploadPortalPhoto } from "../utils/photo";
 
 // Keeps the parent signed in across a refresh of this tab
 const SESSION_KEY = "parentPortalPhone";
@@ -57,6 +62,9 @@ export default function ParentPortal() {
   const [error, setError] = useState("");
   const [results, setResults] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  // Lets the parent add their child's photo; renewed on every sign-in
+  const [token, setToken] = useState("");
+  const [photoBusyId, setPhotoBusyId] = useState(null);
 
   async function signIn(number) {
     setError("");
@@ -74,6 +82,7 @@ export default function ParentPortal() {
         return;
       }
       setResults(data.results);
+      setToken(data.token || "");
       const first = data.results.find(hasTutor) || data.results[0];
       setSelectedId(first?.card._id || null);
       try { sessionStorage.setItem(SESSION_KEY, number); } catch {}
@@ -99,9 +108,44 @@ export default function ParentPortal() {
     signIn(phone.trim());
   }
 
+  // A fresh sign-in token when the page has been open longer than the token lasts
+  async function renewToken() {
+    const res = await fetch(`${API_BASE}/attendance/parent-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.token) throw new Error("Please sign out and sign in again, then add the photo.");
+    setToken(data.token);
+    return data.token;
+  }
+
+  async function changeStudentPhoto(cardId, file) {
+    setPhotoBusyId(cardId);
+    try {
+      const path = `students/${cardId}/photo`;
+      let photo;
+      try {
+        photo = await uploadPortalPhoto(path, token, file);
+      } catch (err) {
+        if (err.status !== 401) throw err;
+        photo = await uploadPortalPhoto(path, await renewToken(), file);
+      }
+      setResults((prev) =>
+        prev.map((item) => (item.card._id === cardId ? { ...item, card: { ...item.card, studentPhoto: photo } } : item))
+      );
+    } catch (err) {
+      alert(err.message || "Couldn't upload the photo. Please try again.");
+    } finally {
+      setPhotoBusyId(null);
+    }
+  }
+
   function signOut() {
     try { sessionStorage.removeItem(SESSION_KEY); } catch {}
     setResults(null);
+    setToken("");
     setSelectedId(null);
     setPhone("");
     setError("");
@@ -182,10 +226,27 @@ export default function ParentPortal() {
     <PortalShell
       portal="Parent Portal"
       actions={
-        <button type="button" onClick={signOut} className={`${headerIconButton} sm:w-auto sm:gap-2 sm:px-4`} aria-label="Sign out" title="Sign out">
-          <LogOut className="h-4 w-4" />
-          <span className="hidden text-sm font-semibold sm:inline">Sign out</span>
-        </button>
+        <>
+          {selected && (
+            <PhotoPicker
+              onPick={(file) => changeStudentPhoto(selected.card._id, file)}
+              disabled={photoBusyId === selected.card._id}
+              label={selected.card.studentPhoto ? `Change ${selected.card.studentName}'s photo` : `Add a photo of ${selected.card.studentName}`}
+              className="relative shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+            >
+              <Avatar src={selected.card.studentPhoto} name={selected.card.studentName} size="h-9 w-9 sm:h-10 sm:w-10" className="border border-slate-200 dark:border-slate-700" />
+              {photoBusyId === selected.card._id && (
+                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/50">
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
+                </span>
+              )}
+            </PhotoPicker>
+          )}
+          <button type="button" onClick={signOut} className={`${headerIconButton} sm:w-auto sm:gap-2 sm:px-4`} aria-label="Sign out" title="Sign out">
+            <LogOut className="h-4 w-4" />
+            <span className="hidden text-sm font-semibold sm:inline">Sign out</span>
+          </button>
+        </>
       }
     >
       <div className="animate-fadeIn space-y-6">
@@ -210,15 +271,18 @@ export default function ParentPortal() {
                   role="tab"
                   aria-selected={active}
                   onClick={() => setSelectedId(card._id)}
-                  className={`shrink-0 rounded-2xl border px-4 py-2.5 text-left transition cursor-pointer ${
+                  className={`flex shrink-0 items-center gap-2.5 rounded-2xl border py-2 pl-2 pr-4 text-left transition cursor-pointer ${
                     active
                       ? "border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
                       : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                   }`}
                 >
-                  <span className="block text-sm font-semibold">{card.studentName}</span>
-                  <span className={`block text-xs ${active ? "text-indigo-100" : "text-slate-500 dark:text-slate-400"}`}>
-                    with {card.tutorName}
+                  <Avatar src={card.studentPhoto} name={card.studentName} size="h-9 w-9" textClass="text-xs" className={active ? "ring-2 ring-white/60" : ""} />
+                  <span>
+                    <span className="block text-sm font-semibold">{card.studentName}</span>
+                    <span className={`block text-xs ${active ? "text-indigo-100" : "text-slate-500 dark:text-slate-400"}`}>
+                      with {card.tutorName}
+                    </span>
                   </span>
                 </button>
               );
@@ -227,7 +291,12 @@ export default function ParentPortal() {
         )}
 
         {selected ? (
-          <TuitionView key={selected.card._id} item={selected} />
+          <TuitionView
+            key={selected.card._id}
+            item={selected}
+            photoBusy={photoBusyId === selected.card._id}
+            onPhoto={(file) => changeStudentPhoto(selected.card._id, file)}
+          />
         ) : (
           <EmptyState
             icon={GraduationCap}
@@ -262,7 +331,7 @@ export default function ParentPortal() {
   );
 }
 
-function TuitionView({ item }) {
+function TuitionView({ item, photoBusy, onPhoto }) {
   const { card, logs } = item;
   const currentCycle = card.currentPackageCycle || 1;
   const [month, setMonth] = useState(currentCycle);
@@ -294,12 +363,35 @@ function TuitionView({ item }) {
                 {monthName(card.currentMonthLabel, currentCycle)} in progress
               </span>
             </div>
-            <h2 className="mt-3 text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">{card.studentName}</h2>
-            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
-                  {card.tutorName.charAt(0).toUpperCase()}
+            <div className="mt-3 flex items-center gap-4">
+              <PhotoPicker
+                onPick={onPhoto}
+                disabled={photoBusy}
+                label={card.studentPhoto ? `Change ${card.studentName}'s photo` : `Add a photo of ${card.studentName}`}
+                className="group relative shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+              >
+                <Avatar src={card.studentPhoto} name={card.studentName} size="h-16 w-16" textClass="text-2xl" className="ring-4 ring-indigo-50 dark:ring-indigo-950/60" />
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-900 text-white transition group-hover:bg-indigo-600 dark:border-slate-900 dark:bg-white dark:text-slate-900">
+                  {photoBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
                 </span>
+              </PhotoPicker>
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">{card.studentName}</h2>
+                {!card.studentPhoto && (
+                  <PhotoPicker
+                    onPick={onPhoto}
+                    disabled={photoBusy}
+                    label={`Add a photo of ${card.studentName}`}
+                    className="mt-0.5 text-sm font-semibold text-indigo-600 hover:underline disabled:opacity-60 dark:text-indigo-400 cursor-pointer"
+                  >
+                    {photoBusy ? "Uploading..." : "+ Add a photo"}
+                  </PhotoPicker>
+                )}
+              </div>
+            </div>
+            <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+              <div className="flex items-center gap-2.5">
+                <Avatar src={item.tutorPhoto} name={card.tutorName} size="h-8 w-8" textClass="text-xs" />
                 <div className="min-w-0">
                   <dt className="text-xs text-slate-500 dark:text-slate-400">Tutor</dt>
                   <dd className="truncate font-semibold text-slate-800 dark:text-slate-100">{card.tutorName}</dd>
@@ -341,6 +433,8 @@ function TuitionView({ item }) {
         <StatTile label="Remaining" value={card.remainingClasses} tone="indigo" icon={Target} hint={`of ${card.totalClasses} classes`} />
         <StatTile label="Hours taught" value={formatHours(hoursThisMonth) || "0 hrs"} icon={Hourglass} hint="this month" />
       </section>
+
+      <ParentAssignments assignments={item.assignments || []} />
 
       <section>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

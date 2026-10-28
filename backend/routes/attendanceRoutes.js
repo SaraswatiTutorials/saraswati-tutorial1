@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import Tutor from "../models/Tutor.js";
 import ParentEnquiry from "../models/ParentEnquiry.js";
 import Attendance from "../models/Attendance.js";
+import Assignment from "../models/Assignment.js";
 import {
   updateLead,
   syncAttendanceLogToOdoo,
@@ -179,6 +180,7 @@ export async function formatStudentCard(lead) {
     tutorName: lead.assignedTutor || "Not Assigned",
     assignedTutorId: lead.assignedTutorId || null,
     requirementId: lead.requirementId || "REQ-N/A",
+    studentPhoto: lead.studentPhoto || "",
     totalClasses: total,
     completedClasses: completed,
     remainingClasses: remaining,
@@ -255,6 +257,7 @@ router.post("/tutor-login", async (req, res) => {
         tutorCode: tutor.tutorCode,
         email: tutor.email,
         phone: tutor.phone,
+        photo: tutor.photo || "",
       },
     });
   } catch (error) {
@@ -680,22 +683,38 @@ router.post("/parent-login", async (req, res) => {
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
+    const tutorIds = [...new Set(sortedEnquiries.map((lead) => lead.assignedTutorId).filter(Boolean).map(String))];
+    const tutors = await Tutor.find({ _id: { $in: tutorIds } }).select("photo").lean();
+    const tutorPhotos = new Map(tutors.map((t) => [String(t._id), t.photo || ""]));
+
     // Format cards and retrieve history with cycles
     const results = await Promise.all(
       sortedEnquiries.map(async (lead) => {
-        const allLogs = await Attendance.find({ parentEnquiryId: lead._id }).sort({ date: 1, timestamp: 1 });
+        const [allLogs, assignments] = await Promise.all([
+          Attendance.find({ parentEnquiryId: lead._id }).sort({ date: 1, timestamp: 1 }),
+          Assignment.find({ parentEnquiryId: lead._id }).sort({ givenDate: -1, createdAt: -1 }),
+        ]);
         const cycles = computeCycleBreakdown(lead, allLogs);
         const card = await formatStudentCard(lead);
         return {
           card,
           cycles,
           logs: [...allLogs].reverse(),
+          assignments,
           parentName: lead.parentName || "",
+          tutorPhoto: tutorPhotos.get(String(lead.assignedTutorId)) || "",
         };
       })
     );
 
-    res.json({ success: true, results });
+    // Lets the parent add their child's photo; covers only enquiries made with this number
+    const token = jwt.sign(
+      { role: "parent", phone: String(phone).replace(/\D/g, "").slice(-10) },
+      process.env.JWT_SECRET || "secretkey",
+      { expiresIn: "12h" }
+    );
+
+    res.json({ success: true, results, token });
   } catch (error) {
     console.error("Parent login error:", error);
     res.status(500).json({ message: error.message });

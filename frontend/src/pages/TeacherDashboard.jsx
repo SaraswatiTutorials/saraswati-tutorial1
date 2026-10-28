@@ -21,7 +21,11 @@ import {
   StatusPill,
   ClassHistory,
   EmptyState,
+  Avatar,
+  PhotoPicker,
 } from "../components/portal/PortalParts";
+import { TutorAssignments } from "../components/portal/Assignments";
+import { uploadPortalPhoto } from "../utils/photo";
 import {
   LogOut,
   Check,
@@ -43,6 +47,8 @@ import {
   ClipboardCheck,
   ChevronDown,
   Loader2,
+  ClipboardList,
+  Camera,
 } from "lucide-react";
 
 export default function TeacherDashboard() {
@@ -52,7 +58,9 @@ export default function TeacherDashboard() {
   const [error, setError] = useState("");
   // Server's confirmation after marking, e.g. which month a late class was counted in
   const [notice, setNotice] = useState("");
-  const [currentTab, setCurrentTab] = useState("active"); // "active" or "history"
+  const [currentTab, setCurrentTab] = useState("active"); // "active", "history" or "assignments"
+  const [tutorPhoto, setTutorPhoto] = useState(() => localStorage.getItem("tutorPhoto") || "");
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [historyLogs, setHistoryLogs] = useState({}); // studentId -> array of logs
   const [loadingHistoryLogsId, setLoadingHistoryLogsId] = useState(null);
   const [expandedLogsStudentId, setExpandedLogsStudentId] = useState(null);
@@ -129,8 +137,35 @@ export default function TeacherDashboard() {
       return;
     }
     fetchStudents();
+    fetchProfilePhoto();
     // Mount only: re-running after a logout clears the token would redirect again and drop the login message
   }, []);
+
+  // The photo from the tutor's registration, or one they changed since
+  async function fetchProfilePhoto() {
+    try {
+      const res = await fetch(`${API_BASE}/portal/tutor/me`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      const data = await res.json();
+      setTutorPhoto(data.tutor?.photo || "");
+      localStorage.setItem("tutorPhoto", data.tutor?.photo || "");
+    } catch {}
+  }
+
+  async function changeProfilePhoto(file) {
+    setPhotoBusy(true);
+    try {
+      const photo = await uploadPortalPhoto("tutor/photo", token, file);
+      setTutorPhoto(photo);
+      localStorage.setItem("tutorPhoto", photo);
+      setNotice("Your profile photo has been updated.");
+    } catch (err) {
+      if (err.status === 401) return handleLogout("Your session has expired. Please sign in again.");
+      alert(err.message);
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!notice) return;
@@ -166,6 +201,7 @@ export default function TeacherDashboard() {
     localStorage.removeItem("tutorId");
     localStorage.removeItem("tutorName");
     localStorage.removeItem("tutorCode");
+    localStorage.removeItem("tutorPhoto");
     navigate("/teacher/login", typeof message === "string" ? { state: { message } } : undefined);
   }
 
@@ -388,6 +424,19 @@ export default function TeacherDashboard() {
       portal="Tutor Portal"
       actions={
         <>
+          <PhotoPicker
+            onPick={changeProfilePhoto}
+            disabled={photoBusy}
+            label={tutorPhoto ? "Change your profile photo" : "Add your profile photo"}
+            className="relative shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+          >
+            <Avatar src={tutorPhoto} name={tutorName} size="h-9 w-9 sm:h-10 sm:w-10" className="border border-slate-200 dark:border-slate-700" />
+            {photoBusy && (
+              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/50">
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
+              </span>
+            )}
+          </PhotoPicker>
           <div className="relative">
             <button
               type="button"
@@ -526,9 +575,22 @@ export default function TeacherDashboard() {
         )}
 
         <section className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{todayLabel}</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">Hello, {firstName}</h1>
+          <div className="flex items-center gap-4">
+            <PhotoPicker
+              onPick={changeProfilePhoto}
+              disabled={photoBusy}
+              label={tutorPhoto ? "Change your profile photo" : "Add your profile photo"}
+              className="group relative shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+            >
+              <Avatar src={tutorPhoto} name={tutorName} size="h-16 w-16" textClass="text-2xl" className="ring-4 ring-white dark:ring-slate-900" />
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-900 text-white transition group-hover:bg-indigo-600 dark:border-slate-950 dark:bg-white dark:text-slate-900">
+                {photoBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+              </span>
+            </PhotoPicker>
+            <div>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{todayLabel}</p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">Hello, {firstName}</h1>
+            </div>
           </div>
           {tutorCode && (
             <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
@@ -545,10 +607,11 @@ export default function TeacherDashboard() {
         </section>
 
         <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900" role="tablist">
+          <div className="flex rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900 sm:inline-flex" role="tablist">
             {[
-              { id: "active", label: "Mark attendance", icon: ClipboardCheck },
-              { id: "history", label: "Class history", icon: History },
+              { id: "active", label: "Mark attendance", short: "Attendance", icon: ClipboardCheck },
+              { id: "history", label: "Class history", short: "History", icon: History },
+              { id: "assignments", label: "Assignments & tests", short: "Assignments", icon: ClipboardList },
             ].map((tab) => {
               const TabIcon = tab.icon;
               const active = currentTab === tab.id;
@@ -559,14 +622,15 @@ export default function TeacherDashboard() {
                   role="tab"
                   aria-selected={active}
                   onClick={() => setCurrentTab(tab.id)}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition sm:flex-none cursor-pointer ${
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold transition sm:flex-none sm:gap-2 sm:px-4 sm:text-sm cursor-pointer ${
                     active
                       ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
                       : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                   }`}
                 >
-                  <TabIcon className="h-4 w-4" />
-                  {tab.label}
+                  <TabIcon className="h-4 w-4 shrink-0" />
+                  <span className="sm:hidden">{tab.short}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
                 </button>
               );
             })}
@@ -604,18 +668,27 @@ export default function TeacherDashboard() {
             title={searchQuery ? "No students match your search" : "No students assigned yet"}
             text={searchQuery ? "Try a different name or Req ID." : "When the team assigns you a student, they'll appear here."}
           />
+        ) : currentTab === "assignments" ? (
+          <TutorAssignments
+            students={filteredStudents}
+            token={token}
+            onSessionExpired={() => handleLogout("Your session has expired. Please sign in again.")}
+          />
         ) : currentTab === "active" ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {filteredStudents.map((student) => (
               <article key={student._id} className={`${cardClass} flex flex-col transition hover:shadow-md`}>
                 <div className="flex-1 p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="truncate text-base font-bold text-slate-900 dark:text-white">{student.studentName}</h3>
-                      <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                        {student.requirementId} · {monthName(student.currentMonthLabel, student.currentPackageCycle)}
-                        {student.cycleDateRange && ` · ${student.cycleDateRange}`}
-                      </p>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar src={student.studentPhoto} name={student.studentName} size="h-11 w-11" />
+                      <div className="min-w-0">
+                        <h3 className="truncate text-base font-bold text-slate-900 dark:text-white">{student.studentName}</h3>
+                        <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {student.requirementId} · {monthName(student.currentMonthLabel, student.currentPackageCycle)}
+                          {student.cycleDateRange && ` · ${student.cycleDateRange}`}
+                        </p>
+                      </div>
                     </div>
                     <span className="shrink-0 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
                       {student.completedClasses}/{student.totalClasses}
@@ -695,6 +768,7 @@ export default function TeacherDashboard() {
                     aria-expanded={isOpen}
                     className="flex w-full items-center gap-4 p-4 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/40 sm:p-5 cursor-pointer"
                   >
+                    <Avatar src={student.studentPhoto} name={student.studentName} />
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate text-base font-bold text-slate-900 dark:text-white">{student.studentName}</h3>
                       <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
