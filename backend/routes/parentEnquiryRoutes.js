@@ -1104,10 +1104,27 @@ router.post("/:id/assign-tutor", verifyToken(["admin"]), async (req, res) => {
     if (whatsappNumber) {
       try {
         const assignmentMsg = buildAssignmentMessage(tutor.name, lead, firstWard, demoDate, demoTime);
+        // Inside the 24h window the full message above is sent as-is. Outside it,
+        // Odoo requires an approved template, and without naming one here it falls
+        // back to the broadcast template — whose variables are fee/grade/schedule,
+        // not an assignment. Name the assignment template instead.
+        const assignmentTemplate =
+          process.env.WHATSAPP_ASSIGNMENT_TEMPLATE_NAME || "Demo Assigned To Tutor";
+        const assignmentSubjects = Array.isArray(firstWard.subjectsNeeded)
+          ? firstWard.subjectsNeeded.join(", ")
+          : (firstWard.subjectsNeeded || "");
         const sendResult = await sendWhatsAppToTutor({
           phoneNumber: whatsappNumber,
           messageBody: assignmentMsg,
-          templateVars: { tutor_name: tutor.name },
+          templateName: assignmentTemplate,
+          // Values map to free_text_1..5, i.e. {{1}}..{{5}}, in this order.
+          templateVars: {
+            tutor_name: tutor.name || "",
+            grade: firstWard.classGrade ? `Grade ${firstWard.classGrade}` : "",
+            subjects: assignmentSubjects,
+            location: [lead.area, lead.city].filter(Boolean).join(", "),
+            demo_slot: [demoDate, demoTime].filter(Boolean).join(" at "),
+          },
         });
         parentDetailsSent = sendResult.success;
         parentDetailsError = sendResult.failureReason || "";
