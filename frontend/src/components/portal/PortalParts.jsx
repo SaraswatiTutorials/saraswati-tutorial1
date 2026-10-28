@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, XCircle, Clock, User } from "lucide-react";
 import { formatClassTimeRange, formatHours, logMinutes } from "../../utils/classTime";
 
@@ -38,6 +39,53 @@ const TONES = {
   indigo: "text-indigo-600 dark:text-indigo-400",
   amber: "text-amber-600 dark:text-amber-400",
 };
+
+// Round profile picture; the first letter of the name when there is no photo
+export function Avatar({ src, name = "", size = "h-10 w-10", className = "", textClass = "text-sm" }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt={name ? `Photo of ${name}` : ""}
+        onError={() => setFailed(true)}
+        className={`${size} shrink-0 rounded-full object-cover ${className}`}
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden="true"
+      className={`${size} ${textClass} flex shrink-0 items-center justify-center rounded-full bg-indigo-600 font-bold text-white ${className}`}
+    >
+      {(name.trim().charAt(0) || "?").toUpperCase()}
+    </span>
+  );
+}
+
+// Wraps a control that opens the photo picker; calls onPick with the chosen file
+export function PhotoPicker({ onPick, disabled, className = "", label, children }) {
+  const inputRef = useRef(null);
+  return (
+    <>
+      <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled} className={className} aria-label={label} title={label}>
+        {children}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) onPick(file);
+        }}
+      />
+    </>
+  );
+}
 
 export function StatTile({ label, value, tone = "slate", icon: Icon, hint }) {
   return (

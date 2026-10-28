@@ -174,6 +174,13 @@ const parentEnquirySchema = new mongoose.Schema(
       trim: true,
     },
 
+    // Photo of the student, added by the parent in the parent portal
+    studentPhoto: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     daysPerWeek: {
       type: Number,
       default: null,
