@@ -1149,6 +1149,99 @@ router.post("/:id/assign-tutor", verifyToken(["admin"]), async (req, res) => {
 });
 
 // =============================================================
+// POST send the shortlisted tutors to the parent to choose from
+// POST /api/parent-enquiries/:id/send-tutor-options
+//
+// Body: { tutors: [{ name, experience, distanceKm }], dryRun? }
+// Up to three are offered; the parent replies 1, 2 or 3.
+//
+// Pass dryRun: true to see exactly what would be sent without sending it.
+// =============================================================
+router.post("/:id/send-tutor-options", verifyToken(["admin"]), async (req, res) => {
+  try {
+    const { tutors = [], dryRun = false } = req.body;
+
+    const lead = await ParentEnquiry.findById(req.params.id);
+    if (!lead) return res.status(404).json({ message: "Lead not found." });
+
+    if (!Array.isArray(tutors) || tutors.length === 0) {
+      return res.status(400).json({ message: "tutors is required (one to three options)." });
+    }
+
+    const phoneNumber = lead.phone || "";
+    if (!phoneNumber) {
+      return res.status(400).json({ message: "No phone number on this lead." });
+    }
+
+    const firstWard = lead.wards?.[0] || {};
+    const grade = firstWard.classGrade ? `Grade ${firstWard.classGrade}` : "";
+    const subjects = Array.isArray(firstWard.subjectsNeeded)
+      ? firstWard.subjectsNeeded.join(", ")
+      : (firstWard.subjectsNeeded || "");
+
+    // "Priya Sharma - 5 year exp - 3 km away", skipping anything we do not know
+    const describe = (t) => [
+      t?.name,
+      t?.experience ? `${t.experience} exp` : "",
+      t?.distanceKm != null ? `${t.distanceKm} km away` : "",
+    ].filter(Boolean).join(" - ");
+
+    const offered = tutors.slice(0, 3);
+    const templateName =
+      process.env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME || "Tutor Options For Parent";
+
+    // Values map to free_text_1..6, i.e. {{1}}..{{6}}, in this order.
+    const templateVars = {
+      parent_name: lead.parentName || "",
+      grade,
+      subjects,
+      option_1: offered[0] ? describe(offered[0]) : "",
+      option_2: offered[1] ? describe(offered[1]) : "",
+      option_3: offered[2] ? describe(offered[2]) : "",
+    };
+
+    const messageBody =
+      `Hello Mr./Ms. ${lead.parentName || ""},\n\n` +
+      `We have shortlisted ${offered.length} tutor(s) for your requirement.\n\n` +
+      `Grade: ${grade}\nSubject(s): ${subjects}\n\n` +
+      offered.map((t, i) => `${i + 1}) ${describe(t)}`).join("\n") +
+      `\n\nPlease reply with the number of your preferred tutor.`;
+
+    if (dryRun) {
+      return res.json({
+        message: "Dry run - nothing was sent",
+        sent: false,
+        dryRun: true,
+        phoneNumber,
+        templateName,
+        templateVars,
+        messageBody,
+      });
+    }
+
+    const sendResult = await sendWhatsAppToTutor({
+      phoneNumber,
+      messageBody,
+      templateName,
+      templateVars,
+    });
+
+    res.json({
+      message: sendResult.success ? "Tutor options sent to parent" : "Send failed",
+      sent: sendResult.success,
+      dryRun: false,
+      failureReason: sendResult.failureReason || "",
+      usedTemplate: sendResult.usedTemplate,
+      templateName,
+      offeredCount: offered.length,
+    });
+  } catch (error) {
+    console.error("Send tutor options error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// =============================================================
 // PUT update broadcast log response status (manual admin update)
 // PUT /api/parent-enquiries/broadcast-logs/:logId/response
 // =============================================================
