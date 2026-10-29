@@ -206,8 +206,8 @@ export default function MumbaiPage() {
   // Links from other pages (e.g. the navbar on the enquiry form) land on /#plans etc.
   // The browser's own jump runs before the page has rendered, so scroll here.
   useEffect(() => {
-    const target = window.location.hash && document.getElementById(window.location.hash.slice(1));
-    target?.scrollIntoView();
+    const id = window.location.hash.slice(1);
+    if (id) document.getElementById(id)?.scrollIntoView();
   }, []);
 
   const toggleFaq = (index) => {
