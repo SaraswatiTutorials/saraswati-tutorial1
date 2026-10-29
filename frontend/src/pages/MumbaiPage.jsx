@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import PlansSection from "../components/PlansSection";
 import DemoParentDashboard from "./DemoParentDashboard";
 import ThemeToggle from "../components/ThemeToggle";
+import CountUp from "../components/CountUp";
 import {
   Star,
   MapPin,
@@ -35,6 +36,9 @@ import {
 import BrandLogo from "../components/BrandLogo";
 
 const MotionLink = motion(Link);
+
+// "10623" → "10,623" for the hero parents count
+const formatCount = (n) => n.toLocaleString("en-IN");
 
 const handleLocationRedirect = (city) => {
   localStorage.setItem("userLocation", city);
@@ -643,7 +647,7 @@ export default function MumbaiPage() {
               {/* Eyebrow Pill */}
               <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1.5 text-xs font-semibold text-blue-400 mb-6">
                 <Star className="h-3.5 w-3.5 fill-current text-blue-400" />
-                <span>TRUSTED BY 10,623+ PARENTS</span>
+                <span>TRUSTED BY <CountUp end={10623} duration={5000} format={formatCount} />+ PARENTS</span>
               </div>
 
               <h1 className="text-4xl font-black tracking-tight text-white md:text-6xl lg:leading-tight">
@@ -671,9 +675,10 @@ export default function MumbaiPage() {
 
                 <button
                   id="parents-dashboard-btn"
+                  data-own-colors
                   type="button"
                   onClick={() => setShowDemoPreview(true)}
-                  className="rounded-2xl border border-slate-700/80 bg-slate-900/90 px-7 py-4 font-black text-white backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:bg-slate-800 hover:border-slate-600 shadow-lg shadow-slate-950/40 flex items-center justify-center gap-2.5 cursor-pointer"
+                  className="rounded-2xl border border-white bg-white px-7 py-4 font-black text-slate-900 transition duration-300 hover:-translate-y-0.5 hover:bg-blue-50 shadow-lg shadow-black/30 flex items-center justify-center gap-2.5 cursor-pointer"
                 >
                   <span className="relative flex h-2.5 w-2.5 items-center justify-center">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
@@ -701,7 +706,7 @@ export default function MumbaiPage() {
                     </svg>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-lg xl:text-xl font-black text-blue-400">3200+</div>
+                    <div className="text-lg xl:text-xl font-black text-blue-400"><CountUp end={3200} duration={4000} />+</div>
                     <div className="text-[11px] font-semibold text-slate-300 leading-tight">Verified Tutors</div>
                   </div>
                 </div>

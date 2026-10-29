@@ -4,6 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
 import PlansSection from "../components/PlansSection";
 import ThemeToggle from "../components/ThemeToggle";
+import CountUp from "../components/CountUp";
 import { API_BASE } from "../config";
 import { trackEvent } from "../utils/analytics";
 import {
@@ -54,6 +55,9 @@ import BrandLogo from "../components/BrandLogo";
 
 
 const MotionLink = motion(Link);
+
+// "10623" → "10,623" for the hero parents count
+const formatCount = (n) => n.toLocaleString("en-IN");
 
 const categories = [
   {
@@ -1282,7 +1286,7 @@ export default function HomePage() {
               {/* Eyebrow Pill */}
               <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1.5 text-xs font-semibold text-blue-400 mb-6">
                 <Star className="h-3.5 w-3.5 fill-current text-blue-400" />
-                <span>TRUSTED BY 10,623+ PARENTS</span>
+                <span>TRUSTED BY <CountUp end={10623} duration={5000} format={formatCount} />+ PARENTS</span>
               </div>
 
               <h1 className="text-4xl font-black tracking-tight text-white md:text-6xl lg:leading-tight">
@@ -1312,11 +1316,12 @@ export default function HomePage() {
                 {/* Parents Dashboard Preview button */}
                 <motion.button
                   id="parents-dashboard-btn"
+                  data-own-colors
                   type="button"
                   onClick={() => setShowDemoPreview(true)}
-                  whileHover={{ scale: 1.03, translateY: -2, boxShadow: "0 10px 25px rgba(15,23,42,0.6)" }}
+                  whileHover={{ scale: 1.03, translateY: -2, boxShadow: "0 10px 25px rgba(255,255,255,0.18)" }}
                   whileTap={{ scale: 0.97 }}
-                  className="group inline-flex items-center gap-2 rounded-2xl border border-slate-700/80 bg-slate-900/90 px-7 py-4 font-black text-slate-100 backdrop-blur-xl transition-all duration-300 hover:bg-slate-800 hover:border-slate-500 hover:text-white shadow-xl shadow-slate-950/50 cursor-pointer"
+                  className="group inline-flex items-center gap-2 rounded-2xl border border-white bg-white px-7 py-4 font-black text-slate-900 transition-all duration-300 hover:bg-blue-50 shadow-xl shadow-black/30 cursor-pointer"
                   aria-label="Parents dashboard preview"
                 >
                   Parents Dashboard
@@ -1342,7 +1347,7 @@ export default function HomePage() {
                     </svg>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-lg xl:text-xl font-extrabold text-blue-400">3200+</div>
+                    <div className="text-lg xl:text-xl font-extrabold text-blue-400"><CountUp end={3200} duration={4000} />+</div>
                     <div className="text-[11px] font-semibold text-slate-300 leading-tight">Verified Tutors</div>
                   </div>
                 </div>
