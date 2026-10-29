@@ -560,9 +560,69 @@ export default function AdminDashboard() {
       });
   }, [recentEnquiries, parentEnquiries, enquiryAlertsSince]);
 
+  // ── New-feedback notifications ────────────────────────────────────────
+  // Same idea as enquiries: feedback sent after "since" appears in the bell.
+  const FEEDBACK_ALERTS_SINCE_KEY = "adminFeedbackAlertsSince";
+  const [feedbackAlertsSince, setFeedbackAlertsSince] = useState(() => {
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    try {
+      const saved = localStorage.getItem(FEEDBACK_ALERTS_SINCE_KEY);
+      if (saved) return saved;
+      localStorage.setItem(FEEDBACK_ALERTS_SINCE_KEY, dayAgo);
+    } catch {}
+    return dayAgo;
+  });
+  const markFeedbackAlertsSeen = () => {
+    const now = new Date().toISOString();
+    setFeedbackAlertsSince(now);
+    try {
+      localStorage.setItem(FEEDBACK_ALERTS_SINCE_KEY, now);
+    } catch {}
+  };
+
+  // Newest feedback, re-checked every 2 minutes like enquiries
+  const [recentFeedback, setRecentFeedback] = useState([]);
+  useEffect(() => {
+    const checkRecentFeedback = async () => {
+      if (document.visibilityState === "hidden") return;
+      try {
+        const token = localStorage.getItem("adminToken");
+        const res = await fetch(`${API_BASE}/feedback?limit=20`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data.records)) setRecentFeedback(data.records);
+      } catch {}
+    };
+    const intervalId = setInterval(checkRecentFeedback, 2 * 60 * 1000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const feedbackAlerts = useMemo(() => {
+    const since = new Date(feedbackAlertsSince).getTime();
+    const byId = new Map();
+    [...recentFeedback, ...feedbackRecords].forEach((f) => {
+      if (f?._id && !byId.has(f._id)) byId.set(f._id, f);
+    });
+    return [...byId.values()]
+      .filter((f) => f.createdAt && new Date(f.createdAt).getTime() > since)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .map((f) => {
+        const from = f.name || (f.source === "tutor-registration" ? "a tutor" : "a parent");
+        const text = f.message?.length > 80 ? `${f.message.slice(0, 80)}…` : f.message;
+        return {
+          id: `feedback-${f._id}`,
+          type: "new_feedback",
+          severity: "info",
+          message: `New feedback from ${from} (${FEEDBACK_SOURCE_LABELS[f.source] || f.source}) · ${FEEDBACK_CATEGORY_LABELS[f.category] || "Other"}: "${text}" · ${formatSubmittedDate(f.createdAt)}`,
+        };
+      });
+  }, [recentFeedback, feedbackRecords, feedbackAlertsSince]);
+
   const activeAlerts = useMemo(() => {
-    return [...enquiryAlerts, ...alerts].filter(alert => !dismissedAlerts.includes(alert.id));
-  }, [enquiryAlerts, alerts, dismissedAlerts]);
+    return [...enquiryAlerts, ...feedbackAlerts, ...alerts].filter(alert => !dismissedAlerts.includes(alert.id));
+  }, [enquiryAlerts, feedbackAlerts, alerts, dismissedAlerts]);
   const [period, setPeriod] = useState("7d"); // "24h", "7d", "30d"
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -1389,6 +1449,21 @@ export default function AdminDashboard() {
     window.scrollTo({ top: 0 });
   };
 
+  const openFeedbackAlert = (alert) => {
+    dismissAlert(alert.id);
+    setShowAlertsDropdown(false);
+    setFeedbackFilter("all");
+    setCurrentMainTab("feedback");
+    fetchFeedback("all");
+    window.scrollTo({ top: 0 });
+  };
+
+  // "View" on a notification opens the enquiry or the feedback it is about
+  const openAlert = (alert) => {
+    if (alert.type === "new_enquiry") openEnquiryAlert(alert);
+    else if (alert.type === "new_feedback") openFeedbackAlert(alert);
+  };
+
   const navGroups = [
     {
       label: "Leads",
@@ -1470,12 +1545,13 @@ export default function AdminDashboard() {
                   {activeAlerts.length > 0 && (
                     <button
                       onClick={() => {
-                        // Enquiry notifications clear by moving the "seen" time forward
-                        const allIds = activeAlerts.filter(a => a.type !== "new_enquiry").map(a => a.id);
+                        // Enquiry and feedback notifications clear by moving the "seen" time forward
+                        const allIds = activeAlerts.filter(a => a.type !== "new_enquiry" && a.type !== "new_feedback").map(a => a.id);
                         const updated = [...dismissedAlerts, ...allIds];
                         setDismissedAlerts(updated);
                         localStorage.setItem("dismissedAlerts", JSON.stringify(updated));
                         markEnquiryAlertsSeen();
+                        markFeedbackAlertsSeen();
                       }}
                       className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
                     >
@@ -1510,9 +1586,9 @@ export default function AdminDashboard() {
                     >
                       <p className="font-semibold leading-normal text-slate-800 dark:text-slate-200">{alert.message}</p>
                       <div className="flex justify-end gap-2">
-                        {alert.type === "new_enquiry" && (
+                        {(alert.type === "new_enquiry" || alert.type === "new_feedback") && (
                           <button
-                            onClick={() => openEnquiryAlert(alert)}
+                            onClick={() => openAlert(alert)}
                             className="text-xs font-bold uppercase tracking-wider bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700 transition cursor-pointer"
                           >
                             View
@@ -1629,9 +1705,9 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0 justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t border-rose-200/60 dark:border-rose-900/60 sm:border-0">
-              {activeAlerts[0]?.type === "new_enquiry" && (
+              {(activeAlerts[0]?.type === "new_enquiry" || activeAlerts[0]?.type === "new_feedback") && (
                 <button
-                  onClick={() => openEnquiryAlert(activeAlerts[0])}
+                  onClick={() => openAlert(activeAlerts[0])}
                   className="flex-1 sm:flex-none rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow hover:bg-indigo-700 transition cursor-pointer text-center"
                 >
                   View
