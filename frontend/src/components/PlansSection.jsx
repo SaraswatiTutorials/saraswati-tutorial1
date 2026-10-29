@@ -180,8 +180,9 @@ export default function PlansSection() {
 
       {/* Background Gradients */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -left-1/4 -top-1/4 h-[700px] w-[700px] rounded-full bg-blue-600/10 blur-[150px]" />
-        <div className="absolute -right-1/4 -bottom-1/4 h-[700px] w-[700px] rounded-full bg-indigo-600/10 blur-[150px]" />
+        {/* Soft glows as gradients: a 150px blur filter here was costly to repaint on scroll */}
+        <div className="absolute -left-1/4 -top-1/4 h-[1000px] w-[1000px] bg-[radial-gradient(closest-side,rgba(37,99,235,0.10),transparent)]" />
+        <div className="absolute -right-1/4 -bottom-1/4 h-[1000px] w-[1000px] bg-[radial-gradient(closest-side,rgba(79,70,229,0.10),transparent)]" />
       </div>
 
       <div className="relative z-10 mx-auto max-w-7xl px-5 md:px-6">
@@ -518,14 +519,18 @@ function PlanCarousel({ plans, activePlan, onCardClick }) {
                 perspective: "1000px"
               }}
             >
-              <PlanCard
-                plan={plan}
-                isActive={activePlan === plan.id}
-                isSelectedAny={activePlan !== null}
-                isCenter={idx === centeredIndex}
-                position={idx === centeredIndex ? "center" : idx < centeredIndex ? "left" : "right"}
-                onClick={() => onCardClick(plan.id)}
-              />
+              {/* Only cards near the centre are drawn; the far-off repeats stay as
+                  same-width spacers so the infinite scroll positions are unchanged */}
+              {Math.abs(idx - centeredIndex) <= 3 && (
+                <PlanCard
+                  plan={plan}
+                  isActive={activePlan === plan.id}
+                  isSelectedAny={activePlan !== null}
+                  isCenter={idx === centeredIndex}
+                  position={idx === centeredIndex ? "center" : idx < centeredIndex ? "left" : "right"}
+                  onClick={() => onCardClick(plan.id)}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -734,25 +739,24 @@ function PlanCard({ plan, isActive, isSelectedAny, isCenter, position, onClick }
 
   const getCardStyle = () => {
     const style = {
-      transition: "transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), filter 0.6s cubic-bezier(0.16, 1, 0.3, 1)",
+      transition: "transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)",
       transformStyle: "preserve-3d"
     };
 
-    // Other plans keep their normal carousel look after one is chosen, so they don't read as locked
+    // Other plans keep their normal carousel look after one is chosen, so they don't read as locked.
+    // No blur on the side cards: re-blurring them while the page scrolls made it lag.
     if (isActive || isCenter) {
       return {
         ...style,
         transform: "perspective(1000px) rotateY(0deg) scale(1)",
-        opacity: 1,
-        filter: "blur(0px)"
+        opacity: 1
       };
     } else {
       const rotateDeg = position === "left" ? 8 : -8;
       return {
         ...style,
         transform: `perspective(1000px) rotateY(${rotateDeg}deg) scale(0.88)`,
-        opacity: 0.45,
-        filter: "blur(2px)"
+        opacity: 0.45
       };
     }
   };
