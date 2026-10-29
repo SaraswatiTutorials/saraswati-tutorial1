@@ -432,15 +432,6 @@ const SimpleBenefitIcon = ({ title, planTheme }) => {
         <line x1="60" y1="33" x2="60" y2="45" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
       </>
     );
-  } else if (t.includes("foundation")) {
-    // Layers: everything from the plan below is included
-    innerPaths = (
-      <>
-        <path d="M40 22 L58 31 L40 40 L22 31 Z" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        <path d="M22 40 L40 49 L58 40" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        <path d="M22 49 L40 58 L58 49" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      </>
-    );
   } else if (t.includes("verified") && !t.includes("allocation")) {
     // ShieldCheck
     innerPaths = (
@@ -1135,13 +1126,28 @@ export default function ParentEnquiryForm() {
     }
   };
 
+  // After a failed Continue / Submit the step is checked again as the parent fills it in:
+  // the warning goes away once everything is filled, and fields still missing stay marked.
+  // Before, the warning stayed on screen until Continue was pressed again.
+  const [recheckForm, setRecheckForm] = useState(false);
+  useEffect(() => {
+    if (!recheckForm) return;
+    if (validateStep()) {
+      setMessage("");
+      setRecheckForm(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recheckForm, form, feeQuote, step]);
+
   const nextStep = () => {
     if (!validateStep()) {
       setMessage("Please fill all required fields before continuing.");
+      setRecheckForm(true);
       return;
     }
 
     setMessage("");
+    setRecheckForm(false);
     const nextStepVal = step + 1;
     saveDraft(nextStepVal, form);
     setStep(nextStepVal);
@@ -1150,6 +1156,7 @@ export default function ParentEnquiryForm() {
 
   const prevStep = () => {
     setMessage("");
+    setRecheckForm(false);
     setStep((prev) => prev - 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -1227,6 +1234,7 @@ export default function ParentEnquiryForm() {
     // A draft saved before the gender picker moved to step 2 can reach step 3 without it
     if (!validateStep(2)) {
       setMessage("Please complete the student details (including preferred tutor gender) before submitting.");
+      setRecheckForm(true);
       setStep(2);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
@@ -1234,6 +1242,7 @@ export default function ParentEnquiryForm() {
 
     if (!validateStep(3)) {
       setMessage("Please fill all required fields and accept the pricing declaration before submitting.");
+      setRecheckForm(true);
       return;
     }
 

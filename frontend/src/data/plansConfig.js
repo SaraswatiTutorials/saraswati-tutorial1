@@ -48,7 +48,6 @@ export const PLANS = [
     keyBenefit: "Strategy, Monthly Tests, Guidance, Allocation & Support",
     cardBenefits: [
       "Tutor Experience: 2–5 Years",
-      "Everything in the Foundation Plan",
       "Complete Background Verified Tutors",
       "Academic Strategy & Deadlines",
       "Internal Test/Assignment — Monthly",
@@ -59,8 +58,7 @@ export const PLANS = [
     fullDetails: {
       benefits: [
         { title: "Tutor Experience: 2–5 Years", desc: "Experienced tutors verified for secondary grades", highlight: true },
-        { title: "Everything in the Foundation Plan" },
-        { title: "Complete Background Verified Tutors" },
+        { title: "Complete Background Verified Tutors", desc: "Complete background verified tutor (Gov. ID & Education Certificate)" },
         { title: "Academic Strategy & Deadlines" },
         { title: "Internal Test/Assignment — Monthly" },
         { title: "Consistent Guidance & Regular Practice" },
