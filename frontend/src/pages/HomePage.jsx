@@ -710,10 +710,20 @@ export default function HomePage() {
 
   // Links from other pages (e.g. the navbar on the enquiry form) land on /#plans etc.
   // The browser's own jump runs before the page has rendered, so scroll here, and again
-  // once the tutors have loaded and pushed the sections below them down.
+  // once the tutors have loaded and pushed the sections below them down (only if the
+  // visitor hasn't scrolled away meanwhile: the tutor list can take a while).
+  const hashScrollYRef = useRef(null);
   useEffect(() => {
-    const target = window.location.hash && document.getElementById(window.location.hash.slice(1));
-    target?.scrollIntoView();
+    const id = window.location.hash.slice(1);
+    const target = id && document.getElementById(id);
+    if (!target) return;
+    if (loading) {
+      target.scrollIntoView();
+      hashScrollYRef.current = window.scrollY;
+    } else if (hashScrollYRef.current === window.scrollY) {
+      target.scrollIntoView();
+      hashScrollYRef.current = null;
+    }
   }, [loading]);
 
   useEffect(() => {
