@@ -15,13 +15,15 @@ export const PLANS = [
     cardBenefits: [
       "Background Verified Tutors",
       "Homework Support",
-      "Beginner-Friendly Tutors"
+      "Beginner-Friendly Tutors",
+      "Tutor Replacement Within 2 Weeks"
     ],
     fullDetails: {
       benefits: [
         { title: "Background Verified Tutors" },
         { title: "Homework Support" },
-        { title: "Beginner-Friendly Tutors" }
+        { title: "Beginner-Friendly Tutors" },
+        { title: "Tutor Replacement Within 2 Weeks" }
       ],
       features: [],
       faqs: [
@@ -42,8 +44,10 @@ export const PLANS = [
     textColor: "text-slate-950",
     textDarkColor: "text-slate-950",
     badgeTheme: "bg-black/10 text-slate-950 border-black/20",
+    experience: "2–5 Years",
     keyBenefit: "Strategy, Monthly Tests, Guidance, Allocation & Support",
     cardBenefits: [
+      "Tutor Experience: 2–5 Years",
       "Academic Strategy & Deadlines",
       "Internal Test/Assignment — Monthly",
       "Consistent Guidance & Regular Practice",
@@ -52,6 +56,7 @@ export const PLANS = [
     ],
     fullDetails: {
       benefits: [
+        { title: "Tutor Experience: 2–5 Years", desc: "Experienced tutors verified for secondary grades", highlight: true },
         { title: "Academic Strategy & Deadlines" },
         { title: "Internal Test/Assignment — Monthly" },
         { title: "Consistent Guidance & Regular Practice" },
@@ -60,7 +65,7 @@ export const PLANS = [
       ],
       features: [],
       faqs: [
-        { q: "How are tutors selected for this plan?", a: "We match tutors with 3 to 10 years of teaching experience, specifically verified for secondary grades." },
+        { q: "How are tutors selected for this plan?", a: "We match tutors with 2 to 5 years of teaching experience, specifically verified for secondary grades." },
         { q: "What if a student struggles with a specific topic?", a: "Tutors will modify the lesson plan to dedicate additional time for remedial teaching." },
         { q: "Are test reports shared?", a: "Yes, monthly test scores and conceptual gap analysis reports are shared with parents." }
       ],
@@ -77,9 +82,12 @@ export const PLANS = [
     textColor: "text-white",
     textDarkColor: "text-white",
     badgeTheme: "bg-white/10 text-white border-white/10",
-    experience: "10+ Years",
+    // Modal header only; the plan cards keep the black gradient above
+    modalGradient: "from-[#0B1229] via-[#1E2A5A] to-[#0B1229]",
+    experience: "5.1–12 Years",
     keyBenefit: "Priority Allocation, Result-Oriented Mentorship & Support",
     cardBenefits: [
+      "Tutor Experience: 5.1–12 Years",
       "Priority Tutor Allocation",
       "Clean Result-Oriented Learning",
       "Online Academic Doubt Support",
@@ -89,6 +97,7 @@ export const PLANS = [
     ],
     fullDetails: {
       benefits: [
+        { title: "Tutor Experience: 5.1–12 Years", desc: "Senior mentors, school coordinators & board examiners", highlight: true },
         { title: "Priority Tutor Allocation", desc: "Nearest tutor matching from parents' location" },
         { title: "Clean Result-Oriented Learning", desc: "Accuracy, strategy & exam-focused preparation" },
         { title: "Online Academic Doubt Support", desc: "WhatsApp doubt support with the same tutor" },
@@ -98,7 +107,7 @@ export const PLANS = [
       ],
       features: [],
       faqs: [
-        { q: "Who are the Elite Mentors?", a: "They are school coordinators, board examiners, and veteran teachers with 10+ years of teaching experience." },
+        { q: "Who are the Elite Mentors?", a: "They are school coordinators, board examiners, and veteran teachers with 5.1 to 12 years of teaching experience." },
         { q: "Is the schedule highly flexible?", a: "Yes, elite members receive priority slots, meaning schedules can be adjusted dynamically." },
         { q: "Can this plan cover advanced entrance prep?", a: "Yes, it includes guidance for advanced board preparation and foundational entrance concepts." }
       ],

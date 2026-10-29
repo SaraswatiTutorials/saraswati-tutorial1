@@ -420,8 +420,17 @@ const SimpleBenefitIcon = ({ title, planTheme }) => {
   
   // Decide which inner path markup to render
   let innerPaths = null;
-  
-  if (t.includes("verified") && !t.includes("allocation")) {
+
+  if (t.includes("experience")) {
+    // GraduationCap
+    innerPaths = (
+      <>
+        <path d="M40 24 L60 33 L40 42 L20 33 Z" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M29 38 V47 C29 47 33 52 40 52 C47 52 51 47 51 47 V38" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <line x1="60" y1="33" x2="60" y2="45" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
+      </>
+    );
+  } else if (t.includes("verified") && !t.includes("allocation")) {
     // ShieldCheck
     innerPaths = (
       <>
@@ -1650,13 +1659,13 @@ export default function ParentEnquiryForm() {
                                 <FileText className="h-5 w-5 text-slate-400" />
                                 <div>
                                   <p className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                                    Special Learning Needs / Notes
+                                    What Type of Tutor Do You Want?
                                     <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-600">
                                       Optional
                                     </span>
                                   </p>
                                   <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium">
-                                    Add learning goals, concerns, or additional notes.
+                                    E.g. Tamil speaking, Malayalam speaking, patience, strict.
                                   </p>
                                 </div>
                               </div>
@@ -1669,11 +1678,11 @@ export default function ParentEnquiryForm() {
                             {openNotes[index] && (
                               <div className="animate-slideFade border-t border-slate-200/80 dark:border-slate-700 bg-white/70 dark:bg-slate-900/40 p-5">
                                 <TextArea
-                                  label="Special Learning Needs / Notes"
+                                  label="What Type of Tutor Do You Want?"
                                   name="specialNeeds"
                                   value={ward.specialNeeds}
                                   onChange={(e) => handleWardChange(index, e)}
-                                  placeholder="Mention learning needs, goals, concerns, or notes for the tutor."
+                                  placeholder="Tamil speaking / Malayalam speaking / Patience / Strict"
                                   icon={FileText}
                                 />
                               </div>
@@ -2123,7 +2132,7 @@ export default function ParentEnquiryForm() {
                             onClick={(e) => e.stopPropagation()}
                           >
                             {/* Modal Header */}
-                            <div data-own-colors className={`px-5 py-4 md:px-6 md:py-5 text-white bg-gradient-to-r ${activePlanData.gradient} relative`}>
+                            <div data-own-colors className={`px-5 py-4 md:px-6 md:py-5 text-white bg-gradient-to-r ${activePlanData.modalGradient || activePlanData.gradient} relative`}>
                               <button
                                 type="button"
                                 onClick={() => setViewingPlanId(null)}
@@ -2163,29 +2172,34 @@ export default function ParentEnquiryForm() {
                                   <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2.5">Core Benefits</h4>
                                   <div className="grid gap-2.5 sm:grid-cols-2">
                                     {activePlanData.fullDetails.benefits.map((benefit, idx) => {
-                                      const isDarkModal = activePlanData.theme === 'black';
+                                      const isElite = activePlanData.theme === 'black';
+                                      // The tutor-experience card spans the full row and uses the plan's accent
+                                      const isDarkCard = isElite && benefit.highlight;
+                                      const cardTheme = benefit.highlight
+                                        ? isElite
+                                          ? 'sm:col-span-2 bg-gradient-to-r from-[#0B1229] to-[#1E2A5A] border border-indigo-900/60 shadow-md shadow-indigo-900/20'
+                                          : 'sm:col-span-2 bg-gradient-to-r from-amber-50 to-amber-100/70 dark:from-amber-900/30 dark:to-amber-800/20 border border-amber-300/70 dark:border-amber-700/50'
+                                        : isElite
+                                          ? 'bg-gradient-to-br from-white to-indigo-50/70 dark:from-slate-800 dark:to-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 hover:border-indigo-300 hover:shadow-sm'
+                                          : 'bg-gradient-to-br from-[#F8FAFC] to-[#F1F5F9] dark:from-slate-800 dark:to-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:shadow-sm';
                                       return (
                                         <div
                                           key={idx}
                                           className={`flex gap-2.5 sm:gap-3 rounded-2xl p-2.5 sm:p-3 transition duration-300 ${
                                             benefit.desc ? 'items-start' : 'items-center'
-                                          } ${
-                                            isDarkModal
-                                              ? 'bg-gradient-to-br from-[#0B1528] to-[#050B15] border border-blue-900/30 text-white hover:border-blue-700/40'
-                                              : 'bg-gradient-to-br from-[#F8FAFC] to-[#F1F5F9] dark:from-slate-800 dark:to-slate-800/60 border border-slate-200 text-slate-800 hover:border-slate-300 hover:shadow-sm'
-                                          }`}
+                                          } ${cardTheme}`}
                                         >
                                           <div className="w-10 h-10 shrink-0 flex items-center justify-center">
                                             {getBenefitIcon(benefit.title, activePlanData.theme)}
                                           </div>
                                           <div className="flex-1 min-w-0">
-                                            <h5 className={`text-xs font-bold leading-snug ${isDarkModal ? 'text-white' : 'text-slate-800'}`}>
+                                            <h5 className={`text-xs sm:text-[13px] font-bold leading-snug tracking-tight ${isDarkCard ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
                                               {benefit.title}
                                             </h5>
                                             {benefit.desc && (
                                               <>
                                                 <div className="h-[1.5px] w-5 bg-amber-500 rounded-full my-1" />
-                                                <p className={`text-[10px] leading-normal font-semibold ${isDarkModal ? 'text-slate-400' : 'text-slate-500'}`}>
+                                                <p className={`text-[11px] leading-normal font-medium ${isDarkCard ? 'text-indigo-200' : 'text-slate-500 dark:text-slate-400'}`}>
                                                   {benefit.desc}
                                                 </p>
                                               </>
@@ -2349,7 +2363,7 @@ export default function ParentEnquiryForm() {
 
                                       if (activePlanData.id === 'elite') {
                                         return (
-                                          <div className="mt-4 p-3 rounded-xl bg-slate-900 text-white text-xs space-y-1.5 animate-slideFade">
+                                          <div className="mt-4 p-3 rounded-xl bg-gradient-to-br from-[#0B1229] to-[#1E2A5A] text-white text-xs space-y-1.5 animate-slideFade">
                                             <div className="flex justify-between items-center">
                                               <span className="text-slate-300 font-semibold">Hourly Rate:</span>
                                               <span className="font-black text-base text-amber-400">{formatHourlyRate(calc.finalPrice, selectedOption.days, selectedOption.hours)}</span>
@@ -2362,9 +2376,9 @@ export default function ParentEnquiryForm() {
                                               <span className="font-semibold">Schedules per Month:</span>
                                               <span className="font-extrabold text-white">{calc.totalClasses} classes</span>
                                             </div>
-                                            <div className="pt-1.5 border-t border-slate-800 flex justify-between items-center">
+                                            <div className="pt-1.5 border-t border-white/10 flex justify-between items-center">
                                               <span className="font-black text-xs">Cost Per Class:</span>
-                                              <span className="font-black text-sm text-slate-300">₹{calc.costPerClass} / Class</span>
+                                              <span className="font-black text-sm text-white">₹{calc.costPerClass} / Class</span>
                                             </div>
                                           </div>
                                         );

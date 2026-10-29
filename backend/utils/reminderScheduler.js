@@ -25,6 +25,9 @@ import {
 
 const MAX_RETRY_COUNT = Number(process.env.RETRY_COUNT || 3);
 const MISSED_CLASS_TEMPLATE_NAME = process.env.WHATSAPP_MISSED_CLASS_TEMPLATE_NAME || "tutor_attendance_not_marked";
+// The missed-class warning to tutors is paused for now; set
+// MISSED_CLASS_WARNINGS=on to send it again.
+const MISSED_CLASS_WARNINGS_ON = process.env.MISSED_CLASS_WARNINGS === "on";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Attendance Reminder Scheduler
@@ -386,9 +389,12 @@ export async function checkMonthlyCycleRollover() {
 // Start Background Interval (runs every 60 seconds)
 export function startReminderScheduler() {
   console.log(`[Reminder System] Starting automated attendance check daemon...`);
+  if (!MISSED_CLASS_WARNINGS_ON) {
+    console.log(`[Reminder System] Missed class warnings are paused (MISSED_CLASS_WARNINGS is not "on").`);
+  }
   setInterval(() => {
     checkAndSendAttendanceReminders();
-    checkMissedClassWarnings();
+    if (MISSED_CLASS_WARNINGS_ON) checkMissedClassWarnings();
     checkPackageCompletionAlerts();
     checkParentRenewalReminders();
     checkMonthlyCycleRollover();
