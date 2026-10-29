@@ -957,8 +957,17 @@ const SimpleBenefitIcon = ({ title, planTheme }) => {
   
   // Decide which inner path markup to render
   let innerPaths = null;
-  
-  if (t.includes("verified") && !t.includes("allocation")) {
+
+  if (t.includes("experience")) {
+    // GraduationCap
+    innerPaths = (
+      <>
+        <path d="M40 24 L60 33 L40 42 L20 33 Z" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M29 38 V47 C29 47 33 52 40 52 C47 52 51 47 51 47 V38" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <line x1="60" y1="33" x2="60" y2="45" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
+      </>
+    );
+  } else if (t.includes("verified") && !t.includes("allocation")) {
     // ShieldCheck
     innerPaths = (
       <>
