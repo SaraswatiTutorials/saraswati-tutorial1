@@ -708,6 +708,14 @@ export default function HomePage() {
       });
   }, []);
 
+  // Links from other pages (e.g. the navbar on the enquiry form) land on /#plans etc.
+  // The browser's own jump runs before the page has rendered, so scroll here, and again
+  // once the tutors have loaded and pushed the sections below them down.
+  useEffect(() => {
+    const target = window.location.hash && document.getElementById(window.location.hash.slice(1));
+    target?.scrollIntoView();
+  }, [loading]);
+
   useEffect(() => {
     if (!toast) return;
 

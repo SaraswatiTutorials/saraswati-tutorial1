@@ -52,6 +52,8 @@ import { API_BASE } from "../config";
 import { trackEvent } from "../utils/analytics";
 import DemoParentDashboard from "./DemoParentDashboard";
 import FeedbackWidget from "../components/FeedbackWidget";
+import SiteHeader from "../components/SiteHeader";
+import SiteFooter from "../components/SiteFooter";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -428,6 +430,15 @@ const SimpleBenefitIcon = ({ title, planTheme }) => {
         <path d="M40 24 L60 33 L40 42 L20 33 Z" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
         <path d="M29 38 V47 C29 47 33 52 40 52 C47 52 51 47 51 47 V38" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
         <line x1="60" y1="33" x2="60" y2="45" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
+      </>
+    );
+  } else if (t.includes("foundation")) {
+    // Layers: everything from the plan below is included
+    innerPaths = (
+      <>
+        <path d="M40 22 L58 31 L40 40 L22 31 Z" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M22 40 L40 49 L58 40" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M22 49 L40 58 L58 49" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
       </>
     );
   } else if (t.includes("verified") && !t.includes("allocation")) {
@@ -1264,7 +1275,10 @@ export default function ParentEnquiryForm() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_35%),radial-gradient(circle_at_top_right,#fce7f3,transparent_30%),linear-gradient(135deg,#f8fafc,#eef2ff)] dark:bg-none dark:bg-slate-950 px-4 py-8 md:px-6 md:py-12">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_35%),radial-gradient(circle_at_top_right,#fce7f3,transparent_30%),linear-gradient(135deg,#f8fafc,#eef2ff)] dark:bg-none dark:bg-slate-950">
+      {/* Not sticky: the plan details popup sits inside the form card's own layer and would go under it */}
+      <SiteHeader city={selectedCity} sticky={false} />
+      <div className="px-4 pb-8 pt-4 md:px-6 md:pb-12 md:pt-6">
       <style>{`
         .animate-slideFade {
           animation: slideFade 0.28s ease both;
@@ -2712,6 +2726,8 @@ export default function ParentEnquiryForm() {
           selectedPlan={form.planType || "advance"}
         />
       )}
+      </div>
+      <SiteFooter city={selectedCity} />
       <FeedbackWidget
         source="parent-enquiry"
         contact={{ name: form.parentName, phone: form.phone }}
