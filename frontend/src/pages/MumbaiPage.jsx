@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import PlansSection from "../components/PlansSection";
 import DemoParentDashboard from "./DemoParentDashboard";
 import ThemeToggle from "../components/ThemeToggle";
+import CountUp from "../components/CountUp";
 import {
   Star,
   MapPin,
@@ -35,6 +36,9 @@ import {
 import BrandLogo from "../components/BrandLogo";
 
 const MotionLink = motion(Link);
+
+// "10623" → "10,623" for the hero parents count
+const formatCount = (n) => n.toLocaleString("en-IN");
 
 const handleLocationRedirect = (city) => {
   localStorage.setItem("userLocation", city);
@@ -78,7 +82,7 @@ function LocationSelector({ activeCity }) {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1.5 py-1.5 px-2.5 text-xs font-black rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 transition duration-300 cursor-pointer shadow-sm hover:border-slate-300 dark:hover:border-slate-600"
       >
-        <MapPin className="h-3.5 w-3.5 text-blue-600 animate-pulse" />
+        <span className="inline-flex animate-pulse"><MapPin className="h-3.5 w-3.5 text-blue-600" /></span>
         <span>{displayLabel}</span>
         <ChevronDown className={`h-3 w-3 text-slate-500 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
       </button>
@@ -183,24 +187,20 @@ export default function MumbaiPage() {
   const [showDemoPreview, setShowDemoPreview] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const sections = ["home", "why-choose", "plans", "subjects", "boards", "areas", "faqs"];
-      const scrollPosition = window.scrollY + 160;
-
-      for (const section of sections) {
-        const el = document.getElementById(section);
-        if (el) {
-          const offsetTop = el.offsetTop;
-          const offsetHeight = el.offsetHeight;
-          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
-            setActiveSection(section);
-            break;
-          }
-        }
-      }
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    // The active section is the one crossing a line 160px below the top of the window.
+    // An observer reports this without reading positions on scroll, which made scrolling stutter.
+    const sections = ["home", "why-choose", "plans", "subjects", "boards", "areas", "faqs"]
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const crossing = entries.find((entry) => entry.isIntersecting);
+        if (crossing) setActiveSection(crossing.target.id);
+      },
+      { rootMargin: `-160px 0px ${161 - window.innerHeight}px 0px` }
+    );
+    sections.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
   }, []);
 
   const toggleFaq = (index) => {
@@ -466,7 +466,7 @@ export default function MumbaiPage() {
         <script type="application/ld+json">{JSON.stringify(localBusinessSchema)}</script>
       </Helmet>
       <header className="sticky top-0 z-50 w-full py-3 px-4 sm:px-6 lg:px-8 bg-transparent">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 xl:px-6 py-2.5 xl:py-3.5 bg-white/95 dark:bg-[#0c1a2e]/95 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-[1.75rem] shadow-[0_8px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 xl:px-6 py-2.5 xl:py-3.5 bg-white/95 dark:bg-[#0c1a2e]/95 border border-slate-200/50 dark:border-slate-700/50 rounded-[1.75rem] shadow-[0_8px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
           <div className="flex items-center gap-2 xl:gap-3 shrink-0">
             <Link to="/" className="flex items-center gap-2 xl:gap-3 group shrink-0">
               <motion.div
@@ -647,7 +647,7 @@ export default function MumbaiPage() {
               {/* Eyebrow Pill */}
               <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1.5 text-xs font-semibold text-blue-400 mb-6">
                 <Star className="h-3.5 w-3.5 fill-current text-blue-400" />
-                <span>TRUSTED BY 10,623+ PARENTS</span>
+                <span>TRUSTED BY <CountUp end={10623} duration={5000} format={formatCount} />+ PARENTS</span>
               </div>
 
               <h1 className="text-4xl font-black tracking-tight text-white md:text-6xl lg:leading-tight">
@@ -675,9 +675,10 @@ export default function MumbaiPage() {
 
                 <button
                   id="parents-dashboard-btn"
+                  data-own-colors
                   type="button"
                   onClick={() => setShowDemoPreview(true)}
-                  className="rounded-2xl border border-slate-700/80 bg-slate-900/90 px-7 py-4 font-black text-white backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:bg-slate-800 hover:border-slate-600 shadow-lg shadow-slate-950/40 flex items-center justify-center gap-2.5 cursor-pointer"
+                  className="rounded-2xl border border-white bg-white px-7 py-4 font-black text-slate-900 transition duration-300 hover:-translate-y-0.5 hover:bg-blue-50 shadow-lg shadow-black/30 flex items-center justify-center gap-2.5 cursor-pointer"
                 >
                   <span className="relative flex h-2.5 w-2.5 items-center justify-center">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
@@ -692,7 +693,7 @@ export default function MumbaiPage() {
                 <div className="relative overflow-hidden rounded-2xl border border-blue-500/10 bg-[#060c18] p-3.5 flex items-center gap-2.5 transition-all duration-300 hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.08)] group">
                   <div className="relative flex items-center justify-center w-10 h-10 shrink-0 rounded-full bg-blue-950/30 border border-blue-500/15 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
                     {/* Dashed outer ring */}
-                    <div className="absolute inset-[-2.5px] rounded-full border border-dashed border-blue-500/30 animate-[spin_60s_linear_infinite]" />
+                    <div className="absolute inset-[-2.5px] rounded-full border border-dashed border-blue-500/30 animate-[spin_60s_linear_infinite] will-change-transform" />
                     <svg className="w-5 h-5 relative z-10 filter drop-shadow-[0_2px_8px_rgba(59,130,246,0.4)]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M12 22C12 22 20 18 20 12V5L12 2L4 5V12C4 12 12 22 12 22Z" stroke="url(#blueGradCard1)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                       <path d="M8.5 11.5l2.5 2.5 5-5" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -705,7 +706,7 @@ export default function MumbaiPage() {
                     </svg>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-lg xl:text-xl font-black text-blue-400">3200+</div>
+                    <div className="text-lg xl:text-xl font-black text-blue-400"><CountUp end={3200} duration={4000} />+</div>
                     <div className="text-[11px] font-semibold text-slate-300 leading-tight">Verified Tutors</div>
                   </div>
                 </div>
@@ -713,7 +714,7 @@ export default function MumbaiPage() {
                 {/* Card 2 */}
                 <div className="relative overflow-hidden rounded-2xl border border-blue-500/10 bg-[#060c18] p-3.5 flex items-center gap-2.5 transition-all duration-300 hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.08)] group">
                   <div className="relative flex items-center justify-center w-10 h-10 shrink-0 rounded-full bg-blue-950/30 border border-blue-500/15 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-                    <div className="absolute inset-[-2.5px] rounded-full border border-dashed border-blue-500/30 animate-[spin_60s_linear_infinite]" />
+                    <div className="absolute inset-[-2.5px] rounded-full border border-dashed border-blue-500/30 animate-[spin_60s_linear_infinite] will-change-transform" />
                     <svg className="w-5 h-5 relative z-10 filter drop-shadow-[0_2px_8px_rgba(59,130,246,0.4)]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M12 19.5c-2-1.5-5.5-1.5-8-1.5h-1V4h1c2.5 0 6 0 8 1.5v14z" fill="url(#bookPageGrad)" stroke="url(#blueGradCard2)" strokeWidth="1.5" strokeLinejoin="round"/>
                       <path d="M12 19.5c2-1.5 5.5-1.5 8-1.5h1V4h-1c-2.5 0-6 0-8 1.5v14z" fill="url(#bookPageGrad)" stroke="url(#blueGradCard2)" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -739,7 +740,7 @@ export default function MumbaiPage() {
                 {/* Card 3 */}
                 <div className="relative overflow-hidden rounded-2xl border border-blue-500/10 bg-[#060c18] p-3.5 flex items-center gap-2.5 transition-all duration-300 hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.08)] group">
                   <div className="relative flex items-center justify-center w-10 h-10 shrink-0 rounded-full bg-blue-950/30 border border-blue-500/15 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-                    <div className="absolute inset-[-2.5px] rounded-full border border-dashed border-blue-500/30 animate-[spin_60s_linear_infinite]" />
+                    <div className="absolute inset-[-2.5px] rounded-full border border-dashed border-blue-500/30 animate-[spin_60s_linear_infinite] will-change-transform" />
                     <svg className="w-6 h-6 relative z-10 filter drop-shadow-[0_2px_8px_rgba(59,130,246,0.4)]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M2 9l10-7 10 7H2z" fill="url(#blueGradCard3)" stroke="url(#blueGradCard3)" strokeWidth="1" strokeLinejoin="round" />
                       <path d="M3.5 9h17v2h-17V9z" fill="url(#blueGradCard3)" />
@@ -764,7 +765,7 @@ export default function MumbaiPage() {
                 {/* Card 4 */}
                 <div className="relative rounded-2xl border border-blue-500/10 bg-[#060c18] p-3.5 flex items-center gap-2.5 transition-all duration-300 hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.08)] group">
                   <div className="relative flex items-center justify-center w-10 h-10 shrink-0 rounded-full bg-blue-950/30 border border-blue-500/15 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-                    <div className="absolute inset-[-2.5px] rounded-full border border-dashed border-blue-500/30 animate-[spin_60s_linear_infinite]" />
+                    <div className="absolute inset-[-2.5px] rounded-full border border-dashed border-blue-500/30 animate-[spin_60s_linear_infinite] will-change-transform" />
                     <svg className="w-6 h-6 relative z-10 filter drop-shadow-[0_2px_8px_rgba(59,130,246,0.4)]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M12 2L2 7l10 5 10-5-10-5z" fill="url(#blueGradCard4)" stroke="url(#blueGradCard4)" strokeWidth="1" strokeLinejoin="round"/>
                       <path d="M6 10v4c0 3 2.5 5 6 5s6-2 6-5v-4" fill="url(#capInnerGrad)" stroke="url(#blueGradCard4)" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -1310,23 +1311,18 @@ export default function MumbaiPage() {
         </div>
       </footer>
 
+      {/* The bob runs in CSS on the wrapper: animating it from JavaScript every frame made the page lag */}
+      <div className="fixed bottom-6 left-6 z-50 animate-float-bob">
       <motion.a
         href="https://wa.me/919041157689"
         target="_blank"
         rel="noopener noreferrer"
         initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1, y: [0, -6, 0] }}
+        animate={{ opacity: 1, scale: 1 }}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95, backgroundColor: "rgba(37, 211, 102, 0.2)", borderColor: "rgba(37, 211, 102, 0.5)" }}
-        transition={{
-          y: {
-            duration: 4,
-            repeat: Infinity,
-            ease: "easeInOut"
-          },
-          default: { duration: 0.3 }
-        }}
-        className="group fixed bottom-6 left-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-[#25D366] shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition hover:bg-[#128C7E]"
+        transition={{ duration: 0.3 }}
+        className="group flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-[#25D366] shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-colors hover:bg-[#128C7E]"
         aria-label="Contact WhatsApp"
       >
         <svg
@@ -1346,6 +1342,7 @@ export default function MumbaiPage() {
           />
         </svg>
       </motion.a>
+      </div>
       {showDemoPreview && (
         <DemoParentDashboard onClose={() => setShowDemoPreview(false)} />
       )}
