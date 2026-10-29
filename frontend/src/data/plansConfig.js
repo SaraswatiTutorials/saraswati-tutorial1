@@ -20,9 +20,9 @@ export const PLANS = [
     ],
     fullDetails: {
       benefits: [
+        { title: "Beginner-Friendly Tutors", desc: "Patient tutors who explain core concepts simply", highlight: true },
         { title: "Background Verified Tutors" },
         { title: "Homework Support" },
-        { title: "Beginner-Friendly Tutors" },
         { title: "Tutor Replacement Within 2 Weeks" }
       ],
       features: [],
@@ -48,6 +48,8 @@ export const PLANS = [
     keyBenefit: "Strategy, Monthly Tests, Guidance, Allocation & Support",
     cardBenefits: [
       "Tutor Experience: 2–5 Years",
+      "Everything in the Foundation Plan",
+      "Complete Background Verified Tutors",
       "Academic Strategy & Deadlines",
       "Internal Test/Assignment — Monthly",
       "Consistent Guidance & Regular Practice",
@@ -57,6 +59,8 @@ export const PLANS = [
     fullDetails: {
       benefits: [
         { title: "Tutor Experience: 2–5 Years", desc: "Experienced tutors verified for secondary grades", highlight: true },
+        { title: "Everything in the Foundation Plan" },
+        { title: "Complete Background Verified Tutors" },
         { title: "Academic Strategy & Deadlines" },
         { title: "Internal Test/Assignment — Monthly" },
         { title: "Consistent Guidance & Regular Practice" },
