@@ -971,15 +971,6 @@ const SimpleBenefitIcon = ({ title, planTheme }) => {
         <line x1="60" y1="33" x2="60" y2="45" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
       </>
     );
-  } else if (t.includes("foundation")) {
-    // Layers: everything from the plan below is included
-    innerPaths = (
-      <>
-        <path d="M40 22 L58 31 L40 40 L22 31 Z" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        <path d="M22 40 L40 49 L58 40" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        <path d="M22 49 L40 58 L58 49" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      </>
-    );
   } else if (t.includes("verified") && !t.includes("allocation")) {
     // ShieldCheck
     innerPaths = (
