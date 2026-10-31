@@ -987,7 +987,7 @@ router.post("/:id/broadcast", verifyToken(["admin"]), async (req, res) => {
         // Use admin-selected template ID if provided, otherwise fall back to env default name
         const templateName = templateId
           ? String(templateId)
-          : (process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v1");
+          : (process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v3");
 
         const sendResult = await sendWhatsAppToTutor({
           phoneNumber: whatsappNumber,
@@ -1843,7 +1843,7 @@ async function autoBroadcastTutorsForLead(leadData) {
           continue;
         }
 
-        const templateName = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v1";
+        const templateName = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v3";
 
         const sendResult = await sendWhatsAppToTutor({
           phoneNumber: whatsappNumber,
