@@ -19,6 +19,7 @@ import crypto from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 import mongoose from "mongoose";
+import { WAIT_HOURS } from "../utils/topThreeScheduler.js";
 
 const router = express.Router();
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -198,8 +199,36 @@ router.get("/api/board", requireLogin, async (req, res) => {
 
       const interested = invited.filter((t) => t.reply === "Interested" || t.reply === "Assigned");
 
+      // Timings, so the board can say what is happening rather than leave
+      // the reader to infer it from counts alone.
+      const inviteTimes = invited.map((t) => t.sentAt).filter(Boolean).map((d) => new Date(d));
+      const firstInviteAt = inviteTimes.length ? new Date(Math.min(...inviteTimes)) : null;
+      const windowClosesAt = firstInviteAt
+        ? new Date(firstInviteAt.getTime() + WAIT_HOURS * 3600000) : null;
+      const minutesLeft = windowClosesAt
+        ? Math.round((windowClosesAt - Date.now()) / 60000) : null;
+
+      // The shortlist and the invitations can come from different runs, so
+      // say so rather than letting the two counts look contradictory.
+      const shortlistAfterInvites = shortlist?.matchedAt && firstInviteAt
+        && new Date(shortlist.matchedAt) > firstInviteAt;
+
+      const stage =
+        lead.assignedTutor ? "chosen"
+        : top3 ? "top3_sent"
+        : !invited.length ? (shortlist ? "shortlisted" : "new")
+        : minutesLeft > 0 ? "waiting"
+        : interested.length ? "due"
+        : "no_replies";
+
       return {
         requirementId: lead.requirementId || "",
+        stage,
+        firstInviteAt,
+        windowClosesAt,
+        minutesLeft,
+        waitHours: WAIT_HOURS,
+        shortlistAfterInvites: !!shortlistAfterInvites,
         parentName: lead.parentName || "",
         phone: lead.phone || "",
         area: [lead.area, lead.city].filter(Boolean).join(", "),
