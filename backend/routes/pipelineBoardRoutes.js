@@ -1,0 +1,219 @@
+/**
+ * Panel 2 — a read-only view of the tutor pipeline.
+ *
+ * Shows, for each parent enquiry: who was shortlisted, who was invited, who
+ * answered Interested, which three went to the parent, and who the parent
+ * chose. It polls, so a tutor replying an hour from now appears on its own.
+ *
+ * Deliberately self-contained:
+ *   - mounted at /panel2, nothing under /api is touched
+ *   - every query is a read; this file never writes to the database
+ *   - its own login, so it does not depend on the admin JWT
+ *
+ * Credentials come from PANEL2_USER / PANEL2_PASSWORD when set, otherwise the
+ * defaults below. Set them in the environment to change the login.
+ */
+
+import express from "express";
+import crypto from "crypto";
+import path from "path";
+import { fileURLToPath } from "url";
+import mongoose from "mongoose";
+
+const router = express.Router();
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const PAGE = path.join(HERE, "..", "views", "panel2.html");
+
+const PANEL_USER = process.env.PANEL2_USER || "admin2";
+const PANEL_PASSWORD = process.env.PANEL2_PASSWORD || "saraswati2026";
+const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+
+// Tokens are signed rather than stored, so a restart does not log anyone out.
+const SIGNING_KEY = process.env.PANEL2_SECRET || PANEL_PASSWORD + "|panel2";
+
+function makeToken(user) {
+  const expires = Date.now() + TOKEN_TTL_MS;
+  const body = `${user}.${expires}`;
+  const sig = crypto.createHmac("sha256", SIGNING_KEY).update(body).digest("hex");
+  return Buffer.from(`${body}.${sig}`).toString("base64");
+}
+
+function validToken(token) {
+  try {
+    const [user, expires, sig] = Buffer.from(String(token), "base64")
+      .toString("utf8")
+      .split(".");
+    if (!user || !expires || !sig) return false;
+    if (Number(expires) < Date.now()) return false;
+    const expected = crypto
+      .createHmac("sha256", SIGNING_KEY)
+      .update(`${user}.${expires}`)
+      .digest("hex");
+    // Length check first: timingSafeEqual throws on a mismatch.
+    return sig.length === expected.length &&
+      crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
+function requireLogin(req, res, next) {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
+  if (!validToken(token)) return res.status(401).json({ message: "Please sign in." });
+  next();
+}
+
+// The page itself. It asks for the login before it fetches anything.
+router.get("/", (req, res) => res.sendFile(PAGE));
+
+router.post("/api/login", (req, res) => {
+  const { user, password } = req.body || {};
+  if (user !== PANEL_USER || password !== PANEL_PASSWORD) {
+    return res.status(401).json({ message: "Wrong id or password." });
+  }
+  res.json({ token: makeToken(user), user });
+});
+
+/**
+ * One enquiry's whole journey, assembled from the collections the live
+ * workflows already write to. Nothing here is computed or guessed.
+ */
+router.get("/api/board", requireLogin, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    if (!db) return res.status(503).json({ message: "Database not connected yet." });
+
+    const limit = Math.min(Number(req.query.limit) || 25, 100);
+    const demoOnly = req.query.demoOnly === "true";
+    const match = demoOnly ? { isDemoRecord: true } : {};
+
+    const leads = await db
+      .collection("parentenquiries")
+      .find(match, {
+        projection: {
+          requirementId: 1, parentName: 1, phone: 1, area: 1, city: 1,
+          status: 1, createdAt: 1, assignedTutor: 1, assignedTutorId: 1,
+          wards: 1, isDemoRecord: 1,
+        },
+      })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .toArray();
+
+    const ids = leads.map((l) => l.requirementId).filter(Boolean);
+
+    const [logs, shortlists, top3s, assignments] = await Promise.all([
+      db.collection("broadcastlogs").find({ requirementId: { $in: ids } }).toArray(),
+      db.collection("tutor_shortlists").find({ requirementId: { $in: ids } }).sort({ matchedAt: 1 }).toArray(),
+      db.collection("tutor_top3").find({ requirementId: { $in: ids } }).sort({ preparedAt: 1 }).toArray(),
+      db.collection("tutor_assignments").find({ requirementId: { $in: ids } }).sort({ resolvedAt: 1 }).toArray(),
+    ]);
+
+    const byReq = (rows) => {
+      const m = new Map();
+      for (const r of rows) {
+        if (!m.has(r.requirementId)) m.set(r.requirementId, []);
+        m.get(r.requirementId).push(r);
+      }
+      return m;
+    };
+    const logsBy = byReq(logs);
+    const shortBy = byReq(shortlists);
+    const topBy = byReq(top3s);
+    const assignBy = byReq(assignments);
+    const last = (arr) => (arr && arr.length ? arr[arr.length - 1] : null);
+
+    const board = leads.map((lead) => {
+      const ward = lead.wards?.[0] || {};
+      const myLogs = (logsBy.get(lead.requirementId) || [])
+        .filter((l) => l.broadcastType !== "onboarding");
+      const shortlist = last(shortBy.get(lead.requirementId));
+      const top3 = last(topBy.get(lead.requirementId));
+      const assignment = last(assignBy.get(lead.requirementId));
+
+      // A tutor invited more than once has a log row per attempt. Keep only
+      // the most recent, so the board counts tutors rather than attempts.
+      const latestPerTutor = new Map();
+      for (const l of myLogs) {
+        const key = l.tutorCode || l.tutorId?.toString() || `${l.tutorName}|${l.tutorPhone}`;
+        const when = new Date(l.respondedAt || l.time || l.createdAt || 0).getTime();
+        const held = latestPerTutor.get(key);
+        if (!held || when >= held.when) latestPerTutor.set(key, { when, log: l });
+      }
+
+      const invited = [...latestPerTutor.values()].map(({ log: l }) => ({
+        name: l.tutorName || "",
+        code: l.tutorCode || "",
+        phone: l.tutorPhone || "",
+        sendStatus: l.status || "",
+        reply: l.responseStatus || "No Response",
+        repliedAt: l.respondedAt || null,
+        failureReason: l.failureReason || "",
+      })).sort((a, b) => {
+        // Interested first, so the useful ones are at the top.
+        const rank = (r) => (r === "Interested" ? 0 : r === "Assigned" ? 1 : r === "Not Interested" ? 3 : 2);
+        return rank(a.reply) - rank(b.reply) || a.name.localeCompare(b.name);
+      });
+
+      const interested = invited.filter((t) => t.reply === "Interested" || t.reply === "Assigned");
+
+      return {
+        requirementId: lead.requirementId || "",
+        parentName: lead.parentName || "",
+        phone: lead.phone || "",
+        area: [lead.area, lead.city].filter(Boolean).join(", "),
+        grade: ward.classGrade ? `Grade ${ward.classGrade}` : "",
+        subjects: Array.isArray(ward.subjectsNeeded)
+          ? ward.subjectsNeeded.join(", ")
+          : (ward.subjectsNeeded || ""),
+        status: lead.status || "",
+        createdAt: lead.createdAt || null,
+        isDemo: lead.isDemoRecord === true,
+
+        shortlisted: shortlist
+          ? {
+              count: shortlist.tutorCount ?? (shortlist.tutors || []).length,
+              consideredCount: shortlist.candidatesConsidered ?? null,
+              radiusKm: shortlist.radiusKm ?? null,
+              at: shortlist.matchedAt || null,
+              tutors: (shortlist.tutors || []).map((t) => ({
+                name: t.name, code: t.tutorCode, score: t.score,
+                distanceKm: t.distanceKm, reason: t.reason || "",
+              })),
+            }
+          : null,
+
+        invited,
+        counts: {
+          invited: invited.length,
+          interested: interested.length,
+          notInterested: invited.filter((t) => t.reply === "Not Interested").length,
+          waiting: invited.filter((t) => t.reply === "No Response").length,
+        },
+
+        top3: top3
+          ? {
+              at: top3.preparedAt || null,
+              sent: top3.sent === true,
+              outcome: top3.outcome || "",
+              tutors: (top3.tutors || []).map((t) => ({
+                name: t.name, code: t.tutorCode, score: t.score, distanceKm: t.distanceKm,
+              })),
+            }
+          : null,
+
+        chosen: lead.assignedTutor
+          ? { name: lead.assignedTutor, at: assignment?.resolvedAt || null, choice: assignment?.choice ?? null }
+          : (assignment?.tutorName ? { name: assignment.tutorName, at: assignment.resolvedAt, choice: assignment.choice } : null),
+      };
+    });
+
+    res.json({ generatedAt: new Date().toISOString(), count: board.length, board });
+  } catch (error) {
+    console.error("Panel 2 board error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+export default router;

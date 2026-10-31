@@ -26,6 +26,7 @@ import pricingRoutes, { pricingErrorHandler } from "./routes/pricingRoutes.js";
 import geoRoutes from "./routes/geoRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 import portalRoutes from "./routes/portalRoutes.js";
+import pipelineBoardRoutes from "./routes/pipelineBoardRoutes.js";
 
 import { startReminderScheduler, startRetryScheduler, startSyncScheduler } from "./utils/reminderScheduler.js";
 import BroadcastLog from "./models/BroadcastLog.js";
@@ -103,6 +104,10 @@ app.use("/api/pricing",          pricingRoutes);
 app.use("/api/geo",              geoRoutes);
 app.use("/api/feedback",         feedbackRoutes);
 app.use("/api/portal",           portalRoutes);
+
+// Panel 2: a read-only pipeline view with its own login. Mounted outside
+// /api on purpose, so it shares no middleware with the existing routes.
+app.use("/panel2",               pipelineBoardRoutes);
 app.use("/api/pricing",          pricingErrorHandler); // generic errors, no stack traces
 
 // ── Broadcast Dashboard APIs ──────────────────────────────────────────────────
