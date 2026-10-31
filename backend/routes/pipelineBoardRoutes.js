@@ -282,7 +282,17 @@ router.get("/api/board", requireLogin, async (req, res) => {
       };
     });
 
-    res.json({ generatedAt: new Date().toISOString(), count: board.length, board });
+    // An enquiry nobody has been invited for is not part of the pipeline yet,
+    // so by default it is left off the board. ?onlyActive=false shows them.
+    const onlyActive = req.query.onlyActive !== "false";
+    const shown = onlyActive ? board.filter((b) => b.counts.invited > 0) : board;
+
+    res.json({
+      generatedAt: new Date().toISOString(),
+      count: shown.length,
+      hidden: board.length - shown.length,
+      board: shown,
+    });
   } catch (error) {
     console.error("Panel 2 board error:", error);
     res.status(500).json({ message: error.message });

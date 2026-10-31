@@ -196,7 +196,9 @@ async function load() {
   const j = await r.json().catch(() => ({}));
   if (!r.ok) { el("board").innerHTML = '<div class="card err">' + esc(j.message || "Could not load.") + "</div>"; return; }
 
-  el("meta").textContent = j.count + " enquiries · updated " + new Date(j.generatedAt).toLocaleTimeString();
+  el("meta").textContent = j.count + " enquiries in the pipeline · updated " +
+    new Date(j.generatedAt).toLocaleTimeString() +
+    (j.hidden ? " · " + j.hidden + " not invited yet, hidden" : "");
 
   el("board").innerHTML = j.board.map((b) => {
     const invited = b.invited.length
