@@ -1224,6 +1224,9 @@ router.post("/:id/send-tutor-options", verifyToken(["admin"]), async (req, res) 
       messageBody,
       templateName,
       templateVars,
+      // The 1/2/3 choice buttons live on the template, so it must be used even
+      // inside the 24-hour window — which the photo cards have just reopened.
+      forceTemplate: true,
     });
 
     res.json({
