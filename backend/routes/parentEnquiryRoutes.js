@@ -35,6 +35,13 @@ import { notifyAdminOfNewEnquiry } from "../utils/adminAlerts.js";
 
 const router = express.Router();
 
+// Whether an approved tutor hears about a requirement even when nobody ticked
+// their onboardingCompleted box. Read per call so Render can change it without
+// a redeploy.
+function requirementIgnoresOnboarding() {
+  return String(process.env.REQUIREMENT_IGNORES_ONBOARDING || "").toLowerCase() === "true";
+}
+
 function toCoordinate(value) {
   if (value === "" || value == null) return null;
   const number = Number(value);
@@ -812,7 +819,14 @@ router.post("/:id/broadcast", verifyToken(["admin"]), async (req, res) => {
 
       const isApproved = tutor.status === "approved";
       const isOnboarded = tutor.onboardingCompleted === true;
-      const isNewTutorWorkflow = !(isApproved && isOnboarded);
+      // Most approved tutors were never marked onboarded, so by default they
+      // are treated as new sign-ups and get an onboarding message rather than
+      // the requirement. Setting REQUIREMENT_IGNORES_ONBOARDING=true sends the
+      // requirement to every approved tutor instead. Off by default: turning it
+      // on changes who hears about tuitions, so it is a deliberate choice.
+      const isNewTutorWorkflow = requirementIgnoresOnboarding()
+        ? !isApproved
+        : !(isApproved && isOnboarded);
 
       if (isNewTutorWorkflow) {
         // Workflow 1: Send Tutor Agreement/Onboarding (once only)
@@ -1840,7 +1854,14 @@ async function autoBroadcastTutorsForLead(leadData) {
 
       const isApproved = tutor.status === "approved";
       const isOnboarded = tutor.onboardingCompleted === true;
-      const isNewTutorWorkflow = !(isApproved && isOnboarded);
+      // Most approved tutors were never marked onboarded, so by default they
+      // are treated as new sign-ups and get an onboarding message rather than
+      // the requirement. Setting REQUIREMENT_IGNORES_ONBOARDING=true sends the
+      // requirement to every approved tutor instead. Off by default: turning it
+      // on changes who hears about tuitions, so it is a deliberate choice.
+      const isNewTutorWorkflow = requirementIgnoresOnboarding()
+        ? !isApproved
+        : !(isApproved && isOnboarded);
 
       if (isNewTutorWorkflow) {
         // Workflow 1: Send Tutor Agreement/Onboarding (once only)
