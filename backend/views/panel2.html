@@ -52,6 +52,13 @@
   .lead h2 { margin: 0; font-size: 16px; font-weight: 600; }
   .chosen { background: var(--okbg); border: 1px solid #bfe0cd; border-radius: 8px;
     padding: 9px 12px; margin-top: 10px; font-size: 14px; }
+  .status { border-radius: 8px; padding: 9px 12px; margin: 10px 0 2px; font-size: 14px; }
+  .s-wait { background: var(--waitbg); border: 1px solid #ecd9a8; color: #6b5414; }
+  .s-due  { background: #e8eefb; border: 1px solid #c4d3f0; color: #23407a; }
+  .s-done { background: var(--okbg); border: 1px solid #bfe0cd; color: var(--ok); }
+  .s-none { background: #f1f2f4; border: 1px solid var(--line); color: var(--mut); }
+  .note { font-size: 12px; color: var(--wait); background: var(--waitbg);
+    border-radius: 6px; padding: 5px 9px; margin-top: 8px; display: inline-block; }
   .err { color: var(--no); font-size: 14px; }
   @media (max-width: 720px) { .stage { grid-template-columns: repeat(2, 1fr); } }
 </style>
@@ -141,6 +148,39 @@ function restart() {
   if (s > 0) timer = setInterval(load, s * 1000);
 }
 
+const hhmm = (d) => (d ? new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
+const leftFor = (mins) => {
+  if (mins == null) return "";
+  const m = Math.abs(mins), h = Math.floor(m / 60), r = m % 60;
+  return (h ? h + "h " : "") + r + "m";
+};
+
+// One plain sentence saying where this enquiry has got to and what happens next.
+function statusLine(b) {
+  switch (b.stage) {
+    case "chosen":
+      return ["done", "Finished — the parent chose " + esc(b.chosen ? b.chosen.name : "a tutor") + "."];
+    case "top3_sent":
+      return ["done", "Top 3 sent to the parent" + (b.top3 && b.top3.at ? " at " + hhmm(b.top3.at) : "") +
+        ". Waiting for the parent to pick."];
+    case "waiting":
+      return ["wait", "Invited " + b.counts.invited + " tutors at " + hhmm(b.firstInviteAt) + ". " +
+        b.counts.interested + " interested so far. Tutors have " + leftFor(b.minutesLeft) +
+        " left to answer — the top 3 go to the parent at " + hhmm(b.windowClosesAt) + "."];
+    case "due":
+      return ["due", "The " + b.waitHours + "-hour window closed at " + hhmm(b.windowClosesAt) + ". " +
+        b.counts.interested + " tutors said yes — the best " + Math.min(3, b.counts.interested) +
+        " go to the parent on the next sweep."];
+    case "no_replies":
+      return ["none", "The " + b.waitHours + "-hour window closed at " + hhmm(b.windowClosesAt) +
+        " and no tutor said yes. Nothing was sent to the parent."];
+    case "shortlisted":
+      return ["wait", b.shortlisted.count + " tutors shortlisted. None invited yet."];
+    default:
+      return ["none", "No tutors shortlisted or invited yet."];
+  }
+}
+
 function pill(reply) {
   if (reply === "Interested") return '<span class="pill p-ok">Interested</span>';
   if (reply === "Assigned") return '<span class="pill p-ok">Assigned</span>';
@@ -156,7 +196,9 @@ async function load() {
   const j = await r.json().catch(() => ({}));
   if (!r.ok) { el("board").innerHTML = '<div class="card err">' + esc(j.message || "Could not load.") + "</div>"; return; }
 
-  el("meta").textContent = j.count + " enquiries · updated " + new Date(j.generatedAt).toLocaleTimeString();
+  el("meta").textContent = j.count + " enquiries in the pipeline · updated " +
+    new Date(j.generatedAt).toLocaleTimeString() +
+    (j.hidden ? " · " + j.hidden + " not invited yet, hidden" : "");
 
   el("board").innerHTML = j.board.map((b) => {
     const invited = b.invited.length
@@ -166,7 +208,8 @@ async function load() {
           "<td>" + esc(t.experience || "—") + "</td>" +
           "<td>" + esc(t.occupation || "—") + "</td>" +
           "<td>" + (t.distanceKm != null ? esc(t.distanceKm) + " km" : "—") + "</td>" +
-          "<td>" + esc(t.sendStatus) + (t.failureReason ? '<div class="mut" style="font-size:12px">' + esc(t.failureReason) + "</div>" : "") + "</td>" +
+          "<td>" + (t.sentAt ? hhmm(t.sentAt) : esc(t.sendStatus)) +
+            (t.failureReason ? '<div class="mut" style="font-size:12px">' + esc(t.failureReason) + "</div>" : "") + "</td>" +
           "<td>" + pill(t.reply) + "</td><td class=mut>" + esc(when(t.repliedAt)) + "</td></tr>").join("") +
         "</table>"
       : '<div class="empty">No invitations sent yet.</div>';
@@ -174,7 +217,13 @@ async function load() {
     const shortlist = b.shortlisted
       ? "<details><summary>" + b.shortlisted.count + " tutors shortlisted" +
         (b.shortlisted.consideredCount != null ? " from " + b.shortlisted.consideredCount + " considered" : "") +
-        (b.shortlisted.radiusKm ? " within " + b.shortlisted.radiusKm + " km" : "") + "</summary>" +
+        (b.shortlisted.radiusKm ? " within " + b.shortlisted.radiusKm + " km" : "") +
+        (b.shortlisted.at ? " at " + hhmm(b.shortlisted.at) : "") + "</summary>" +
+        (b.shortlistAfterInvites
+          ? '<div class="note">This shortlist was made at ' + hhmm(b.shortlisted.at) +
+            ", after the invitations went out at " + hhmm(b.firstInviteAt) +
+            ". The tutors below are from a later run, so they will not all match the invited list.</div>"
+          : "") +
         '<table><tr><th>#</th><th>Tutor</th><th>Experience</th><th>Occupation</th><th>Distance</th><th>Score</th></tr>' +
         b.shortlisted.tutors.map((t, i) =>
           "<tr><td>" + (t.rank || i + 1) + "</td><td>" + esc(t.name) +
@@ -183,7 +232,9 @@ async function load() {
           "<td>" + esc(t.occupation || "—") + "</td>" +
           "<td>" + (t.distanceKm != null ? esc(t.distanceKm) + " km" : "—") +
           "</td><td>" + esc(t.score) + "</td></tr>").join("") + "</table></details>"
-      : '<div class="empty">Not shortlisted yet.</div>';
+      : '<div class="empty">' + (b.counts.invited
+          ? "No shortlist was recorded for this enquiry — the tutors below were invited from the admin dashboard rather than by the matching workflow."
+          : "Not shortlisted yet.") + "</div>";
 
     const top3 = b.top3 && b.top3.tutors.length
       ? '<table><tr><th>#</th><th>Tutor</th><th>Experience</th><th>Occupation</th><th>Distance</th><th>Score</th></tr>' +
@@ -205,6 +256,7 @@ async function load() {
         (b.chosen.at ? ' <span class="mut">' + esc(when(b.chosen.at)) + "</span>" : "") + "</div>"
       : "";
 
+    const status = statusLine(b);
     return '<div class="card">' +
       '<div class="lead"><div><h2>' + esc(b.parentName || "(no name)") + " " +
         '<span class="pill p-grey">' + esc(b.requirementId) + "</span>" +
@@ -212,8 +264,10 @@ async function load() {
         '<div class="mut">' + [b.phone, b.grade, b.subjects, b.area].filter(Boolean).map(esc).join(" · ") + "</div></div>" +
         '<div class="mut">' + esc(b.status) + " · " + esc(when(b.createdAt)) + "</div></div>" +
 
+      '<div class="status s-' + status[0] + '">' + status[1] + "</div>" +
+
       '<div class="stage">' +
-        '<div class="box"><b>' + (b.shortlisted ? b.shortlisted.count : 0) + "</b><span>shortlisted</span></div>" +
+        '<div class="box"><b>' + (b.shortlisted ? b.shortlisted.count : "—") + "</b><span>shortlisted</span></div>" +
         '<div class="box"><b>' + b.counts.invited + "</b><span>invited</span></div>" +
         '<div class="box"><b>' + b.counts.interested + "</b><span>interested</span></div>" +
         '<div class="box"><b>' + (b.top3 ? b.top3.tutors.length : 0) + "</b><span>sent to parent</span></div>" +

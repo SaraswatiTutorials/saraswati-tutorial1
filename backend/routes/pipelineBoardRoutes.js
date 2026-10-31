@@ -19,6 +19,7 @@ import crypto from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 import mongoose from "mongoose";
+import { WAIT_HOURS } from "../utils/topThreeScheduler.js";
 
 const router = express.Router();
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -198,8 +199,36 @@ router.get("/api/board", requireLogin, async (req, res) => {
 
       const interested = invited.filter((t) => t.reply === "Interested" || t.reply === "Assigned");
 
+      // Timings, so the board can say what is happening rather than leave
+      // the reader to infer it from counts alone.
+      const inviteTimes = invited.map((t) => t.sentAt).filter(Boolean).map((d) => new Date(d));
+      const firstInviteAt = inviteTimes.length ? new Date(Math.min(...inviteTimes)) : null;
+      const windowClosesAt = firstInviteAt
+        ? new Date(firstInviteAt.getTime() + WAIT_HOURS * 3600000) : null;
+      const minutesLeft = windowClosesAt
+        ? Math.round((windowClosesAt - Date.now()) / 60000) : null;
+
+      // The shortlist and the invitations can come from different runs, so
+      // say so rather than letting the two counts look contradictory.
+      const shortlistAfterInvites = shortlist?.matchedAt && firstInviteAt
+        && new Date(shortlist.matchedAt) > firstInviteAt;
+
+      const stage =
+        lead.assignedTutor ? "chosen"
+        : top3 ? "top3_sent"
+        : !invited.length ? (shortlist ? "shortlisted" : "new")
+        : minutesLeft > 0 ? "waiting"
+        : interested.length ? "due"
+        : "no_replies";
+
       return {
         requirementId: lead.requirementId || "",
+        stage,
+        firstInviteAt,
+        windowClosesAt,
+        minutesLeft,
+        waitHours: WAIT_HOURS,
+        shortlistAfterInvites: !!shortlistAfterInvites,
         parentName: lead.parentName || "",
         phone: lead.phone || "",
         area: [lead.area, lead.city].filter(Boolean).join(", "),
@@ -253,7 +282,17 @@ router.get("/api/board", requireLogin, async (req, res) => {
       };
     });
 
-    res.json({ generatedAt: new Date().toISOString(), count: board.length, board });
+    // An enquiry nobody has been invited for is not part of the pipeline yet,
+    // so by default it is left off the board. ?onlyActive=false shows them.
+    const onlyActive = req.query.onlyActive !== "false";
+    const shown = onlyActive ? board.filter((b) => b.counts.invited > 0) : board;
+
+    res.json({
+      generatedAt: new Date().toISOString(),
+      count: shown.length,
+      hidden: board.length - shown.length,
+      board: shown,
+    });
   } catch (error) {
     console.error("Panel 2 board error:", error);
     res.status(500).json({ message: error.message });
