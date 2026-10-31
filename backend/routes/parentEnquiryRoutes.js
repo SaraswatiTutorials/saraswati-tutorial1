@@ -1367,6 +1367,131 @@ router.post("/:id/send-tutor-cards", verifyToken(["admin"]), async (req, res) =>
 });
 
 // =============================================================
+// POST record the parent's choice and tell that tutor they were picked.
+// The flow ends here on purpose: no demo date, no demo time, no further
+// message. Scheduling the demo is done by hand afterwards.
+// POST /api/parent-enquiries/:id/select-tutor
+// =============================================================
+router.post("/:id/select-tutor", verifyToken(["admin"]), async (req, res) => {
+  try {
+    const { tutorId, dryRun = false, force = false } = req.body;
+    if (!tutorId) return res.status(400).json({ message: "tutorId is required." });
+
+    const lead = await ParentEnquiry.findById(req.params.id);
+    if (!lead) return res.status(404).json({ message: "Lead not found." });
+
+    const tutor = await Tutor.findById(tutorId);
+    if (!tutor) return res.status(404).json({ message: "Tutor not found." });
+
+    // A parent tapping two buttons must not quietly reassign the lead.
+    const already = lead.assignedTutorId ? String(lead.assignedTutorId) : "";
+    if (already && already !== String(tutor._id) && !force) {
+      return res.status(409).json({
+        message: `This lead is already with ${lead.assignedTutor || "another tutor"}. Send force: true to change it.`,
+        assignedTutor: lead.assignedTutor || "",
+        assignedTutorId: already,
+      });
+    }
+
+    const firstWard = lead.wards?.[0] || {};
+    const subjects = Array.isArray(firstWard.subjectsNeeded)
+      ? firstWard.subjectsNeeded.join(", ")
+      : (firstWard.subjectsNeeded || "");
+    const whatsappNumber = tutor.whatsapp || tutor.phone || "";
+    const templateName =
+      process.env.WHATSAPP_SELECTION_TEMPLATE_NAME || "tutor_selected_v1";
+
+    // Values map to free_text_1..4, i.e. {{1}}..{{4}}, in this order.
+    const templateVars = {
+      tutor_name: tutor.name || "",
+      grade: firstWard.classGrade ? `Grade ${firstWard.classGrade}` : "",
+      subjects,
+      location: [lead.area, lead.city].filter(Boolean).join(", "),
+    };
+
+    const messageBody =
+      `Hello ${tutor.name || ""},\n\n` +
+      `Good news. The parent has selected you for this tuition requirement.\n\n` +
+      `Grade: ${templateVars.grade}\nSubject(s): ${subjects}\n` +
+      `Location: ${templateVars.location}\n\n` +
+      `Our team will contact you shortly to arrange the demo class.`;
+
+    if (dryRun) {
+      return res.json({
+        message: "Dry run - nothing was sent and nothing was saved",
+        sent: false,
+        dryRun: true,
+        tutorName: tutor.name,
+        phoneNumber: whatsappNumber,
+        templateName,
+        templateVars,
+        messageBody,
+        alreadyAssignedTo: already || null,
+      });
+    }
+
+    // Record the choice. The lead's status is deliberately left alone: no demo
+    // has been scheduled yet, so calling it "Demo Scheduled" would be untrue.
+    lead.assignedTutor = tutor.name;
+    lead.assignedTutorId = tutor._id;
+    await lead.save({ validateBeforeSave: false });
+
+    await BroadcastLog.updateMany(
+      { leadId: lead._id, tutorId: tutor._id },
+      { $set: { responseStatus: "Assigned", respondedAt: new Date() } }
+    );
+
+    // Odoo is told who was picked, but not about a demo that does not exist.
+    if (lead.odooLeadId) {
+      try {
+        await updateLeadAssignment(lead.odooLeadId, {
+          tutorName: tutor.name,
+          tutorCode: tutor.tutorCode || "",
+          tutorPhone: whatsappNumber,
+        });
+      } catch (err) {
+        console.error("Odoo update lead assignment error:", err.message);
+      }
+    }
+
+    if (!whatsappNumber) {
+      return res.json({
+        message: "Tutor recorded, but there is no WhatsApp number to tell them on",
+        sent: false,
+        dryRun: false,
+        recorded: true,
+        tutorName: tutor.name,
+        failureReason: "No WhatsApp number available for tutor",
+      });
+    }
+
+    const sendResult = await sendWhatsAppToTutor({
+      phoneNumber: whatsappNumber,
+      messageBody,
+      templateName,
+      templateVars,
+    });
+
+    res.json({
+      message: sendResult.success
+        ? "Tutor recorded and told they were selected"
+        : "Tutor recorded, but the message did not go",
+      sent: sendResult.success,
+      dryRun: false,
+      recorded: true,
+      tutorName: tutor.name,
+      usedTemplate: sendResult.usedTemplate,
+      messageId: sendResult.messageId || null,
+      failureReason: sendResult.failureReason || "",
+      templateName,
+    });
+  } catch (error) {
+    console.error("Select tutor error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// =============================================================
 // PUT update broadcast log response status (manual admin update)
 // PUT /api/parent-enquiries/broadcast-logs/:logId/response
 // =============================================================
