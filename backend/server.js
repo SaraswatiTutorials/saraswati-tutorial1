@@ -29,6 +29,8 @@ import portalRoutes from "./routes/portalRoutes.js";
 import pipelineBoardRoutes from "./routes/pipelineBoardRoutes.js";
 
 import { startReminderScheduler, startRetryScheduler, startSyncScheduler } from "./utils/reminderScheduler.js";
+import { startTopThreeScheduler } from "./utils/topThreeScheduler.js";
+import { sendTutorOptions } from "./utils/tutorOptionsMessage.js";
 import BroadcastLog from "./models/BroadcastLog.js";
 import compression from "compression";
 
@@ -174,6 +176,9 @@ if (
         startReminderScheduler();  // Attendance reminders (every 60 sec)
         startRetryScheduler();     // Retry failed broadcasts (every 5 min)
         startSyncScheduler();      // Odoo → MongoDB tutor sync (every 15 min)
+        // Once tutors have had their window to answer, send the parent the
+        // best of whoever said yes — up to three, fewer if fewer replied.
+        startTopThreeScheduler(sendTutorOptions);
       });
     })
     .catch((error) => {

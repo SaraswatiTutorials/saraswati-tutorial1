@@ -76,7 +76,18 @@
     <h1>Tutor pipeline</h1>
     <span id="meta" class="mut"></span>
     <span class="grow"></span>
-    <label style="margin:0"><input type="checkbox" id="demoOnly" onchange="load()"> test records only</label>
+    <select id="since" onchange="load()">
+      <option value="today20" selected>since 8 PM today</option>
+      <option value="hours:6">last 6 hours</option>
+      <option value="hours:12">last 12 hours</option>
+      <option value="hours:24">last 24 hours</option>
+      <option value="all">all time</option>
+    </select>
+    <select id="scope" onchange="load()">
+      <option value="real" selected>real enquiries</option>
+      <option value="test">test records</option>
+      <option value="all">both</option>
+    </select>
     <select id="every" onchange="restart()">
       <option value="10">refresh every 10s</option>
       <option value="30" selected>refresh every 30s</option>
@@ -138,7 +149,7 @@ function pill(reply) {
 }
 
 async function load() {
-  const r = await fetch("/panel2/api/board?limit=25&demoOnly=" + el("demoOnly").checked, {
+  const r = await fetch("/panel2/api/board?limit=25&since=" + el("since").value + "&scope=" + el("scope").value, {
     headers: { Authorization: "Bearer " + TOKEN },
   });
   if (r.status === 401) { signOut(); return; }
@@ -149,10 +160,13 @@ async function load() {
 
   el("board").innerHTML = j.board.map((b) => {
     const invited = b.invited.length
-      ? '<table><tr><th>Tutor</th><th>Code</th><th>Sent</th><th>Reply</th><th>When</th></tr>' +
+      ? '<table><tr><th>Tutor</th><th>Experience</th><th>Occupation</th><th>Distance</th><th>Sent</th><th>Reply</th><th>Replied</th></tr>' +
         b.invited.map((t) =>
-          "<tr><td>" + esc(t.name) + "</td><td class=mut>" + esc(t.code) + "</td>" +
-          "<td>" + esc(t.sendStatus) + (t.failureReason ? ' <span class="mut">' + esc(t.failureReason) + "</span>" : "") + "</td>" +
+          "<tr><td>" + esc(t.name) + '<div class="mut" style="font-size:12px">' + esc(t.code) + "</div></td>" +
+          "<td>" + esc(t.experience || "—") + "</td>" +
+          "<td>" + esc(t.occupation || "—") + "</td>" +
+          "<td>" + (t.distanceKm != null ? esc(t.distanceKm) + " km" : "—") + "</td>" +
+          "<td>" + esc(t.sendStatus) + (t.failureReason ? '<div class="mut" style="font-size:12px">' + esc(t.failureReason) + "</div>" : "") + "</td>" +
           "<td>" + pill(t.reply) + "</td><td class=mut>" + esc(when(t.repliedAt)) + "</td></tr>").join("") +
         "</table>"
       : '<div class="empty">No invitations sent yet.</div>';
@@ -161,20 +175,28 @@ async function load() {
       ? "<details><summary>" + b.shortlisted.count + " tutors shortlisted" +
         (b.shortlisted.consideredCount != null ? " from " + b.shortlisted.consideredCount + " considered" : "") +
         (b.shortlisted.radiusKm ? " within " + b.shortlisted.radiusKm + " km" : "") + "</summary>" +
-        '<table><tr><th>Tutor</th><th>Code</th><th>Score</th><th>Distance</th><th>Why</th></tr>' +
-        b.shortlisted.tutors.map((t) =>
-          "<tr><td>" + esc(t.name) + "</td><td class=mut>" + esc(t.code) + "</td><td>" + esc(t.score) +
-          "</td><td>" + (t.distanceKm != null ? esc(t.distanceKm) + " km" : "—") +
-          "</td><td class=mut>" + esc(t.reason) + "</td></tr>").join("") + "</table></details>"
+        '<table><tr><th>#</th><th>Tutor</th><th>Experience</th><th>Occupation</th><th>Distance</th><th>Score</th></tr>' +
+        b.shortlisted.tutors.map((t, i) =>
+          "<tr><td>" + (t.rank || i + 1) + "</td><td>" + esc(t.name) +
+          '<div class="mut" style="font-size:12px">' + esc(t.code) + "</div></td>" +
+          "<td>" + esc(t.experience || "—") + "</td>" +
+          "<td>" + esc(t.occupation || "—") + "</td>" +
+          "<td>" + (t.distanceKm != null ? esc(t.distanceKm) + " km" : "—") +
+          "</td><td>" + esc(t.score) + "</td></tr>").join("") + "</table></details>"
       : '<div class="empty">Not shortlisted yet.</div>';
 
     const top3 = b.top3 && b.top3.tutors.length
-      ? '<table><tr><th>#</th><th>Tutor</th><th>Score</th><th>Distance</th></tr>' +
+      ? '<table><tr><th>#</th><th>Tutor</th><th>Experience</th><th>Occupation</th><th>Distance</th><th>Score</th></tr>' +
         b.top3.tutors.map((t, i) =>
-          "<tr><td>" + (i + 1) + "</td><td>" + esc(t.name) + "</td><td>" + esc(t.score) +
-          "</td><td>" + (t.distanceKm != null ? esc(t.distanceKm) + " km" : "—") + "</td></tr>").join("") +
+          "<tr><td>" + (t.choice || i + 1) + "</td><td>" + esc(t.name) +
+          '<div class="mut" style="font-size:12px">' + esc(t.area || t.code) + "</div></td>" +
+          "<td>" + esc(t.experience || "—") + "</td>" +
+          "<td>" + esc(t.occupation || "—") + "</td>" +
+          "<td>" + (t.distanceKm != null ? esc(t.distanceKm) + " km" : "—") + "</td>" +
+          "<td>" + esc(t.score) + "</td></tr>").join("") +
         '</table><div class="mut" style="margin-top:6px">' +
-        (b.top3.sent ? "Sent to parent " : "Prepared ") + esc(when(b.top3.at)) + "</div>"
+        (b.top3.sent ? "Sent to parent " : "Prepared ") + esc(when(b.top3.at)) +
+        (b.top3.templateName ? " · template " + esc(b.top3.templateName) : "") + "</div>"
       : '<div class="empty">Top 3 not sent to the parent yet.</div>';
 
     const chosen = b.chosen
@@ -202,7 +224,8 @@ async function load() {
       '<h3 style="font-size:14px;margin:14px 0 4px">Top 3 sent to the parent</h3>' + top3 +
       chosen +
     "</div>";
-  }).join("") || '<div class="card empty">No enquiries to show.</div>';
+  }).join("") ||
+    '<div class="card empty">No enquiries in this window yet. Widen the time filter, or wait for the next one to arrive.</div>';
 }
 
 if (TOKEN) show();

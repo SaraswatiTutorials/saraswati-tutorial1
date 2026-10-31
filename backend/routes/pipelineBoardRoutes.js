@@ -85,8 +85,29 @@ router.get("/api/board", requireLogin, async (req, res) => {
     if (!db) return res.status(503).json({ message: "Database not connected yet." });
 
     const limit = Math.min(Number(req.query.limit) || 25, 100);
-    const demoOnly = req.query.demoOnly === "true";
-    const match = demoOnly ? { isDemoRecord: true } : {};
+
+    // Default view: real enquiries only. The test records exist to rehearse
+    // the flow and would otherwise crowd out what is actually happening.
+    const scope = req.query.scope || "real";
+    const match =
+      scope === "test" ? { isDemoRecord: true }
+      : scope === "all" ? {}
+      : { isDemoRecord: { $ne: true } };
+
+    // Default window: from 8pm today, which is where the live run began.
+    // "hours=N" looks back N hours instead; "all" drops the window.
+    const since = req.query.since || "today20";
+    if (since !== "all") {
+      let from;
+      if (since.startsWith("hours:")) {
+        from = new Date(Date.now() - Number(since.slice(6)) * 60 * 60 * 1000);
+      } else {
+        from = new Date();
+        from.setHours(20, 0, 0, 0);
+        if (from > new Date()) from.setDate(from.getDate() - 1); // before 8pm: use last night
+      }
+      match.createdAt = { $gte: from };
+    }
 
     const leads = await db
       .collection("parentenquiries")
@@ -109,6 +130,17 @@ router.get("/api/board", requireLogin, async (req, res) => {
       db.collection("tutor_top3").find({ requirementId: { $in: ids } }).sort({ preparedAt: 1 }).toArray(),
       db.collection("tutor_assignments").find({ requirementId: { $in: ids } }).sort({ resolvedAt: 1 }).toArray(),
     ]);
+
+    // Broadcast logs record who was messaged, not what they are like, so the
+    // tutors' own records supply experience and occupation for the table.
+    const codes = [...new Set(logs.map((l) => l.tutorCode).filter(Boolean))];
+    const tutorDocs = codes.length
+      ? await db.collection("tutors")
+          .find({ tutorCode: { $in: codes } },
+            { projection: { tutorCode: 1, experience: 1, occupation: 1, area: 1, city: 1 } })
+          .toArray()
+      : [];
+    const tutorByCode = new Map(tutorDocs.map((t) => [t.tutorCode, t]));
 
     const byReq = (rows) => {
       const m = new Map();
@@ -142,15 +174,23 @@ router.get("/api/board", requireLogin, async (req, res) => {
         if (!held || when >= held.when) latestPerTutor.set(key, { when, log: l });
       }
 
-      const invited = [...latestPerTutor.values()].map(({ log: l }) => ({
-        name: l.tutorName || "",
-        code: l.tutorCode || "",
-        phone: l.tutorPhone || "",
-        sendStatus: l.status || "",
-        reply: l.responseStatus || "No Response",
-        repliedAt: l.respondedAt || null,
-        failureReason: l.failureReason || "",
-      })).sort((a, b) => {
+      const invited = [...latestPerTutor.values()].map(({ log: l }) => {
+        const t = tutorByCode.get(l.tutorCode) || {};
+        return {
+          name: l.tutorName || "",
+          code: l.tutorCode || "",
+          phone: l.tutorPhone || "",
+          experience: t.experience || "",
+          occupation: t.occupation || "",
+          area: [t.area, t.city].filter(Boolean).join(", "),
+          distanceKm: l.distanceKm ?? null,
+          sendStatus: l.status || "",
+          reply: l.responseStatus || "No Response",
+          repliedAt: l.respondedAt || null,
+          sentAt: l.time || l.createdAt || null,
+          failureReason: l.failureReason || "",
+        };
+      }).sort((a, b) => {
         // Interested first, so the useful ones are at the top.
         const rank = (r) => (r === "Interested" ? 0 : r === "Assigned" ? 1 : r === "Not Interested" ? 3 : 2);
         return rank(a.reply) - rank(b.reply) || a.name.localeCompare(b.name);
@@ -178,8 +218,9 @@ router.get("/api/board", requireLogin, async (req, res) => {
               radiusKm: shortlist.radiusKm ?? null,
               at: shortlist.matchedAt || null,
               tutors: (shortlist.tutors || []).map((t) => ({
-                name: t.name, code: t.tutorCode, score: t.score,
-                distanceKm: t.distanceKm, reason: t.reason || "",
+                rank: t.rank, name: t.name, code: t.tutorCode, score: t.score,
+                distanceKm: t.distanceKm, experience: t.experience || "",
+                occupation: t.occupation || "", reason: t.reason || "",
               })),
             }
           : null,
@@ -197,8 +238,11 @@ router.get("/api/board", requireLogin, async (req, res) => {
               at: top3.preparedAt || null,
               sent: top3.sent === true,
               outcome: top3.outcome || "",
+              templateName: top3.templateName || "",
               tutors: (top3.tutors || []).map((t) => ({
-                name: t.name, code: t.tutorCode, score: t.score, distanceKm: t.distanceKm,
+                choice: t.choice, name: t.name, code: t.tutorCode, score: t.score,
+                distanceKm: t.distanceKm, experience: t.experience || "",
+                occupation: t.occupation || "", area: [t.area, t.city].filter(Boolean).join(", "),
               })),
             }
           : null,
