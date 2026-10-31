@@ -13,6 +13,8 @@ import TutorRegistrationDraft from "../models/TutorRegistrationDraft.js";
 import Enquiry from "../models/Enquiry.js";
 import Booking from "../models/Booking.js";
 import BroadcastLog from "../models/BroadcastLog.js";
+import { buildTutorOptions, sendTutorOptions } from "../utils/tutorOptionsMessage.js";
+import { WAIT_HOURS } from "../utils/topThreeScheduler.js";
 import {
   sendWhatsAppToTutor,
   buildBroadcastMessage,
@@ -1173,7 +1175,7 @@ router.post("/:id/assign-tutor", verifyToken(["admin"]), async (req, res) => {
 // =============================================================
 router.post("/:id/send-tutor-options", verifyToken(["admin"]), async (req, res) => {
   try {
-    const { tutors = [], dryRun = false } = req.body;
+    const { tutors = [], dryRun = false, force = false } = req.body;
 
     const lead = await ParentEnquiry.findById(req.params.id);
     if (!lead) return res.status(404).json({ message: "Lead not found." });
@@ -1187,39 +1189,34 @@ router.post("/:id/send-tutor-options", verifyToken(["admin"]), async (req, res) 
       return res.status(400).json({ message: "No phone number on this lead." });
     }
 
-    const firstWard = lead.wards?.[0] || {};
-    const grade = firstWard.classGrade ? `Grade ${firstWard.classGrade}` : "";
-    const subjects = Array.isArray(firstWard.subjectsNeeded)
-      ? firstWard.subjectsNeeded.join(", ")
-      : (firstWard.subjectsNeeded || "");
+    // Tutors get a window to answer before the parent hears anything, so the
+    // parent is offered the best tutors rather than the quickest. A caller
+    // that fires early is refused; the scheduler sends it when the window
+    // closes. force: true is the deliberate override for a manual send.
+    if (!force && !dryRun) {
+      const firstInvite = await BroadcastLog.findOne(
+        { requirementId: lead.requirementId, broadcastType: "requirement" },
+        { time: 1 },
+      ).sort({ time: 1 }).lean();
 
-    // "Priya Sharma - 5 year exp - 3 km away", skipping anything we do not know
-    const describe = (t) => [
-      t?.name,
-      t?.experience ? `${t.experience} exp` : "",
-      t?.distanceKm != null ? `${t.distanceKm} km away` : "",
-    ].filter(Boolean).join(" - ");
+      if (firstInvite?.time) {
+        const hoursWaited = (Date.now() - new Date(firstInvite.time).getTime()) / 3600000;
+        if (hoursWaited < WAIT_HOURS) {
+          return res.status(409).json({
+            message: `Tutors have had ${hoursWaited.toFixed(1)} of their ${WAIT_HOURS} hours ` +
+              "to answer. This sends on its own once the window closes; pass force: true to go now.",
+            hoursWaited: Number(hoursWaited.toFixed(2)),
+            waitHours: WAIT_HOURS,
+          });
+        }
+      }
+    }
 
-    const offered = tutors.slice(0, 3);
-    const templateName =
-      process.env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME || "Tutor Options For Parent";
-
-    // Values map to free_text_1..6, i.e. {{1}}..{{6}}, in this order.
-    const templateVars = {
-      parent_name: lead.parentName || "",
-      grade,
-      subjects,
-      option_1: offered[0] ? describe(offered[0]) : "",
-      option_2: offered[1] ? describe(offered[1]) : "",
-      option_3: offered[2] ? describe(offered[2]) : "",
-    };
-
-    const messageBody =
-      `Hello Mr./Ms. ${lead.parentName || ""},\n\n` +
-      `We have shortlisted ${offered.length} tutor(s) for your requirement.\n\n` +
-      `Grade: ${grade}\nSubject(s): ${subjects}\n\n` +
-      offered.map((t, i) => `${i + 1}) ${describe(t)}`).join("\n") +
-      `\n\nPlease reply with the number of your preferred tutor.`;
+    // The wording, the variables and the dash in unused option slots all
+    // live in one builder, shared with the scheduler that sends this when
+    // the tutors' answering window closes.
+    const { offered, templateName, templateVars, messageBody } =
+      buildTutorOptions(lead, tutors);
 
     if (dryRun) {
       return res.json({
@@ -1230,22 +1227,15 @@ router.post("/:id/send-tutor-options", verifyToken(["admin"]), async (req, res) 
         templateName,
         templateVars,
         messageBody,
+        offeredCount: offered.length,
       });
     }
 
-    const sendResult = await sendWhatsAppToTutor({
-      phoneNumber,
-      messageBody,
-      templateName,
-      templateVars,
-      // The 1/2/3 choice buttons live on the template, so it must be used even
-      // inside the 24-hour window — which the photo cards have just reopened.
-      forceTemplate: true,
-    });
+    const sendResult = await sendTutorOptions(lead, tutors);
 
     res.json({
-      message: sendResult.success ? "Tutor options sent to parent" : "Send failed",
-      sent: sendResult.success,
+      message: sendResult.sent ? "Tutor options sent to parent" : "Send failed",
+      sent: sendResult.sent,
       dryRun: false,
       failureReason: sendResult.failureReason || "",
       usedTemplate: sendResult.usedTemplate,
