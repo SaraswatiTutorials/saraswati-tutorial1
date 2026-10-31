@@ -238,10 +238,28 @@ async function findActiveConversation(uid, phoneNumber) {
       { fields: ["id", "name", "whatsapp_number", "write_date"], limit: 1 }
     );
 
-    if (channels && channels.length > 0) {
-      return channels[0].id;
+    if (!channels || channels.length === 0) return null;
+
+    // A channel counts as active when WE last touched it, and our own
+    // outbound messages update it. Meta only opens the free-text window when
+    // the CUSTOMER writes to us, so ask that question directly. Without this,
+    // every send after the first picks free text and Meta rejects it.
+    const inbound = await callOdooMethod(
+      uid,
+      "whatsapp.message",
+      "search_count",
+      [[
+        ["mobile_number", "like", cleanPhone],
+        ["message_type", "=", "inbound"],
+        ["create_date", ">=", cutoffDate],
+      ]]
+    );
+    if (!inbound) {
+      console.log(`[WhatsApp] No inbound message from ${cleanPhone} in 24h - using a template`);
+      return null;
     }
-    return null;
+
+    return channels[0].id;
   } catch (err) {
     console.warn("[WhatsApp] Could not check active conversation:", err.message);
     return null;
