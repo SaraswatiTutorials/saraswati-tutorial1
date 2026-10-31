@@ -638,7 +638,7 @@ Are you *interested* in this tuition assignment?
 
 /**
  * Build template variable mapping for tutor requirement notification.
- * Maps to {{1}}–{{9}} in the Odoo WhatsApp template `tutor_requirement_v1`.
+ * Maps to {{1}}–{{9}} in the Odoo WhatsApp template `tutor_requirement_v3`.
  *
  * Template expects:
  *   {{1}} = Tutor Name

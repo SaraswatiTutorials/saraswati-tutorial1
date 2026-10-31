@@ -987,7 +987,7 @@ router.post("/:id/broadcast", verifyToken(["admin"]), async (req, res) => {
         // Use admin-selected template ID if provided, otherwise fall back to env default name
         const templateName = templateId
           ? String(templateId)
-          : (process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v1");
+          : (process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v3");
 
         const sendResult = await sendWhatsAppToTutor({
           phoneNumber: whatsappNumber,
@@ -1265,49 +1265,41 @@ router.post("/:id/send-tutor-cards", verifyToken(["admin"]), async (req, res) =>
       return res.status(400).json({ message: "No phone number on this lead." });
     }
 
-    const firstWard = lead.wards?.[0] || {};
-    const leadSubjects = Array.isArray(firstWard.subjectsNeeded)
-      ? firstWard.subjectsNeeded.join(", ")
-      : (firstWard.subjectsNeeded || "");
-
     const offered = tutors.slice(0, 3);
     const templateName =
       process.env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || "Tutor Option Card";
 
-    // The caller may pass a bare name and code; the photo and subjects come
+    // The caller may pass a bare name and code; the photo and the rest come
     // from the tutor's own record when they are not supplied.
     const codes = offered.map((t) => t?.tutorCode).filter(Boolean);
     const stored = codes.length
       ? await Tutor.find({ tutorCode: { $in: codes } })
-          .select("tutorCode name photo subjects experience")
+          .select("tutorCode name photo experience")
           .lean()
       : [];
     const byCode = new Map(stored.map((t) => [t.tutorCode, t]));
 
     const cards = offered.map((t, idx) => {
       const record = byCode.get(t?.tutorCode) || {};
-      const subjects = Array.isArray(record.subjects)
-        ? record.subjects.join(", ")
-        : (t?.subjects || record.subjects || leadSubjects || "");
       return {
         position: idx + 1,
         tutorCode: t?.tutorCode || "",
         name: t?.name || record.name || "",
         photo: t?.photo || record.photo || "",
-        // Values map to free_text_1..5, i.e. {{1}}..{{5}}, in this order.
+        // Values map to free_text_1..4, i.e. {{1}}..{{4}}, in this order.
+        // The subject is deliberately absent: a tutor is matched on distance,
+        // experience and occupation, so showing it would mislead the parent.
         templateVars: {
           position: String(idx + 1),
           tutor_name: t?.name || record.name || "",
           experience: t?.experience || record.experience || "",
           distance: t?.distanceKm != null ? `${t.distanceKm} km` : "",
-          subjects,
         },
         messageBody:
           `Tutor option ${idx + 1} of ${offered.length}\n\n` +
           `${t?.name || record.name || ""}\n` +
           `Experience: ${t?.experience || record.experience || ""}\n` +
-          `Distance: ${t?.distanceKm != null ? `${t.distanceKm} km` : ""} from your location\n` +
-          `Teaches: ${subjects}`,
+          `Distance: ${t?.distanceKm != null ? `${t.distanceKm} km` : ""} from your location`,
       };
     });
 
@@ -1851,7 +1843,7 @@ async function autoBroadcastTutorsForLead(leadData) {
           continue;
         }
 
-        const templateName = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v1";
+        const templateName = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v3";
 
         const sendResult = await sendWhatsAppToTutor({
           phoneNumber: whatsappNumber,

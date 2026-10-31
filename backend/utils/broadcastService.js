@@ -425,7 +425,7 @@ class BroadcastService {
       matchPercentage: tutor.matchPercentage || null,
     }).save();
 
-    const templateName = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v1";
+    const templateName = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v3";
 
     const sendResult = await sendWhatsAppToTutor({
       phoneNumber:  whatsappNumber,
