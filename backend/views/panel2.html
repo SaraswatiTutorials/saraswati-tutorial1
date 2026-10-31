@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel 2 — Tutor pipeline</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --line: #e3e6ea; --ink: #1d2430;
+    --mut: #6b7280; --ok: #0f7b4f; --okbg: #e6f4ec; --no: #9a2b2b; --nobg: #fbeaea;
+    --wait: #8a6d1f; --waitbg: #fdf3da; --accent: #2a4d8f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background: var(--card); border-bottom: 1px solid var(--line);
+    padding: 14px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    position: sticky; top: 0; z-index: 5; }
+  h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  .mut { color: var(--mut); font-size: 13px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; margin-bottom: 14px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; }
+  label { display: block; font-size: 13px; color: var(--mut); margin-bottom: 4px; }
+  input, select { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px;
+    font: inherit; background: #fff; }
+  button { padding: 9px 14px; border: 1px solid var(--line); background: #fff;
+    border-radius: 7px; font: inherit; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px;
+    border: 1px solid transparent; white-space: nowrap; }
+  .p-ok { background: var(--okbg); color: var(--ok); }
+  .p-no { background: var(--nobg); color: var(--no); }
+  .p-wait { background: var(--waitbg); color: var(--wait); }
+  .p-grey { background: #eef0f3; color: var(--mut); }
+  .stage { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
+  .box { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #fcfcfd; }
+  .box b { display: block; font-size: 22px; font-weight: 600; }
+  .box span { font-size: 12px; color: var(--mut); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-weight: 500; color: var(--mut); font-size: 12px;
+    border-bottom: 1px solid var(--line); padding: 6px 8px; }
+  td { padding: 6px 8px; border-bottom: 1px solid #f1f3f5; vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; font-size: 13px; color: var(--accent); }
+  .empty { color: var(--mut); font-size: 14px; padding: 8px 0; }
+  .lead { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    align-items: baseline; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+  .lead h2 { margin: 0; font-size: 16px; font-weight: 600; }
+  .chosen { background: var(--okbg); border: 1px solid #bfe0cd; border-radius: 8px;
+    padding: 9px 12px; margin-top: 10px; font-size: 14px; }
+  .err { color: var(--no); font-size: 14px; }
+  @media (max-width: 720px) { .stage { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+
+<div id="loginView" class="wrap" style="max-width:380px;margin-top:12vh">
+  <div class="card">
+    <h1>Panel 2</h1>
+    <p class="mut">Read-only view of the tutor pipeline.</p>
+    <div style="margin-top:14px"><label>Id</label><input id="u" class="grow" style="width:100%" autocomplete="username"></div>
+    <div style="margin-top:10px"><label>Password</label><input id="p" type="password" style="width:100%" autocomplete="current-password"></div>
+    <div style="margin-top:14px" class="row">
+      <button class="primary" onclick="login()">Sign in</button>
+      <span id="loginMsg" class="err"></span>
+    </div>
+  </div>
+</div>
+
+<div id="boardView" style="display:none">
+  <header>
+    <h1>Tutor pipeline</h1>
+    <span id="meta" class="mut"></span>
+    <span class="grow"></span>
+    <label style="margin:0"><input type="checkbox" id="demoOnly" onchange="load()"> test records only</label>
+    <select id="every" onchange="restart()">
+      <option value="10">refresh every 10s</option>
+      <option value="30" selected>refresh every 30s</option>
+      <option value="60">refresh every 60s</option>
+      <option value="0">manual</option>
+    </select>
+    <button onclick="load()">Refresh now</button>
+    <button onclick="signOut()">Sign out</button>
+  </header>
+  <div class="wrap" id="board"></div>
+</div>
+
+<script>
+let TOKEN = sessionStorage.getItem("panel2") || "";
+let timer = null;
+
+const el = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const when = (d) => (d ? new Date(d).toLocaleString() : "");
+
+async function login() {
+  el("loginMsg").textContent = "";
+  const r = await fetch("/panel2/api/login", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user: el("u").value, password: el("p").value }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { el("loginMsg").textContent = j.message || "Sign in failed."; return; }
+  TOKEN = j.token;
+  sessionStorage.setItem("panel2", TOKEN);
+  show();
+}
+
+function signOut() {
+  TOKEN = ""; sessionStorage.removeItem("panel2");
+  clearInterval(timer);
+  el("boardView").style.display = "none";
+  el("loginView").style.display = "";
+}
+
+function show() {
+  el("loginView").style.display = "none";
+  el("boardView").style.display = "";
+  load(); restart();
+}
+
+function restart() {
+  clearInterval(timer);
+  const s = Number(el("every").value);
+  if (s > 0) timer = setInterval(load, s * 1000);
+}
+
+function pill(reply) {
+  if (reply === "Interested") return '<span class="pill p-ok">Interested</span>';
+  if (reply === "Assigned") return '<span class="pill p-ok">Assigned</span>';
+  if (reply === "Not Interested") return '<span class="pill p-no">Not interested</span>';
+  return '<span class="pill p-wait">Waiting</span>';
+}
+
+async function load() {
+  const r = await fetch("/panel2/api/board?limit=25&demoOnly=" + el("demoOnly").checked, {
+    headers: { Authorization: "Bearer " + TOKEN },
+  });
+  if (r.status === 401) { signOut(); return; }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { el("board").innerHTML = '<div class="card err">' + esc(j.message || "Could not load.") + "</div>"; return; }
+
+  el("meta").textContent = j.count + " enquiries · updated " + new Date(j.generatedAt).toLocaleTimeString();
+
+  el("board").innerHTML = j.board.map((b) => {
+    const invited = b.invited.length
+      ? '<table><tr><th>Tutor</th><th>Code</th><th>Sent</th><th>Reply</th><th>When</th></tr>' +
+        b.invited.map((t) =>
+          "<tr><td>" + esc(t.name) + "</td><td class=mut>" + esc(t.code) + "</td>" +
+          "<td>" + esc(t.sendStatus) + (t.failureReason ? ' <span class="mut">' + esc(t.failureReason) + "</span>" : "") + "</td>" +
+          "<td>" + pill(t.reply) + "</td><td class=mut>" + esc(when(t.repliedAt)) + "</td></tr>").join("") +
+        "</table>"
+      : '<div class="empty">No invitations sent yet.</div>';
+
+    const shortlist = b.shortlisted
+      ? "<details><summary>" + b.shortlisted.count + " tutors shortlisted" +
+        (b.shortlisted.consideredCount != null ? " from " + b.shortlisted.consideredCount + " considered" : "") +
+        (b.shortlisted.radiusKm ? " within " + b.shortlisted.radiusKm + " km" : "") + "</summary>" +
+        '<table><tr><th>Tutor</th><th>Code</th><th>Score</th><th>Distance</th><th>Why</th></tr>' +
+        b.shortlisted.tutors.map((t) =>
+          "<tr><td>" + esc(t.name) + "</td><td class=mut>" + esc(t.code) + "</td><td>" + esc(t.score) +
+          "</td><td>" + (t.distanceKm != null ? esc(t.distanceKm) + " km" : "—") +
+          "</td><td class=mut>" + esc(t.reason) + "</td></tr>").join("") + "</table></details>"
+      : '<div class="empty">Not shortlisted yet.</div>';
+
+    const top3 = b.top3 && b.top3.tutors.length
+      ? '<table><tr><th>#</th><th>Tutor</th><th>Score</th><th>Distance</th></tr>' +
+        b.top3.tutors.map((t, i) =>
+          "<tr><td>" + (i + 1) + "</td><td>" + esc(t.name) + "</td><td>" + esc(t.score) +
+          "</td><td>" + (t.distanceKm != null ? esc(t.distanceKm) + " km" : "—") + "</td></tr>").join("") +
+        '</table><div class="mut" style="margin-top:6px">' +
+        (b.top3.sent ? "Sent to parent " : "Prepared ") + esc(when(b.top3.at)) + "</div>"
+      : '<div class="empty">Top 3 not sent to the parent yet.</div>';
+
+    const chosen = b.chosen
+      ? '<div class="chosen"><b>Parent chose: ' + esc(b.chosen.name) + "</b>" +
+        (b.chosen.choice ? " (option " + esc(b.chosen.choice) + ")" : "") +
+        (b.chosen.at ? ' <span class="mut">' + esc(when(b.chosen.at)) + "</span>" : "") + "</div>"
+      : "";
+
+    return '<div class="card">' +
+      '<div class="lead"><div><h2>' + esc(b.parentName || "(no name)") + " " +
+        '<span class="pill p-grey">' + esc(b.requirementId) + "</span>" +
+        (b.isDemo ? ' <span class="pill p-wait">test</span>' : "") + "</h2>" +
+        '<div class="mut">' + [b.phone, b.grade, b.subjects, b.area].filter(Boolean).map(esc).join(" · ") + "</div></div>" +
+        '<div class="mut">' + esc(b.status) + " · " + esc(when(b.createdAt)) + "</div></div>" +
+
+      '<div class="stage">' +
+        '<div class="box"><b>' + (b.shortlisted ? b.shortlisted.count : 0) + "</b><span>shortlisted</span></div>" +
+        '<div class="box"><b>' + b.counts.invited + "</b><span>invited</span></div>" +
+        '<div class="box"><b>' + b.counts.interested + "</b><span>interested</span></div>" +
+        '<div class="box"><b>' + (b.top3 ? b.top3.tutors.length : 0) + "</b><span>sent to parent</span></div>" +
+      "</div>" +
+
+      shortlist +
+      '<h3 style="font-size:14px;margin:14px 0 4px">Invited tutors and replies</h3>' + invited +
+      '<h3 style="font-size:14px;margin:14px 0 4px">Top 3 sent to the parent</h3>' + top3 +
+      chosen +
+    "</div>";
+  }).join("") || '<div class="card empty">No enquiries to show.</div>';
+}
+
+if (TOKEN) show();
+</script>
+</body>
+</html>
