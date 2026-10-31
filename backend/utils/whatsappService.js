@@ -302,6 +302,34 @@ async function sendFreeformMessage(uid, channelId, messageBody) {
 }
 
 /**
+ * Register a picture with Odoo so a template whose header is an image can send it.
+ * Returns the ir.attachment id that the WhatsApp composer expects.
+ */
+async function createHeaderAttachment(uid, imageUrl) {
+  const res = await fetch(imageUrl);
+  if (!res.ok) {
+    throw new Error(`header image unreachable: ${imageUrl} returned ${res.status}`);
+  }
+  const mimetype = (res.headers.get("content-type") || "image/jpeg").split(";")[0].trim();
+  if (!mimetype.startsWith("image/")) {
+    throw new Error(`header image is not a picture: ${imageUrl} is ${mimetype}`);
+  }
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const name = `wa-header-${Date.now()}.${mimetype.split("/")[1]}`;
+
+  const attachmentId = await callOdooMethod(uid, "ir.attachment", "create", [
+    {
+      name,
+      datas: buffer.toString("base64"),
+      mimetype,
+    },
+  ]);
+
+  console.log(`[WhatsApp] Header image stored as attachment ${attachmentId} (${name})`);
+  return attachmentId;
+}
+
+/**
  * Send a WhatsApp template message via Odoo.
  * Used when outside the 24-hour service window.
  * @param {number} uid - Authenticated Odoo UID
@@ -310,8 +338,9 @@ async function sendFreeformMessage(uid, channelId, messageBody) {
  * @param {string} templateLang - Template language code
  * @param {Object} templateVars - Variables for template (button_dynamic_url_1, free_text_N)
  * @param {number|null} resId - Specific record ID to use for res_model (e.g. sign.request ID)
+ * @param {string|null} headerImageUrl - Picture for templates whose header is an image
  */
-async function sendTemplateMessage(uid, phoneNumber, templateName, templateLang, templateVars, resId = null, overrideTemplateId = null) {
+async function sendTemplateMessage(uid, phoneNumber, templateName, templateLang, templateVars, resId = null, overrideTemplateId = null, headerImageUrl = null) {
   // Look up the approved WhatsApp template in Odoo (with model info)
   let templateId, templateModel;
 
@@ -392,6 +421,12 @@ async function sendTemplateMessage(uid, phoneNumber, templateName, templateLang,
     });
   }
 
+  // A template declaring an image header must be given one on every send.
+  // The picture is registered with Odoo first; the composer takes its id.
+  if (headerImageUrl) {
+    composerPayload.attachment_id = await createHeaderAttachment(uid, headerImageUrl);
+  }
+
   console.log(`[WhatsApp] Creating composer for template "${templateName}"`);
   const composerId = await callOdooMethod(
     uid,
@@ -465,6 +500,7 @@ export async function sendWhatsAppToTutor(options) {
     templateLang = TEMPLATE_LANG,
     resId = null, // Optional: specific record ID for the template model (e.g. sign.request ID)
     templateId = null, // Optional: direct Odoo template ID override (admin picker)
+    headerImageUrl = null, // Optional: picture for a template whose header is an image
   } = options;
 
   let lastError = null;
@@ -512,7 +548,7 @@ export async function sendWhatsAppToTutor(options) {
         }
 
         console.log(`[WhatsApp] Sending template "${templateName}" to ${phoneNumber}`);
-        messageId = await sendTemplateMessage(uid, phoneNumber, templateName, templateLang, templateVars, resId, templateId || null);
+        messageId = await sendTemplateMessage(uid, phoneNumber, templateName, templateLang, templateVars, resId, templateId || null, headerImageUrl);
         usedTemplate = true;
       }
 
