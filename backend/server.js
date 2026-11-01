@@ -30,6 +30,7 @@ import pipelineBoardRoutes from "./routes/pipelineBoardRoutes.js";
 
 import { startReminderScheduler, startRetryScheduler, startSyncScheduler } from "./utils/reminderScheduler.js";
 import { startTopThreeScheduler } from "./utils/topThreeScheduler.js";
+import { startTutorReplyScheduler } from "./utils/tutorReplyScheduler.js";
 import { sendTutorOptions } from "./utils/tutorOptionsMessage.js";
 import BroadcastLog from "./models/BroadcastLog.js";
 import compression from "compression";
@@ -178,6 +179,8 @@ if (
         startSyncScheduler();      // Odoo → MongoDB tutor sync (every 15 min)
         // Once tutors have had their window to answer, send the parent the
         // best of whoever said yes — up to three, fewer if fewer replied.
+        // Record what tutors answered, from the rows the n8n router writes.
+        startTutorReplyScheduler();
         startTopThreeScheduler(sendTutorOptions);
       });
     })
