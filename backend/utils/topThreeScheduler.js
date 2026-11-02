@@ -20,6 +20,9 @@ import mongoose from "mongoose";
 export const WAIT_HOURS = Number(process.env.TOP3_WAIT_HOURS || 7);
 const SWEEP_MINUTES = Number(process.env.TOP3_SWEEP_MINUTES || 15);
 
+/** Give up after this many failed attempts, so a bad send is not retried forever. */
+const MAX_ATTEMPTS = Number(process.env.TOP3_MAX_ATTEMPTS || 3);
+
 /** Replies that mean "yes, I'll take it". */
 const YES = new Set(["Interested", "Accepted", "Assigned"]);
 
@@ -61,10 +64,15 @@ export async function findDue(db, now = new Date()) {
   for (const row of firstInvites) {
     const requirementId = row._id;
 
-    // Already handled? Leave it alone.
+    // Already handled? Leave it alone. A parent is offered their options once.
     const alreadySent = await db.collection("tutor_top3")
       .countDocuments({ requirementId, sent: true });
     if (alreadySent) continue;
+
+    // A send that keeps failing must not be retried forever.
+    const failedAttempts = await db.collection("tutor_top3")
+      .countDocuments({ requirementId, sent: false });
+    if (failedAttempts >= MAX_ATTEMPTS) continue;
 
     const lead = await db.collection("parentenquiries").findOne({ requirementId });
     if (!lead || !lead.phone) continue;
@@ -104,16 +112,38 @@ export async function sweepTopThree({ send } = {}) {
       photo: t.photo || "",
     }));
 
+    let result = null;
+    let error = "";
     try {
-      const result = await send(item.lead, offered);
-      if (result?.sent) sent += 1;
-      console.log(
-        `[Top3] ${item.requirementId}: ${item.ranked.length} interested, ` +
-        `offered ${offered.length} — ${result?.sent ? "sent" : result?.failureReason || "not sent"}`
-      );
+      result = await send(item.lead, offered);
     } catch (err) {
+      error = err.message;
       console.error(`[Top3] ${item.requirementId} failed:`, err.message);
     }
+
+    // Written whether it went or not. This is what stops the parent being
+    // messaged again on the next sweep, and it is what the board reads.
+    await db.collection("tutor_top3").insertOne({
+      requirementId: item.requirementId,
+      leadId: String(item.lead._id),
+      parentName: item.lead.parentName || "",
+      parentPhone: item.lead.phone || "",
+      interestedCount: item.ranked.length,
+      offeredCount: offered.length,
+      tutors: offered.map((t, i) => ({ choice: i + 1, ...t })),
+      templateName: result?.templateName || "",
+      sent: result?.sent === true,
+      failureReason: error || result?.failureReason || "",
+      outcome: result?.sent ? "sent_to_parent" : "send_failed",
+      source: "top-three scheduler",
+      preparedAt: new Date(),
+    });
+
+    if (result?.sent) sent += 1;
+    console.log(
+      `[Top3] ${item.requirementId}: ${item.ranked.length} interested, ` +
+      `offered ${offered.length} — ${result?.sent ? "sent" : error || result?.failureReason || "not sent"}`
+    );
   }
   return { due: due.length, sent };
 }
