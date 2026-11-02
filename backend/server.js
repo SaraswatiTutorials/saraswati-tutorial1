@@ -27,6 +27,7 @@ import geoRoutes from "./routes/geoRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 import portalRoutes from "./routes/portalRoutes.js";
 import pipelineBoardRoutes from "./routes/pipelineBoardRoutes.js";
+import partialTutorRoutes from "./routes/partialTutorRoutes.js";
 
 import { startReminderScheduler, startRetryScheduler, startSyncScheduler } from "./utils/reminderScheduler.js";
 import { startTopThreeScheduler } from "./utils/topThreeScheduler.js";
@@ -107,6 +108,7 @@ app.use("/api/pricing",          pricingRoutes);
 app.use("/api/geo",              geoRoutes);
 app.use("/api/feedback",         feedbackRoutes);
 app.use("/api/portal",           portalRoutes);
+app.use("/api/partial-tutors",   partialTutorRoutes);
 
 // Panel 2: a read-only pipeline view with its own login. Mounted outside
 // /api on purpose, so it shares no middleware with the existing routes.

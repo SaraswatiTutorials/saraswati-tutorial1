@@ -35,6 +35,7 @@ const BlogPage = lazyPage(() => import("./pages/BlogPage"));
 const BlogDetail = lazyPage(() => import("./pages/BlogDetail"));
 const ThankYou = lazyPage(() => import("./pages/ThankYou"));
 const TutorRegistration = lazyPage(() => import("./pages/TutorRegistration"));
+const PartialTutorForm = lazyPage(() => import("./pages/PartialTutorForm"));
 const PaymentPage = lazyPage(() => import("./pages/PaymentPage"));
 const BlogLogin = lazyPage(() => import("./pages/BlogLogin"));
 const AdminBlogEditor = lazyPage(() => import("./pages/AdminBlogEditor"));
@@ -105,6 +106,7 @@ export default function App() {
           <Route path="/parent-enquiry" element={<ParentEnquiryForm />} />
           <Route path="/thank-you" element={<ThankYou />} />
           <Route path="/tutor-verification" element={<TutorRegistration />} />
+          <Route path="/partial-verification" element={<PartialTutorForm />} />
           <Route path="/tutor-register" element={<Navigate to="/tutor-verification" replace />} />
           <Route path="/payment" element={<PaymentPage />} />
 
