@@ -16,12 +16,16 @@
  */
 
 import mongoose from "mongoose";
+import { sendTutorCards } from "./tutorOptionsMessage.js";
 
 export const WAIT_HOURS = Number(process.env.TOP3_WAIT_HOURS || 7);
 const SWEEP_MINUTES = Number(process.env.TOP3_SWEEP_MINUTES || 15);
 
 /** Give up after this many failed attempts, so a bad send is not retried forever. */
 const MAX_ATTEMPTS = Number(process.env.TOP3_MAX_ATTEMPTS || 3);
+
+/** Send a photo card per tutor before the list. TOP3_PHOTO_CARDS=false turns it off. */
+const SEND_PHOTO_CARDS = String(process.env.TOP3_PHOTO_CARDS || "true").toLowerCase() !== "false";
 
 /** Replies that mean "yes, I'll take it". */
 const YES = new Set(["Interested", "Accepted", "Assigned"]);
@@ -104,17 +108,40 @@ export async function sweepTopThree({ send } = {}) {
 
   let sent = 0;
   for (const item of due) {
-    const offered = item.ranked.slice(0, 3).map((t) => ({
+    const top = item.ranked.slice(0, 3);
+
+    // The shortlist does not carry photos, and the parent's cards are built
+    // around them, so they come from the tutors' own records.
+    const codes = top.map((t) => t.tutorCode).filter(Boolean);
+    const photos = new Map(
+      (codes.length
+        ? await db.collection("tutors")
+            .find({ tutorCode: { $in: codes } }, { projection: { tutorCode: 1, photo: 1 } })
+            .toArray()
+        : []
+      ).map((t) => [t.tutorCode, t.photo || ""]),
+    );
+
+    const offered = top.map((t) => ({
       name: t.name,
       tutorCode: t.tutorCode,
       experience: t.experience,
       distanceKm: t.distanceKm,
-      photo: t.photo || "",
+      photo: t.photo || photos.get(t.tutorCode) || "",
     }));
 
     let result = null;
     let error = "";
+    let cards = null;
     try {
+      // The photo cards go first, so the parent can see who they are choosing
+      // between before the message that asks them to choose.
+      if (SEND_PHOTO_CARDS) {
+        cards = await sendTutorCards(item.lead, offered);
+        console.log(
+          `[Top3] ${item.requirementId}: ${cards.sent} of ${offered.length} photo cards sent`
+        );
+      }
       result = await send(item.lead, offered);
     } catch (err) {
       error = err.message;
@@ -132,6 +159,8 @@ export async function sweepTopThree({ send } = {}) {
       offeredCount: offered.length,
       tutors: offered.map((t, i) => ({ choice: i + 1, ...t })),
       templateName: result?.templateName || "",
+      cardsSent: cards ? cards.sent : 0,
+      cardResults: cards ? cards.results : [],
       sent: result?.sent === true,
       failureReason: error || result?.failureReason || "",
       outcome: result?.sent ? "sent_to_parent" : "send_failed",

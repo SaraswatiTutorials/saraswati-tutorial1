@@ -265,6 +265,10 @@ async function load() {
         '<div class="mut">' + esc(b.status) + " · " + esc(when(b.createdAt)) + "</div></div>" +
 
       '<div class="status s-' + status[0] + '">' + status[1] + "</div>" +
+      (b.parentLocation && !b.parentLocation.hasCoordinates && !b.parentLocation.hasArea
+        ? '<div class="note">This enquiry has no location — no coordinates, no area, no pincode. ' +
+          "That is why every distance below is blank and why matching had nothing to measure from.</div>"
+        : "") +
 
       '<div class="stage">' +
         '<div class="box"><b>' + (b.shortlisted ? b.shortlisted.count : "—") + "</b><span>shortlisted</span></div>" +
