@@ -10,7 +10,8 @@ const SUPPORT_CONTACT = {
   Mumbai: { phone: "+91 9041157689", email: "services@saraswatitutorial.com" },
 };
 
-export default function SiteFooter({ city = "Bangalore" }) {
+// audience: "parent" (default) lists Parent Enquiry; "tutor" leaves it out
+export default function SiteFooter({ city = "Bangalore", audience = "parent" }) {
   const contact = SUPPORT_CONTACT[city] || SUPPORT_CONTACT.Bangalore;
 
   return (
@@ -30,7 +31,9 @@ export default function SiteFooter({ city = "Bangalore" }) {
           <div>
             <h5 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-xs">Direct Services</h5>
             <ul className="mt-4 space-y-2 text-sm">
-              <li><Link to="/parent-enquiry" className="hover:text-blue-600">Parent Enquiry</Link></li>
+              {audience !== "tutor" && (
+                <li><Link to="/parent-enquiry" className="hover:text-blue-600">Parent Enquiry</Link></li>
+              )}
               <li><Link to="/tutor-verification" className="hover:text-blue-600">Become a Tutor</Link></li>
               <li><a href="https://saraswatitutorial.com/" className="hover:text-blue-600">Home Tuition Services</a></li>
               <li><a href="https://saraswatitutorial.com/#tutors" className="hover:text-blue-600">Online Tuition</a></li>

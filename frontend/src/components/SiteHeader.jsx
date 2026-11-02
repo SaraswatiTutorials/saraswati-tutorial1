@@ -151,7 +151,9 @@ function ResourcesDropdown({ homePath }) {
   );
 }
 
-export default function SiteHeader({ city = "Bangalore", sticky = true }) {
+// audience: "parent" (default) shows the Book Demo button; "tutor" hides it
+export default function SiteHeader({ city = "Bangalore", sticky = true, audience = "parent" }) {
+  const showBookDemo = audience !== "tutor";
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileResourcesOpen, setMobileResourcesOpen] = useState(false);
   const homePath = getHomePath(city);
@@ -204,6 +206,7 @@ export default function SiteHeader({ city = "Bangalore", sticky = true }) {
         </nav>
 
         <div className="hidden items-center gap-2 xl:gap-3 xl:flex shrink-0">
+          {showBookDemo && (
           <MotionLink
             to="/parent-enquiry"
             onClick={() => trackEvent("book_demo")}
@@ -215,6 +218,7 @@ export default function SiteHeader({ city = "Bangalore", sticky = true }) {
             <Calendar className="h-3.5 w-3.5 xl:h-4 xl:w-4 text-white" />
             Book Demo
           </MotionLink>
+          )}
           <MotionLink
             to="/tutor-verification"
             onClick={() => trackEvent("become_tutor")}
@@ -280,6 +284,7 @@ export default function SiteHeader({ city = "Bangalore", sticky = true }) {
                 )}
               </div>
 
+              {showBookDemo && (
               <MotionLink
                 to="/parent-enquiry"
                 onClick={() => { setMenuOpen(false); trackEvent("book_demo"); }}
@@ -289,6 +294,7 @@ export default function SiteHeader({ city = "Bangalore", sticky = true }) {
               >
                 Book Demo
               </MotionLink>
+              )}
               <MotionLink
                 to="/tutor-verification"
                 onClick={() => { setMenuOpen(false); trackEvent("become_tutor"); }}

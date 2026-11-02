@@ -52,7 +52,8 @@ import {
   Inbox,
   Archive,
   RotateCcw,
-  MessageSquare
+  MessageSquare,
+  UserPlus,
 } from "lucide-react";
 import { API_BASE } from "../config";
 import { FEEDBACK_CATEGORY_LABELS, FEEDBACK_SOURCE_LABELS } from "../data/feedbackConfig";
@@ -84,6 +85,7 @@ const ADMIN_PAGES = {
   enquiries: { title: "Enquiries", section: "Leads" },
   bookings: { title: "Bookings", section: "Leads" },
   tutors: { title: "Tutors", section: "Tutors" },
+  partialTutors: { title: "Partial Forms", section: "Tutors" },
   tutorDrafts: { title: "Tutor Drafts", section: "Tutors" },
   attendance: { title: "Attendance & Class Tracking", section: "Operations" },
   analytics: { title: "Analytics & Visitor Insights", section: "Insights" },
@@ -429,6 +431,13 @@ export default function AdminDashboard() {
   const [feedbackFilter, setFeedbackFilter]   = useState("all"); // "all" | "parent-enquiry" | "tutor-registration"
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [visibleFeedbackCount, setVisibleFeedbackCount] = useState(CARD_BATCH_SIZE);
+
+  // Partial tutor forms (short sign-ups from /partial-verification)
+  const [partialRecords, setPartialRecords] = useState([]);
+  const [partialCounts, setPartialCounts] = useState({ total: 0, new: 0, contacted: 0, registered: 0 });
+  const [partialFilter, setPartialFilter] = useState("all");
+  const [partialLoading, setPartialLoading] = useState(false);
+  const [visiblePartialCount, setVisiblePartialCount] = useState(CARD_BATCH_SIZE);
   const [dismissedAlerts, setDismissedAlerts] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("dismissedAlerts") || "[]");
@@ -704,6 +713,67 @@ export default function AdminDashboard() {
       console.error("[Feedback] fetch error:", err);
     } finally {
       setFeedbackLoading(false);
+    }
+  };
+
+  const fetchPartialTutors = async (statusFilter = "all") => {
+    setPartialLoading(true);
+    try {
+      const token = localStorage.getItem("adminToken");
+      const query = statusFilter !== "all" ? `?status=${statusFilter}` : "";
+      const res = await fetch(`${API_BASE}/partial-tutors${query}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
+      if (res.ok) {
+        const data = await res.json();
+        setPartialRecords(data.records || []);
+        setVisiblePartialCount(CARD_BATCH_SIZE);
+        setPartialCounts({ total: data.total || 0, ...data.counts });
+      }
+    } catch (err) {
+      console.error("[PartialTutor] fetch error:", err);
+    } finally {
+      setPartialLoading(false);
+    }
+  };
+
+  const updatePartialStatus = async (id, status) => {
+    try {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`${API_BASE}/partial-tutors/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
+      if (res.ok) fetchPartialTutors(partialFilter);
+    } catch (err) {
+      console.error("[PartialTutor] status update error:", err);
+    }
+  };
+
+  const deletePartialTutor = async (id) => {
+    if (!window.confirm("Delete this partial form? This cannot be undone.")) return;
+    try {
+      const token = localStorage.getItem("adminToken");
+      const res = await fetch(`${API_BASE}/partial-tutors/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) {
+        handleLogout();
+        return;
+      }
+      if (res.ok) fetchPartialTutors(partialFilter);
+    } catch (err) {
+      console.error("[PartialTutor] delete error:", err);
     }
   };
 
@@ -1034,6 +1104,7 @@ export default function AdminDashboard() {
     fetchFirstBatch().then(() => fetchData());
     fetchAlerts();
     fetchFeedback();
+    fetchPartialTutors();
   }, []);
 
   // One card per person (see keepUniqueRecords). A lead with a tutor assigned, and a tutor
@@ -1446,6 +1517,7 @@ export default function AdminDashboard() {
     if (key === "attendance") fetchData();
     if (key === "tncAcceptances") fetchTncRecords(tncFilter);
     if (key === "feedback") fetchFeedback(feedbackFilter);
+    if (key === "partialTutors") fetchPartialTutors(partialFilter);
     window.scrollTo({ top: 0 });
   };
 
@@ -1478,6 +1550,7 @@ export default function AdminDashboard() {
       items: [
         { key: "tutors", label: "Tutors", icon: Award, badge: pendingTutors },
         { key: "tutorDrafts", label: "Tutor Drafts", icon: FileText, badge: totalTutorDraftCount },
+        { key: "partialTutors", label: "Partial Forms", icon: UserPlus, badge: partialCounts.new },
       ],
     },
     {
@@ -1836,6 +1909,169 @@ export default function AdminDashboard() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ───────────────── PARTIAL FORMS PANEL ───────────────── */}
+        {currentMainTab === "partialTutors" && (
+          <div className="animate-slideFade">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  Partial Tutor Forms
+                </h2>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Short tutor sign-ups from the Partial Verification page. Call them, then move them along.
+                </p>
+              </div>
+              <button
+                onClick={() => fetchPartialTutors(partialFilter)}
+                className="flex items-center gap-2 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50 dark:bg-indigo-900/20 px-4 py-2.5 text-sm font-bold text-indigo-700 dark:text-indigo-300 transition hover:bg-indigo-100 dark:hover:bg-indigo-900/40 cursor-pointer"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              {[
+                { key: "total", label: "Total", value: partialCounts.total, color: "text-slate-700 dark:text-slate-200", bg: "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" },
+                { key: "new", label: "New", value: partialCounts.new, color: "text-amber-700 dark:text-amber-300", bg: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700" },
+                { key: "contacted", label: "Contacted", value: partialCounts.contacted, color: "text-sky-700 dark:text-sky-300", bg: "bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-700" },
+                { key: "registered", label: "Registered", value: partialCounts.registered, color: "text-emerald-700 dark:text-emerald-300", bg: "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700" },
+              ].map(s => (
+                <div key={s.key} className={`rounded-2xl border p-4 text-center ${s.bg}`}>
+                  <p className={`text-2xl font-bold ${s.color}`}>{s.value || 0}</p>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">{s.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mb-4 flex gap-2 flex-wrap">
+              {["all", "new", "contacted", "registered"].map(f => (
+                <button
+                  key={f}
+                  onClick={() => { setPartialFilter(f); fetchPartialTutors(f); }}
+                  className={`rounded-xl px-4 py-1.5 text-xs font-bold capitalize transition cursor-pointer ${
+                    partialFilter === f
+                      ? "bg-indigo-600 text-white shadow"
+                      : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  {f === "all" ? "All" : f}
+                </button>
+              ))}
+            </div>
+
+            {partialLoading ? (
+              <div className="py-16 text-center">
+                <RefreshCw className="mx-auto h-8 w-8 text-indigo-400 animate-spin mb-3" />
+                <p className="text-sm text-slate-400">Loading partial forms…</p>
+              </div>
+            ) : partialRecords.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-16 text-center">
+                <UserPlus className="mx-auto mb-4 h-12 w-12 text-slate-300 dark:text-slate-600" />
+                <p className="text-base font-bold text-slate-400 dark:text-slate-500">No partial forms yet</p>
+                <p className="mt-1 text-sm text-slate-400 dark:text-slate-600">Sign-ups from the Partial Verification page appear here.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {partialRecords.slice(0, visiblePartialCount).map((pt) => {
+                  const loc = pt.location || {};
+                  const mapsUrl = loc.latitude != null && loc.longitude != null
+                    ? `https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`
+                    : "";
+                  const statusStyle = {
+                    new: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
+                    contacted: "bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300",
+                    registered: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
+                  }[pt.status] || "bg-slate-100 text-slate-700";
+                  return (
+                    <div key={pt._id} className="glass-card rounded-2xl p-5">
+                      <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full capitalize ${statusStyle}`}>
+                          {pt.status}
+                        </span>
+                        <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+                          {pt.experience}
+                        </span>
+                        <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
+                          {pt.occupation}
+                        </span>
+                        <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 font-medium">
+                          {formatSubmittedDate(pt.createdAt)}
+                        </span>
+                      </div>
+
+                      <p className="text-base font-bold text-slate-900 dark:text-slate-100">{pt.name}</p>
+
+                      <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-semibold">
+                          <a href={`https://wa.me/91${pt.whatsapp}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-emerald-600 dark:text-emerald-300 hover:underline">
+                            <Phone className="h-3.5 w-3.5" />
+                            WhatsApp {pt.whatsapp}
+                          </a>
+                        </div>
+                        <div className="text-sm text-slate-600 dark:text-slate-300">
+                          <p className="flex items-start gap-1">
+                            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <span>
+                              <span className="block font-semibold">{loc.placeLabel || loc.area || "No area"}</span>
+                              {loc.houseDetails && <span className="block text-xs text-slate-500 dark:text-slate-400">{loc.houseDetails}</span>}
+                              {loc.pincode && <span className="block text-xs text-slate-400">PIN {loc.pincode}</span>}
+                            </span>
+                          </p>
+                          {mapsUrl && (
+                            <a href={mapsUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-xs font-bold text-indigo-600 dark:text-indigo-300 hover:underline">
+                              Open on map
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
+                        {pt.status !== "contacted" && pt.status !== "registered" && (
+                          <button
+                            onClick={() => updatePartialStatus(pt._id, "contacted")}
+                            className="rounded-xl px-3 py-1.5 text-xs font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/40 cursor-pointer"
+                          >
+                            Mark contacted
+                          </button>
+                        )}
+                        {pt.status !== "registered" && (
+                          <button
+                            onClick={() => updatePartialStatus(pt._id, "registered")}
+                            className="rounded-xl px-3 py-1.5 text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/40 cursor-pointer"
+                          >
+                            Mark registered
+                          </button>
+                        )}
+                        {pt.status !== "new" && (
+                          <button
+                            onClick={() => updatePartialStatus(pt._id, "new")}
+                            className="rounded-xl px-3 py-1.5 text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 cursor-pointer"
+                          >
+                            Reset to new
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deletePartialTutor(pt._id)}
+                          className="ml-auto flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {partialRecords.length > visiblePartialCount && (
+                  <ShowMoreButton onShowMore={() => setVisiblePartialCount((count) => count + CARD_BATCH_SIZE)}>
+                    Show 10 more ({partialRecords.length - visiblePartialCount} remaining)
+                  </ShowMoreButton>
+                )}
               </div>
             )}
           </div>
