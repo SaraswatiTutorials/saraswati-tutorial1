@@ -787,7 +787,7 @@ router.delete("/:id", verifyToken(["admin"]), async (req, res) => {
 router.post("/:id/broadcast", verifyToken(["admin"]), async (req, res) => {
   try {
     const leadId = req.params.id;
-    const { tutorIds, adminName = "", adminEmail = "", templateId = null } = req.body;
+    const { tutorIds, adminName = "", adminEmail = "", templateId = null, resend = false } = req.body;
 
     if (!Array.isArray(tutorIds) || tutorIds.length === 0) {
       return res.status(400).json({ message: "At least one tutor must be selected." });
@@ -806,6 +806,26 @@ router.post("/:id/broadcast", verifyToken(["admin"]), async (req, res) => {
       if (!tutor) {
         results.push({ tutorId: tId, status: "Failed", failureReason: "Tutor not found" });
         continue;
+      }
+
+      // One requirement, one invitation per tutor. The matching workflow
+      // runs on a timer, so without this a tutor could be asked about the
+      // same tuition again and again. Pass resend: true to override.
+      if (!resend) {
+        const priorInvite = await BroadcastLog.findOne({
+          requirementId: reqId,
+          tutorId: tutor._id,
+          broadcastType: "requirement",
+        }).select("_id").lean();
+        if (priorInvite) {
+          results.push({
+            tutorId: tId,
+            tutorName: tutor.name,
+            status: "Suppressed",
+            failureReason: "Already invited for this requirement",
+          });
+          continue;
+        }
       }
 
       // Never broadcast to blocked tutors
@@ -1394,6 +1414,18 @@ router.post("/:id/select-tutor", verifyToken(["admin"]), async (req, res) => {
         message: `This lead is already with ${lead.assignedTutor || "another tutor"}. Send force: true to change it.`,
         assignedTutor: lead.assignedTutor || "",
         assignedTutorId: already,
+      });
+    }
+
+    // The same tutor chosen again means the parent tapped twice. They have
+    // already been told, so say so rather than telling them a second time.
+    if (already && already === String(tutor._id) && !force) {
+      return res.json({
+        message: `${tutor.name} was already told they were selected.`,
+        sent: false,
+        recorded: true,
+        alreadyNotified: true,
+        tutorName: tutor.name,
       });
     }
 
