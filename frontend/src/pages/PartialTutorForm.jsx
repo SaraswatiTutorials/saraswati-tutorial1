@@ -25,6 +25,14 @@ import { API_BASE } from "../config";
 import { LocationField } from "../components/LocationPicker";
 import SiteHeader from "../components/SiteHeader";
 import SiteFooter from "../components/SiteFooter";
+import WhatsAppIcon from "../components/WhatsAppIcon";
+
+// Short link that forwards to the tutors' WhatsApp group (see JoinCommunity.jsx)
+const COMMUNITY_URL = "https://saraswatitutorial.com/join-community";
+
+// Must match CONSENT_TEXT in backend/utils/partialTutorValidation.js, which is what gets stored
+const CONSENT_TEXT =
+  "I consent to Saraswati Tutorials collecting, storing, and processing my personal information for tuition opportunities and related communications. I agree to receive updates via WhatsApp, email, or SMS.";
 
 // Same choices the admin sees on the full tutor registration
 const experienceOptions = [
@@ -60,6 +68,7 @@ const initialForm = {
   experience: "",
   occupation: "",
   location: null,
+  consent: false,
 };
 
 const validate = (form) => {
@@ -73,6 +82,7 @@ const validate = (form) => {
   } else if (form.location.houseDetails.trim().length < 3) {
     errors.location = "Enter house, flat, or building details";
   }
+  if (!form.consent) errors.consent = "Please give your consent to continue";
   return errors;
 };
 
@@ -94,6 +104,33 @@ function FieldLabel({ htmlFor, step, children, hint }) {
 function FieldError({ children }) {
   if (!children) return null;
   return <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-400">{children}</p>;
+}
+
+function CommunityCard() {
+  return (
+    <div className="flex flex-col gap-4 rounded-3xl bg-emerald-50/80 p-5 ring-1 ring-emerald-100 dark:bg-emerald-500/[0.07] dark:ring-emerald-500/20 sm:flex-row sm:items-center sm:p-6">
+      <div className="flex flex-1 items-start gap-4">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#25D366] text-white shadow-md shadow-emerald-500/30">
+          <WhatsAppIcon className="h-6 w-6" />
+        </span>
+        <span className="text-left">
+          <span className="block text-[15px] font-bold text-slate-900 dark:text-white">Send me tuition leads on WhatsApp</span>
+          <span className="mt-0.5 block text-sm text-slate-600 dark:text-slate-400">
+            Join our tutor community. We don't spam, promise!
+          </span>
+        </span>
+      </div>
+      <a
+        href={COMMUNITY_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-5 text-sm font-bold text-white shadow-md shadow-emerald-500/25 transition hover:bg-[#1ebe5b] focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-200 dark:focus-visible:ring-emerald-500/30"
+      >
+        <WhatsAppIcon className="h-[18px] w-[18px]" />
+        Join on WhatsApp
+      </a>
+    </div>
+  );
 }
 
 function BenefitList() {
@@ -159,6 +196,7 @@ export default function PartialTutorForm() {
         experience: form.experience,
         occupation: form.occupation,
         location: form.location,
+        consent: form.consent,
       });
       setDone(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -240,6 +278,9 @@ export default function PartialTutorForm() {
                 </button>
               </div>
             </div>
+            <div className="border-t border-slate-100 p-5 dark:border-white/10 sm:p-6">
+              <CommunityCard />
+            </div>
           </div>
         ) : (
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] lg:gap-12">
@@ -278,7 +319,8 @@ export default function PartialTutorForm() {
               </div>
             </section>
 
-            {/* Form */}
+            {/* Form, then the WhatsApp community link */}
+            <div className="space-y-6">
             <form
               onSubmit={handleSubmit}
               noValidate
@@ -421,6 +463,40 @@ export default function PartialTutorForm() {
                   </div>
                 </div>
 
+                <div>
+                  <label
+                    htmlFor="pt-consent"
+                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+                      errors.consent
+                        ? "border-rose-300 bg-rose-50/40 dark:border-rose-500/50 dark:bg-rose-500/5"
+                        : form.consent
+                        ? "border-blue-200 bg-blue-50/50 dark:border-blue-500/40 dark:bg-blue-500/10"
+                        : "border-slate-200 bg-slate-50/70 hover:border-slate-300 dark:border-white/10 dark:bg-slate-950/50 dark:hover:border-white/20"
+                    }`}
+                  >
+                    <span className="relative mt-0.5 flex h-5 w-5 shrink-0">
+                      <input
+                        id="pt-consent"
+                        type="checkbox"
+                        checked={form.consent}
+                        required
+                        aria-required="true"
+                        aria-invalid={Boolean(errors.consent)}
+                        onChange={(e) => setField("consent", e.target.checked)}
+                        className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border-2 border-slate-300 bg-white transition checked:border-blue-600 checked:bg-blue-600 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:border-slate-600 dark:bg-slate-900 dark:checked:border-blue-500 dark:checked:bg-blue-500 dark:focus-visible:ring-blue-500/30"
+                      />
+                      <Check
+                        className="pointer-events-none absolute inset-0 m-auto hidden h-3.5 w-3.5 text-white peer-checked:block"
+                        strokeWidth={3.5}
+                      />
+                    </span>
+                    <span className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-300">
+                      {CONSENT_TEXT} <span className="font-bold text-rose-500">*</span>
+                    </span>
+                  </label>
+                  <FieldError>{errors.consent}</FieldError>
+                </div>
+
                 {serverError && (
                   <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
                     {serverError}
@@ -452,6 +528,9 @@ export default function PartialTutorForm() {
                 </div>
               </div>
             </form>
+
+              <CommunityCard />
+            </div>
 
             {/* Phones: the reasons to join come after the form */}
             <section className="lg:hidden">

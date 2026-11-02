@@ -23,6 +23,13 @@ const partialTutorSchema = new mongoose.Schema(
       fullAddress: { type: String, default: "", trim: true },
     },
 
+    // Consent checkbox on the form: the exact wording the tutor agreed to, and when
+    consent: {
+      accepted: { type: Boolean, default: false },
+      text: { type: String, default: "" },
+      acceptedAt: { type: Date, default: null },
+    },
+
     status: {
       type: String,
       enum: PARTIAL_TUTOR_STATUSES,
