@@ -2031,6 +2031,23 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
+                      <div className="mt-3">
+                        {pt.consent?.accepted ? (
+                          <span
+                            title={pt.consent.text}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Consent given · {formatSubmittedDate(pt.consent.acceptedAt)}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            No consent recorded
+                          </span>
+                        )}
+                      </div>
+
                       <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
                         {pt.status !== "contacted" && pt.status !== "registered" && (
                           <button

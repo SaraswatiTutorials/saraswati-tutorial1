@@ -2,7 +2,7 @@
 // The model is replaced with an in-memory store, so no MongoDB connection is made.
 import { test, describe, mock, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { validatePartialTutor } from "../utils/partialTutorValidation.js";
+import { validatePartialTutor, CONSENT_TEXT } from "../utils/partialTutorValidation.js";
 
 const modulePath = (rel) => new URL(`../${rel}`, import.meta.url).href;
 
@@ -11,6 +11,7 @@ const validBody = () => ({
   whatsapp: "9876543210",
   experience: "3 year",
   occupation: "School Teacher",
+  consent: true,
   location: {
     latitude: "12.9352",
     longitude: "77.6245",
@@ -31,6 +32,15 @@ describe("partial tutor validation", () => {
     assert.equal(value.location.latitude, 12.9352);
     assert.equal(value.location.longitude, 77.6245);
     assert.equal(value.location.area, "Koramangala");
+    assert.equal(value.consent.accepted, true);
+    assert.equal(value.consent.text, CONSENT_TEXT);
+    assert.ok(value.consent.acceptedAt instanceof Date);
+  });
+
+  test("a form without consent is refused, even when every other field is valid", () => {
+    for (const consent of [undefined, false, "true", 1]) {
+      assert.equal(validatePartialTutor({ ...validBody(), consent }).error, "Please give your consent to continue");
+    }
   });
 
   test("each missing or wrong field gives its own message", () => {
@@ -105,6 +115,7 @@ describe("partial tutor route", () => {
     assert.equal(store.length, 1);
     assert.equal(store[0].whatsapp, "9876543210");
     assert.equal(store[0].userAgent, "test-agent");
+    assert.equal(store[0].consent.accepted, true);
   });
 
   test("an invalid submission is refused with a message and nothing is saved", async () => {

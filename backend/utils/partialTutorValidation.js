@@ -9,6 +9,9 @@ export const OCCUPATION_OPTIONS = [
   "School Teacher", "College Lecturer", "Student", "Freelancer", "Working Professional", "Other",
 ];
 
+export const CONSENT_TEXT =
+  "I consent to Saraswati Tutorials collecting, storing, and processing my personal information for tuition opportunities and related communications. I agree to receive updates via WhatsApp, email, or SMS.";
+
 const clip = (value, max) => String(value ?? "").trim().slice(0, max);
 
 export function validatePartialTutor(body = {}) {
@@ -31,6 +34,8 @@ export function validatePartialTutor(body = {}) {
   const houseDetails = clip(loc.houseDetails, 200);
   if (houseDetails.length < 3) return { error: "Enter house, flat, or building details" };
 
+  if (body.consent !== true) return { error: "Please give your consent to continue" };
+
   return {
     value: {
       name,
@@ -47,6 +52,8 @@ export function validatePartialTutor(body = {}) {
         houseDetails,
         fullAddress: clip(loc.fullAddress, 400),
       },
+      // The wording is stored from here, not from the request, so it is what the form showed
+      consent: { accepted: true, text: CONSENT_TEXT, acceptedAt: new Date() },
     },
   };
 }
