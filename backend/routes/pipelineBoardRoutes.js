@@ -116,6 +116,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
         projection: {
           requirementId: 1, parentName: 1, phone: 1, area: 1, city: 1,
           status: 1, createdAt: 1, assignedTutor: 1, assignedTutorId: 1,
+          latitude: 1, longitude: 1, pincode: 1,
           wards: 1, isDemoRecord: 1,
         },
       })
@@ -224,6 +225,14 @@ router.get("/api/board", requireLogin, async (req, res) => {
       return {
         requirementId: lead.requirementId || "",
         stage,
+        // Distance needs both ends. When the enquiry carries no location at
+        // all, every distance on this card is blank for that reason alone.
+        parentLocation: {
+          hasCoordinates: lead.latitude != null && lead.latitude !== ""
+            && lead.longitude != null && lead.longitude !== "",
+          hasArea: !!(lead.area || "").trim(),
+          hasPincode: !!(lead.pincode || "").trim(),
+        },
         firstInviteAt,
         windowClosesAt,
         minutesLeft,
