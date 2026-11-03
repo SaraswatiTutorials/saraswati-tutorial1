@@ -32,7 +32,7 @@ const COMMUNITY_URL = "https://saraswatitutorial.com/join-community";
 
 // Must match CONSENT_TEXT in backend/utils/partialTutorValidation.js, which is what gets stored
 const CONSENT_TEXT =
-  "I consent to Saraswati Tutorials collecting, storing, and processing my personal information for tuition opportunities and related communications. I agree to receive updates via WhatsApp, email, or SMS.";
+  "I agree to Saraswati Tutorials using my details for tuition opportunities and contacting me via WhatsApp, email, or SMS.";
 
 // Same choices the admin sees on the full tutor registration
 const experienceOptions = [
