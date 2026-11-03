@@ -438,6 +438,7 @@ export default function AdminDashboard() {
   const [partialFilter, setPartialFilter] = useState("all");
   const [partialLoading, setPartialLoading] = useState(false);
   const [visiblePartialCount, setVisiblePartialCount] = useState(CARD_BATCH_SIZE);
+  const [partialSearch, setPartialSearch] = useState("");
   const [dismissedAlerts, setDismissedAlerts] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("dismissedAlerts") || "[]");
@@ -1203,6 +1204,25 @@ export default function AdminDashboard() {
     });
   }, [tutorDrafts, tutorDraftSearch]);
 
+  // Every word must match somewhere, so "rahul koramangala" finds Rahul in Koramangala.
+  // Digits are also compared with spaces and +91 removed, so a pasted number still matches.
+  const filteredPartialRecords = useMemo(() => {
+    const query = partialSearch.trim().toLowerCase();
+    if (!query) return partialRecords;
+    const words = query.split(/\s+/);
+    // A query with no letters is a phone number, however it is spaced: "+91 98450 12345".
+    const phone = /[a-z]/.test(query) ? "" : query.replace(/\D/g, "").replace(/^91(?=\d{10}$)/, "");
+    return partialRecords.filter((pt) => {
+      const loc = pt.location || {};
+      const text = [
+        pt.name, pt.whatsapp, pt.experience, pt.occupation,
+        loc.placeLabel, loc.area, loc.city, loc.houseDetails, loc.pincode,
+      ].filter(Boolean).join(" ").toLowerCase();
+      if (phone.length >= 3 && String(pt.whatsapp || "").replace(/\D/g, "").includes(phone)) return true;
+      return words.every((word) => text.includes(word));
+    });
+  }, [partialRecords, partialSearch]);
+
   useEffect(() => {
     setVisibleLeadCount(CARD_BATCH_SIZE);
     setVisibleTutorCount(CARD_BATCH_SIZE);
@@ -1949,7 +1969,19 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            <div className="mb-4 flex gap-2 flex-wrap">
+            <label className="relative mb-4 block">
+              <span className="sr-only">Search partial forms</span>
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={partialSearch}
+                onChange={(e) => { setPartialSearch(e.target.value); setVisiblePartialCount(CARD_BATCH_SIZE); }}
+                placeholder="Search by name, WhatsApp number, area, PIN, experience or occupation..."
+                className="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-4 text-sm font-medium text-slate-800 dark:text-white outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
+              />
+            </label>
+
+            <div className="mb-4 flex gap-2 flex-wrap items-center">
               {["all", "new", "contacted", "registered"].map(f => (
                 <button
                   key={f}
@@ -1963,6 +1995,11 @@ export default function AdminDashboard() {
                   {f === "all" ? "All" : f}
                 </button>
               ))}
+              {partialSearch.trim() && !partialLoading && (
+                <span className="ml-auto text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {filteredPartialRecords.length} of {partialRecords.length} match
+                </span>
+              )}
             </div>
 
             {partialLoading ? (
@@ -1976,9 +2013,20 @@ export default function AdminDashboard() {
                 <p className="text-base font-bold text-slate-400 dark:text-slate-500">No partial forms yet</p>
                 <p className="mt-1 text-sm text-slate-400 dark:text-slate-600">Sign-ups from the Partial Verification page appear here.</p>
               </div>
+            ) : filteredPartialRecords.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-16 text-center">
+                <Search className="mx-auto mb-4 h-12 w-12 text-slate-300 dark:text-slate-600" />
+                <p className="text-base font-bold text-slate-400 dark:text-slate-500">No tutor matches "{partialSearch.trim()}"</p>
+                <button
+                  onClick={() => setPartialSearch("")}
+                  className="mt-3 text-sm font-bold text-indigo-600 dark:text-indigo-300 hover:underline cursor-pointer"
+                >
+                  Clear search
+                </button>
+              </div>
             ) : (
               <div className="space-y-4">
-                {partialRecords.slice(0, visiblePartialCount).map((pt) => {
+                {filteredPartialRecords.slice(0, visiblePartialCount).map((pt) => {
                   const loc = pt.location || {};
                   const mapsUrl = loc.latitude != null && loc.longitude != null
                     ? `https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`
@@ -2084,9 +2132,9 @@ export default function AdminDashboard() {
                     </div>
                   );
                 })}
-                {partialRecords.length > visiblePartialCount && (
+                {filteredPartialRecords.length > visiblePartialCount && (
                   <ShowMoreButton onShowMore={() => setVisiblePartialCount((count) => count + CARD_BATCH_SIZE)}>
-                    Show 10 more ({partialRecords.length - visiblePartialCount} remaining)
+                    Show 10 more ({filteredPartialRecords.length - visiblePartialCount} remaining)
                   </ShowMoreButton>
                 )}
               </div>
