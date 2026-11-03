@@ -3,6 +3,8 @@ import express from "express";
 const router = express.Router();
 
 const NOMINATIM = "https://nominatim.openstreetmap.org";
+// Nominatim often refuses requests from shared cloud IPs (Render), so Photon is the fallback.
+const PHOTON = "https://photon.komoot.io";
 const USER_AGENT = "SaraswatiTutorial/1.0 (location picker; contact: support@saraswatitutorial.com)";
 
 const VIEWBOX = {
@@ -38,6 +40,20 @@ function nominatimGet(pathAndQuery) {
     () => {}
   );
   return task;
+}
+
+async function photonGet(pathAndQuery) {
+  const response = await fetch(`${PHOTON}${pathAndQuery}`, {
+    headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) {
+    const error = new Error(`Photon responded with ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  const data = await response.json();
+  return Array.isArray(data?.features) ? data.features : [];
 }
 
 export function canonicalCity(name) {
@@ -86,6 +102,38 @@ export function placeFromNominatim(item) {
   };
 }
 
+export function placeFromPhoton(feature) {
+  const props = feature?.properties || {};
+  const [longitude, latitude] = feature?.geometry?.coordinates || [];
+  const isPlace = props.osm_key === "place";
+  const area = (isPlace && props.name) || props.locality || props.district || props.name || "";
+  const city = canonicalCity(props.city || props.county || "");
+  const state = props.state || "";
+  const pincode = props.postcode || "";
+  const placeParts = [];
+  if (area) placeParts.push(area);
+  if (city && city.toLowerCase() !== String(area).toLowerCase()) placeParts.push(city);
+  if (state && !placeParts.some((part) => part.toLowerCase() === state.toLowerCase())) {
+    placeParts.push(state);
+  }
+
+  const street = [props.housenumber, props.street].filter(Boolean).join(" ");
+  const displayParts = [props.name, street, props.locality, props.district, props.city || props.county, state, pincode]
+    .filter(Boolean)
+    .filter((part, index, all) => all.indexOf(part) === index);
+
+  return {
+    latitude: Number.isFinite(latitude) ? latitude : null,
+    longitude: Number.isFinite(longitude) ? longitude : null,
+    area,
+    city,
+    state,
+    pincode,
+    placeLabel: placeParts.join(", ") || displayParts.join(", "),
+    displayName: displayParts.join(", ") || placeParts.join(", "),
+  };
+}
+
 function sendGeocodeError(res, error) {
   console.error("[Geo]", error.message);
   res.status(502).json({ message: "Could not look up that location. Try again." });
@@ -111,6 +159,25 @@ router.get("/search", async (req, res) => {
   try {
     const items = await nominatimGet(`/search?${params.toString()}`);
     const results = (Array.isArray(items) ? items : []).map(placeFromNominatim).filter((place) => place.latitude != null);
+    return res.json({ results });
+  } catch (error) {
+    console.warn("[Geo] Nominatim search failed, trying Photon:", error.message);
+  }
+
+  const photonParams = new URLSearchParams({ q: query, limit: "10", lang: "en" });
+  if (VIEWBOX[biasCity]) {
+    const [west, north, east, south] = VIEWBOX[biasCity].split(",");
+    photonParams.set("lat", String((Number(north) + Number(south)) / 2));
+    photonParams.set("lon", String((Number(west) + Number(east)) / 2));
+  }
+
+  try {
+    const features = await photonGet(`/api/?${photonParams.toString()}`);
+    const results = features
+      .filter((feature) => feature?.properties?.countrycode === "IN")
+      .map(placeFromPhoton)
+      .filter((place) => place.latitude != null)
+      .slice(0, 6);
     res.json({ results });
   } catch (error) {
     sendGeocodeError(res, error);
@@ -139,7 +206,19 @@ router.get("/reverse", async (req, res) => {
     if (!item || item.error) {
       return res.status(404).json({ message: "No address found for that pin" });
     }
-    res.json(placeFromNominatim(item));
+    return res.json(placeFromNominatim(item));
+  } catch (error) {
+    console.warn("[Geo] Nominatim reverse failed, trying Photon:", error.message);
+  }
+
+  try {
+    const photonParams = new URLSearchParams({ lat: String(latitude), lon: String(longitude), lang: "en" });
+    const [feature] = await photonGet(`/reverse?${photonParams.toString()}`);
+    if (!feature) {
+      return res.status(404).json({ message: "No address found for that pin" });
+    }
+    // Keep the pin where the user dropped it rather than snapping to the matched feature.
+    res.json({ ...placeFromPhoton(feature), latitude, longitude });
   } catch (error) {
     sendGeocodeError(res, error);
   }
