@@ -160,6 +160,8 @@ export async function sweepTopThree({ send } = {}) {
       tutors: offered.map((t, i) => ({ choice: i + 1, ...t })),
       templateName: result?.templateName || "",
       cardsSent: cards ? cards.sent : 0,
+      // The Odoo message, so the board can show whether WhatsApp delivered it.
+      messageId: result?.messageId || null,
       cardResults: cards ? cards.results : [],
       sent: result?.sent === true,
       failureReason: error || result?.failureReason || "",
