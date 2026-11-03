@@ -10,7 +10,7 @@ export const OCCUPATION_OPTIONS = [
 ];
 
 export const CONSENT_TEXT =
-  "I consent to Saraswati Tutorials collecting, storing, and processing my personal information for tuition opportunities and related communications. I agree to receive updates via WhatsApp, email, or SMS.";
+  "I agree to Saraswati Tutorials using my details for tuition opportunities and contacting me via WhatsApp, email, or SMS.";
 
 const clip = (value, max) => String(value ?? "").trim().slice(0, max);
 
