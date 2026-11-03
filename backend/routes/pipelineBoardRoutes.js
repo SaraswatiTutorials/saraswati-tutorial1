@@ -19,7 +19,7 @@ import crypto from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 import mongoose from "mongoose";
-import { WAIT_HOURS } from "../utils/topThreeScheduler.js";
+import { WAIT_HOURS, MAX_ATTEMPTS, rankInterested } from "../utils/topThreeScheduler.js";
 import { getOdooUid, callOdooMethod } from "../utils/whatsappService.js";
 
 // What WhatsApp actually did with each message, read from Odoo. Our own logs
@@ -230,10 +230,12 @@ router.get("/api/board", requireLogin, async (req, res) => {
     const topBy = byReq(top3s);
     const assignBy = byReq(assignments);
     const last = (arr) => (arr && arr.length ? arr[arr.length - 1] : null);
+    // A failed attempt is recorded too, so prefer the attempt that went out.
+    const sentTop3 = (id) => [...(topBy.get(id) || [])].reverse().find((r) => r.sent) || last(topBy.get(id));
 
     const top3Delivery = new Map();
     for (const lead of leads) {
-      const t3 = last(topBy.get(lead.requirementId));
+      const t3 = sentTop3(lead.requirementId);
       if (t3?.sent) {
         top3Delivery.set(lead.requirementId,
           await findOptionsDelivery(lead.phone, t3.preparedAt, t3.messageId));
@@ -245,7 +247,8 @@ router.get("/api/board", requireLogin, async (req, res) => {
       const myLogs = (logsBy.get(lead.requirementId) || [])
         .filter((l) => l.broadcastType !== "onboarding");
       const shortlist = last(shortBy.get(lead.requirementId));
-      const top3 = last(topBy.get(lead.requirementId));
+      const top3 = sentTop3(lead.requirementId);
+      const failedTop3 = (topBy.get(lead.requirementId) || []).filter((r) => r.sent === false).length;
       const assignment = last(assignBy.get(lead.requirementId));
 
       // A tutor invited more than once has a log row per attempt. Keep only
@@ -302,13 +305,19 @@ router.get("/api/board", requireLogin, async (req, res) => {
       const notDelivered = (t) => t.delivery === "error" || t.delivery === "bounced"
         || (!t.delivery && t.sendStatus === "Failed");
 
+      // The scheduler only sends tutors who are on the shortlist, and stops
+      // after MAX_ATTEMPTS failures. Anything else needs sending by hand, so
+      // the board must not promise it will go out on its own.
+      const autoSendable = failedTop3 < MAX_ATTEMPTS && rankInterested(shortlist?.tutors || [],
+        myLogs.filter((l) => l.broadcastType === "requirement")).length > 0;
+
       const stage =
         lead.assignedTutor ? "chosen"
-        : top3 ? "top3_sent"
+        : top3?.sent ? "top3_sent"
         : !invited.length ? (shortlist ? "shortlisted" : "new")
         : invited.every(notDelivered) ? "undelivered"
         : minutesLeft > 0 ? "waiting"
-        : interested.length ? "due"
+        : interested.length ? (autoSendable ? "due" : "manual")
         : "no_replies";
 
       return {
