@@ -20,6 +20,72 @@ import path from "path";
 import { fileURLToPath } from "url";
 import mongoose from "mongoose";
 import { WAIT_HOURS } from "../utils/topThreeScheduler.js";
+import { getOdooUid, callOdooMethod } from "../utils/whatsappService.js";
+
+// What WhatsApp actually did with each message, read from Odoo. Our own logs
+// only record that a message was handed to Odoo; Meta can still refuse it,
+// and the board must not call that "sent". Cached briefly because the page
+// polls.
+const DELIVERY_TTL_MS = 60 * 1000;
+const deliveryCache = new Map();
+const optionsCache = new Map();
+
+// Set when Odoo could not be asked, so the page can say delivery is unknown
+// rather than let every row look as if it went through.
+let deliveryLookupFailed = false;
+
+async function readDeliveryStates(ids) {
+  const now = Date.now();
+  const stale = ids.filter((id) => {
+    const hit = deliveryCache.get(id);
+    return !hit || now - hit.at > DELIVERY_TTL_MS;
+  });
+  if (stale.length) {
+    try {
+      const uid = await getOdooUid();
+      // search_read rather than read: read fails the whole batch if a single
+      // message has since been deleted in Odoo.
+      const rows = await callOdooMethod(uid, "whatsapp.message", "search_read",
+        [[["id", "in", stale]]], { fields: ["state", "failure_reason"] });
+      for (const r of rows) {
+        deliveryCache.set(r.id, { state: r.state || "", reason: r.failure_reason || "", at: now });
+      }
+    } catch (err) {
+      deliveryLookupFailed = true;
+      console.error("Panel 2 delivery lookup failed:", err.message);
+    }
+  }
+  return new Map(ids.map((id) => [id, deliveryCache.get(id) || null]));
+}
+
+// The top-three record may not hold the Odoo message id, so find the options
+// message sent to that parent at about the time it was prepared.
+async function findOptionsDelivery(phone, preparedAt, messageId) {
+  if (messageId) return (await readDeliveryStates([Number(messageId)])).get(Number(messageId));
+  const last10 = String(phone || "").replace(/\D/g, "").slice(-10);
+  if (last10.length !== 10 || !preparedAt) return null;
+
+  const key = `${last10}|${new Date(preparedAt).getTime()}`;
+  const held = optionsCache.get(key);
+  if (held && Date.now() - held.at < DELIVERY_TTL_MS) return held.value;
+
+  try {
+    const from = new Date(new Date(preparedAt).getTime() - 5 * 60000)
+      .toISOString().slice(0, 19).replace("T", " ");
+    const uid = await getOdooUid();
+    const rows = await callOdooMethod(uid, "whatsapp.message", "search_read",
+      [[["mobile_number", "like", last10], ["message_type", "!=", "inbound"], ["create_date", ">=", from]]],
+      { fields: ["state", "failure_reason", "wa_template_id"], order: "id asc", limit: 10 });
+    const hit = rows.find((r) => String(r.wa_template_id?.[1] || "").startsWith("Tutor Options"));
+    const value = hit ? { state: hit.state || "", reason: hit.failure_reason || "" } : null;
+    optionsCache.set(key, { value, at: Date.now() });
+    return value;
+  } catch (err) {
+    deliveryLookupFailed = true;
+    console.error("Panel 2 options lookup failed:", err.message);
+    return null;
+  }
+}
 
 const router = express.Router();
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -67,6 +133,9 @@ function requireLogin(req, res, next) {
 
 // The page itself. It asks for the login before it fetches anything.
 router.get("/", (req, res) => res.sendFile(PAGE));
+
+// The login photo and logo. The frontend's copies live on another host, so the page carries its own.
+router.use("/assets", express.static(path.join(HERE, "..", "views", "panel2-assets"), { maxAge: "7d" }));
 
 router.post("/api/login", (req, res) => {
   const { user, password } = req.body || {};
@@ -133,6 +202,10 @@ router.get("/api/board", requireLogin, async (req, res) => {
       db.collection("tutor_assignments").find({ requirementId: { $in: ids } }).sort({ resolvedAt: 1 }).toArray(),
     ]);
 
+    deliveryLookupFailed = false;
+    const delivery = await readDeliveryStates(
+      [...new Set(logs.map((l) => Number(l.whatsappMessageId)).filter(Boolean))]);
+
     // Broadcast logs record who was messaged, not what they are like, so the
     // tutors' own records supply experience and occupation for the table.
     const codes = [...new Set(logs.map((l) => l.tutorCode).filter(Boolean))];
@@ -157,6 +230,15 @@ router.get("/api/board", requireLogin, async (req, res) => {
     const topBy = byReq(top3s);
     const assignBy = byReq(assignments);
     const last = (arr) => (arr && arr.length ? arr[arr.length - 1] : null);
+
+    const top3Delivery = new Map();
+    for (const lead of leads) {
+      const t3 = last(topBy.get(lead.requirementId));
+      if (t3?.sent) {
+        top3Delivery.set(lead.requirementId,
+          await findOptionsDelivery(lead.phone, t3.preparedAt, t3.messageId));
+      }
+    }
 
     const board = leads.map((lead) => {
       const ward = lead.wards?.[0] || {};
@@ -191,6 +273,8 @@ router.get("/api/board", requireLogin, async (req, res) => {
           repliedAt: l.respondedAt || null,
           sentAt: l.time || l.createdAt || null,
           failureReason: l.failureReason || "",
+          delivery: delivery.get(Number(l.whatsappMessageId))?.state || "",
+          deliveryError: delivery.get(Number(l.whatsappMessageId))?.reason || "",
         };
       }).sort((a, b) => {
         // Interested first, so the useful ones are at the top.
@@ -214,10 +298,15 @@ router.get("/api/board", requireLogin, async (req, res) => {
       const shortlistAfterInvites = shortlist?.matchedAt && firstInviteAt
         && new Date(shortlist.matchedAt) > firstInviteAt;
 
+      // Refused by WhatsApp, or failed before it ever reached Odoo.
+      const notDelivered = (t) => t.delivery === "error" || t.delivery === "bounced"
+        || (!t.delivery && t.sendStatus === "Failed");
+
       const stage =
         lead.assignedTutor ? "chosen"
         : top3 ? "top3_sent"
         : !invited.length ? (shortlist ? "shortlisted" : "new")
+        : invited.every(notDelivered) ? "undelivered"
         : minutesLeft > 0 ? "waiting"
         : interested.length ? "due"
         : "no_replies";
@@ -269,6 +358,8 @@ router.get("/api/board", requireLogin, async (req, res) => {
           interested: interested.length,
           notInterested: invited.filter((t) => t.reply === "Not Interested").length,
           waiting: invited.filter((t) => t.reply === "No Response").length,
+          delivered: invited.filter((t) => ["delivered", "read", "replied"].includes(t.delivery)).length,
+          undelivered: invited.filter(notDelivered).length,
         },
 
         top3: top3
@@ -277,6 +368,8 @@ router.get("/api/board", requireLogin, async (req, res) => {
               sent: top3.sent === true,
               outcome: top3.outcome || "",
               templateName: top3.templateName || "",
+              delivery: top3Delivery.get(lead.requirementId)?.state || "",
+              deliveryError: top3Delivery.get(lead.requirementId)?.reason || "",
               tutors: (top3.tutors || []).map((t) => ({
                 choice: t.choice, name: t.name, code: t.tutorCode, score: t.score,
                 distanceKm: t.distanceKm, experience: t.experience || "",
@@ -296,7 +389,18 @@ router.get("/api/board", requireLogin, async (req, res) => {
     const onlyActive = req.query.onlyActive !== "false";
     const shown = onlyActive ? board.filter((b) => b.counts.invited > 0) : board;
 
+    // The most common refusal, so the page can name a systemic problem once
+    // instead of leaving it scattered across every row.
+    const refusals = {};
+    for (const b of shown) {
+      for (const t of b.invited) if (t.deliveryError) refusals[t.deliveryError] = (refusals[t.deliveryError] || 0) + 1;
+      if (b.top3?.deliveryError) refusals[b.top3.deliveryError] = (refusals[b.top3.deliveryError] || 0) + 1;
+    }
+    const worst = Object.entries(refusals).sort((a, b) => b[1] - a[1])[0];
+
     res.json({
+      deliveryProblem: worst ? { reason: worst[0], count: worst[1] } : null,
+      deliveryUnavailable: deliveryLookupFailed,
       generatedAt: new Date().toISOString(),
       count: shown.length,
       hidden: board.length - shown.length,

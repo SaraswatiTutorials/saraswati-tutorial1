@@ -4,289 +4,1049 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Panel 2 — Tutor pipeline</title>
+<script>
+  // Apply the saved theme before first paint so the page does not flash.
+  try { const t = localStorage.getItem("panel2-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+</script>
 <style>
   :root {
-    --bg: #f6f7f9; --card: #fff; --line: #e3e6ea; --ink: #1d2430;
-    --mut: #6b7280; --ok: #0f7b4f; --okbg: #e6f4ec; --no: #9a2b2b; --nobg: #fbeaea;
-    --wait: #8a6d1f; --waitbg: #fdf3da; --accent: #2a4d8f;
+    --bg: #f5f4f0; --surface: #ffffff; --surface-2: #fafaf8; --line: #e7e5df; --line-soft: #f0eee9;
+    --ink: #1c1f26; --ink-2: #3f4552; --mut: #6b7280; --faint: #9aa0aa;
+    --accent: #4f46e5; --accent-ink: #ffffff; --accent-soft: #eef0ff; --accent-line: #c9cdfb;
+    --ok: #047857; --ok-soft: #e7f6ee; --ok-line: #bfe3cf;
+    --warn: #92600a; --warn-soft: #fdf4dc; --warn-line: #f0dca4;
+    --info: #1d4ed8; --info-soft: #e8efff; --info-line: #c7d6fb;
+    --bad: #b42318; --bad-soft: #fdecea; --bad-line: #f5c6c1;
+    --grey-soft: #f0f0ed;
+    --shadow: 0 1px 2px rgba(20, 22, 30, .04), 0 2px 8px rgba(20, 22, 30, .04);
+    --shadow-lg: 0 12px 40px rgba(20, 22, 30, .18);
+    --radius: 14px; --nav-w: 268px;
+    color-scheme: light;
   }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b0f17; --surface: #121826; --surface-2: #0f1520; --line: #232b3b; --line-soft: #1a2130;
+      --ink: #e8ebf1; --ink-2: #c4cad6; --mut: #94a0b4; --faint: #677388;
+      --accent: #818cf8; --accent-ink: #0b0f17; --accent-soft: #1d2140; --accent-line: #343b72;
+      --ok: #4ade80; --ok-soft: #10261b; --ok-line: #1d4430;
+      --warn: #fbbf24; --warn-soft: #2a2110; --warn-line: #4a3a14;
+      --info: #93b4ff; --info-soft: #141f3a; --info-line: #263a6b;
+      --bad: #f87171; --bad-soft: #2c1517; --bad-line: #522528;
+      --grey-soft: #1a2130;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 12px 40px rgba(0, 0, 0, .5);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0f17; --surface: #121826; --surface-2: #0f1520; --line: #232b3b; --line-soft: #1a2130;
+    --ink: #e8ebf1; --ink-2: #c4cad6; --mut: #94a0b4; --faint: #677388;
+    --accent: #818cf8; --accent-ink: #0b0f17; --accent-soft: #1d2140; --accent-line: #343b72;
+    --ok: #4ade80; --ok-soft: #10261b; --ok-line: #1d4430;
+    --warn: #fbbf24; --warn-soft: #2a2110; --warn-line: #4a3a14;
+    --info: #93b4ff; --info-soft: #141f3a; --info-line: #263a6b;
+    --bad: #f87171; --bad-soft: #2c1517; --bad-line: #522528;
+    --grey-soft: #1a2130;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 12px 40px rgba(0, 0, 0, .5);
+    color-scheme: dark;
+  }
+
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  header { background: var(--card); border-bottom: 1px solid var(--line);
-    padding: 14px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-    position: sticky; top: 0; z-index: 5; }
-  h1 { font-size: 17px; margin: 0; font-weight: 600; }
-  .mut { color: var(--mut); font-size: 13px; }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
-    padding: 16px 18px; margin-bottom: 14px; }
-  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .grow { flex: 1; }
-  label { display: block; font-size: 13px; color: var(--mut); margin-bottom: 4px; }
-  input, select { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px;
-    font: inherit; background: #fff; }
-  button { padding: 9px 14px; border: 1px solid var(--line); background: #fff;
-    border-radius: 7px; font: inherit; cursor: pointer; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px;
-    border: 1px solid transparent; white-space: nowrap; }
-  .p-ok { background: var(--okbg); color: var(--ok); }
-  .p-no { background: var(--nobg); color: var(--no); }
-  .p-wait { background: var(--waitbg); color: var(--wait); }
-  .p-grey { background: #eef0f3; color: var(--mut); }
-  .stage { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
-  .box { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #fcfcfd; }
-  .box b { display: block; font-size: 22px; font-weight: 600; }
-  .box span { font-size: 12px; color: var(--mut); }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th { text-align: left; font-weight: 500; color: var(--mut); font-size: 12px;
-    border-bottom: 1px solid var(--line); padding: 6px 8px; }
-  td { padding: 6px 8px; border-bottom: 1px solid #f1f3f5; vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  details { margin-top: 8px; }
-  summary { cursor: pointer; font-size: 13px; color: var(--accent); }
-  .empty { color: var(--mut); font-size: 14px; padding: 8px 0; }
-  .lead { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-    align-items: baseline; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
-  .lead h2 { margin: 0; font-size: 16px; font-weight: 600; }
-  .chosen { background: var(--okbg); border: 1px solid #bfe0cd; border-radius: 8px;
-    padding: 9px 12px; margin-top: 10px; font-size: 14px; }
-  .status { border-radius: 8px; padding: 9px 12px; margin: 10px 0 2px; font-size: 14px; }
-  .s-wait { background: var(--waitbg); border: 1px solid #ecd9a8; color: #6b5414; }
-  .s-due  { background: #e8eefb; border: 1px solid #c4d3f0; color: #23407a; }
-  .s-done { background: var(--okbg); border: 1px solid #bfe0cd; color: var(--ok); }
-  .s-none { background: #f1f2f4; border: 1px solid var(--line); color: var(--mut); }
-  .note { font-size: 12px; color: var(--wait); background: var(--waitbg);
-    border-radius: 6px; padding: 5px 9px; margin-top: 8px; display: inline-block; }
-  .err { color: var(--no); font-size: 14px; }
-  @media (max-width: 720px) { .stage { grid-template-columns: repeat(2, 1fr); } }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink);
+    font: 14px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  svg { flex-shrink: 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .mut { color: var(--mut); }
+
+  /* ---------- Login: photo on the left half, form on the right ---------- */
+  .login { min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); }
+  .login-art { position: relative; overflow: hidden; background: #0f1a33 url("/panel2/assets/login-hero.jpg") center / cover no-repeat;
+    color: #fff; display: flex; flex-direction: column; justify-content: space-between; padding: 36px 40px; }
+  .login-art::before { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(10, 18, 40, .55) 0%, rgba(10, 18, 40, .05) 30%, rgba(10, 18, 40, .25) 55%, rgba(8, 14, 34, .92) 100%); }
+  .login-art > * { position: relative; }
+  .art-brand { display: flex; align-items: center; gap: 12px; }
+  .art-brand .logo { width: 44px; height: 44px; border-radius: 12px; background: #fff; padding: 5px; box-shadow: 0 4px 14px rgba(0, 0, 0, .25); }
+  .art-brand b { display: block; font-size: 16px; letter-spacing: -.01em; }
+  .art-brand span { font-size: 12px; opacity: .8; }
+  .art-copy { max-width: 520px; }
+  .art-copy .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: .04em;
+    padding: 5px 12px; border-radius: 999px; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .22);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .art-copy .eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 3px rgba(74, 222, 128, .25); }
+  .art-copy h2 { font-size: clamp(26px, 2.6vw, 36px); line-height: 1.15; letter-spacing: -.025em; margin: 16px 0 10px; font-weight: 700; }
+  .art-copy p { margin: 0; font-size: 15px; opacity: .85; max-width: 440px; }
+  .art-points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 26px; }
+  .art-points div { padding: 12px 14px; border-radius: 12px; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .16);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: 12px; line-height: 1.4; }
+  .art-points b { display: block; font-size: 13px; margin-bottom: 2px; }
+
+  .login-side { display: flex; flex-direction: column; padding: 32px 40px; min-width: 0; }
+  .login-form { width: 100%; max-width: 400px; margin: auto; }
+  .login-foot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--faint); }
+  .login-form .logo-lg { width: 52px; height: 52px; border-radius: 14px; background: #fff; padding: 6px; border: 1px solid var(--line); }
+  .login h1 { font-size: 28px; margin: 22px 0 6px; letter-spacing: -.03em; line-height: 1.2; }
+  .login .lede { margin: 0 0 8px; color: var(--mut); font-size: 14px; }
+  .field { margin-top: 18px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: var(--ink-2); margin-bottom: 7px; }
+  .with-icon { position: relative; }
+  .with-icon > svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
+  .with-icon .input { padding-left: 40px; height: 46px; }
+  .with-icon .reveal { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: transparent;
+    color: var(--mut); padding: 6px 8px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+  .with-icon .reveal:hover { color: var(--ink); background: var(--grey-soft); }
+  .with-icon .input.has-reveal { padding-right: 64px; }
+  .caps { font-size: 12px; color: var(--warn); margin-top: 6px; display: flex; align-items: center; gap: 6px; }
+  .login .btn-block { height: 46px; font-size: 14px; margin-top: 24px; border-radius: 11px; }
+  .btn .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
+  .form-err:not(:empty) { display: flex; gap: 8px; align-items: flex-start; background: var(--bad-soft); border: 1px solid var(--bad-line);
+    border-radius: 10px; padding: 10px 12px; margin-top: 16px; }
+  .secure-note { display: flex; align-items: center; gap: 8px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line-soft);
+    font-size: 12px; color: var(--mut); }
+
+  @media (max-width: 1100px) { .art-points { grid-template-columns: 1fr; max-width: 320px; } }
+  @media (max-width: 899px) {
+    .login { grid-template-columns: 1fr; }
+    .login-art { display: none; }
+    .login-side { padding: 24px 16px; }
+    .login h1 { font-size: 24px; }
+  }
+
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .brand-mark { width: 38px; height: 38px; border-radius: 11px; background: #fff; padding: 4px; border: 1px solid var(--line); flex-shrink: 0; }
+  .brand-name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.2; }
+  .brand-sub { font-size: 12px; color: var(--mut); }
+  .input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--surface-2); transition: border-color .15s, box-shadow .15s; }
+  .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 14px;
+    border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-weight: 600;
+    font-size: 13px; transition: background .15s, border-color .15s; }
+  .btn:hover { background: var(--surface-2); border-color: var(--faint); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: var(--accent); border-color: var(--accent); filter: brightness(1.08); }
+  .btn-block { width: 100%; padding: 11px 14px; margin-top: 20px; }
+  .icon-btn { width: 38px; height: 38px; display: inline-grid; place-items: center; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); }
+  .icon-btn:hover { color: var(--ink); border-color: var(--faint); }
+  .form-err { color: var(--bad); font-size: 13px; margin-top: 12px; min-height: 1em; }
+
+  /* ---------- Shell ---------- */
+  .sidebar { position: fixed; inset: 0 auto 0 0; width: var(--nav-w); background: var(--surface);
+    border-right: 1px solid var(--line); display: flex; flex-direction: column; z-index: 40;
+    transition: transform .22s ease; }
+  .main { margin-left: var(--nav-w); min-height: 100vh; transition: margin-left .22s ease; min-width: 0; }
+  body.nav-collapsed .sidebar { transform: translateX(-100%); }
+  body.nav-collapsed .main { margin-left: 0; }
+  .scrim { display: none; }
+
+  @media (max-width: 1023px) {
+    .sidebar { transform: translateX(-100%); box-shadow: none; width: min(var(--nav-w), 86vw); }
+    .main { margin-left: 0; }
+    body.nav-open .sidebar { transform: none; box-shadow: var(--shadow-lg); }
+    body.nav-open .scrim { display: block; position: fixed; inset: 0; background: rgba(10, 12, 20, .45); z-index: 30; }
+    body.nav-open { overflow: hidden; }
+  }
+
+  .side-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 14px 18px; }
+  .side-close { display: none; }
+  @media (max-width: 1023px) { .side-close { display: inline-grid; } }
+  .side-body { flex: 1; overflow-y: auto; padding: 4px 12px 16px; }
+  .side-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--faint); padding: 16px 8px 8px; }
+  .nav { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .nav button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    border: 0; border-radius: 9px; background: transparent; color: var(--ink-2); text-align: left; font-weight: 500; }
+  .nav button:hover { background: var(--grey-soft); color: var(--ink); }
+  .nav button[aria-current="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .nav .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .nav .count { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--mut);
+    background: var(--grey-soft); border-radius: 999px; padding: 0 8px; min-width: 24px; text-align: center; }
+  .nav button[aria-current="true"] .count { background: var(--surface); color: var(--accent); }
+  .side-field { padding: 0 8px; margin-bottom: 10px; }
+  .side-field label { display: block; font-size: 12px; color: var(--mut); margin-bottom: 5px; }
+  .select { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px;
+    background: var(--surface-2); appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa0aa' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; }
+  .side-foot { border-top: 1px solid var(--line); padding: 12px; display: grid; gap: 4px; }
+  .side-foot button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px;
+    border: 0; border-radius: 9px; background: transparent; color: var(--ink-2); font-weight: 500; text-align: left; }
+  .side-foot button:hover { background: var(--grey-soft); color: var(--ink); }
+  .side-foot .who { font-size: 12px; color: var(--mut); padding: 4px 10px 8px; }
+
+  /* ---------- Top bar ---------- */
+  .topbar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px);
+    border-bottom: 1px solid var(--line-soft); }
+  .topbar-in { max-width: 1280px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+  @media (min-width: 768px) { .topbar-in { padding: 14px 28px; } }
+  .title { min-width: 0; flex: 1; }
+  .title h1 { margin: 0; font-size: 18px; letter-spacing: -.02em; line-height: 1.25; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .title .sub { font-size: 12px; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search { position: relative; width: 280px; }
+  .search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
+  .search .input { padding-left: 34px; background: var(--surface); height: 38px; }
+  .search kbd { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 11px/1 ui-monospace, monospace;
+    color: var(--faint); border: 1px solid var(--line); border-radius: 5px; padding: 3px 5px; }
+  .live { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--mut); white-space: nowrap; }
+  .live i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); position: relative; }
+  .live i::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--ok);
+    opacity: .5; animation: ping 2s ease-out infinite; }
+  .live.paused i { background: var(--faint); } .live.paused i::after { display: none; }
+  @keyframes ping { from { transform: scale(.6); opacity: .6; } to { transform: scale(1.6); opacity: 0; } }
+  .spin svg { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .search-row { display: none; }
+  @media (max-width: 767px) {
+    .topbar-in .search, .topbar-in .live { display: none; }
+    .search-row { display: block; padding: 0 16px 12px; }
+    .search-row .search { width: 100%; }
+    .search-row kbd { display: none; }
+  }
+
+  /* ---------- Content ---------- */
+  .content { max-width: 1280px; margin: 0 auto; padding: 16px 16px 48px; }
+  @media (min-width: 768px) { .content { padding: 22px 28px 64px; } }
+
+  .kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+  @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 560px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .kpi:first-child { grid-column: 1 / -1; }
+  }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+  .kpi .k-label { font-size: 12px; color: var(--mut); display: flex; align-items: center; gap: 7px; }
+  .kpi .k-label i { width: 8px; height: 8px; border-radius: 3px; }
+  .kpi .k-value { font-size: 26px; font-weight: 700; letter-spacing: -.02em; margin-top: 4px;
+    font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .kpi .k-foot { font-size: 12px; color: var(--faint); margin-top: 2px; }
+
+  .list-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 4px 2px 12px; flex-wrap: wrap; }
+  .list-head h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+  .list-head .mut { font-size: 12px; }
+
+  .banner { border-radius: 12px; padding: 12px 14px; font-size: 13px; margin-bottom: 14px;
+    display: flex; gap: 10px; align-items: flex-start; }
+  .banner.err { background: var(--bad-soft); border: 1px solid var(--bad-line); color: var(--bad); }
+
+  /* ---------- Enquiry card ---------- */
+  .cards { display: grid; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .card-head { display: flex; gap: 14px; padding: 16px 18px; align-items: flex-start; }
+  .avatar { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-weight: 700;
+    font-size: 14px; background: var(--accent-soft); color: var(--accent); flex-shrink: 0; }
+  .who-main { min-width: 0; flex: 1; }
+  .who-main h3 { margin: 0; font-size: 15px; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .facts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; font-size: 13px; color: var(--mut); }
+  .facts span { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+  .facts a { color: inherit; text-decoration: none; } .facts a:hover { color: var(--accent); }
+  .head-side { text-align: right; flex-shrink: 0; display: grid; gap: 6px; justify-items: end; }
+  .head-side .time { font-size: 12px; color: var(--faint); white-space: nowrap; }
+  @media (max-width: 640px) {
+    .card-head { flex-wrap: wrap; padding: 14px; }
+    .head-side { width: 100%; text-align: left; justify-items: start; grid-auto-flow: column; justify-content: space-between; align-items: center; }
+  }
+
+  .tag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 12px;
+    font-weight: 600; white-space: nowrap; border: 1px solid transparent; line-height: 1.6; }
+  .tag-id { background: var(--grey-soft); color: var(--mut); font-weight: 500; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+  .t-ok { background: var(--ok-soft); color: var(--ok); border-color: var(--ok-line); }
+  .t-warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn-line); }
+  .t-info { background: var(--info-soft); color: var(--info); border-color: var(--info-line); }
+  .t-bad { background: var(--bad-soft); color: var(--bad); border-color: var(--bad-line); }
+  .t-grey { background: var(--grey-soft); color: var(--mut); border-color: var(--line); }
+  .tag i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Progress tracker */
+  .steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 2px 18px 14px; gap: 0; list-style: none; margin: 0; }
+  .step { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 4px; }
+  .step::before { content: ""; position: absolute; top: 15px; left: calc(-50% + 18px); right: calc(50% + 18px);
+    height: 2px; background: var(--line); border-radius: 2px; }
+  .step:first-child::before { display: none; }
+  .step.done::before { background: var(--ok); }
+  .step .bub { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 700;
+    font-size: 13px; font-variant-numeric: tabular-nums; border: 2px solid var(--line); background: var(--surface); color: var(--faint); position: relative; z-index: 1; }
+  .step.done .bub { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+  .step.current .bub { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .step .lbl { font-size: 12px; color: var(--mut); margin-top: 6px; line-height: 1.3; }
+  .step.done .lbl, .step.current .lbl { color: var(--ink-2); font-weight: 600; }
+  @media (max-width: 480px) { .steps { padding: 2px 10px 12px; } .step .lbl { font-size: 11px; } }
+
+  .callout { margin: 0 18px 14px; border-radius: 10px; padding: 10px 12px; font-size: 13px; display: flex; gap: 10px; align-items: flex-start; border: 1px solid; }
+  .callout svg { margin-top: 2px; }
+  .c-wait { background: var(--warn-soft); border-color: var(--warn-line); color: var(--warn); }
+  .c-due { background: var(--info-soft); border-color: var(--info-line); color: var(--info); }
+  .c-done { background: var(--ok-soft); border-color: var(--ok-line); color: var(--ok); }
+  .c-none { background: var(--grey-soft); border-color: var(--line); color: var(--mut); }
+  .c-alert { background: var(--bad-soft); border-color: var(--bad-line); color: var(--bad); }
+  @media (max-width: 640px) { .callout { margin: 0 14px 12px; } }
+
+  .chosen { margin: 0 18px 14px; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px;
+    background: var(--ok-soft); border: 1px solid var(--ok-line); color: var(--ok); }
+  .chosen b { color: var(--ink); }
+  .chosen .mut { font-size: 12px; }
+  @media (max-width: 640px) { .chosen { margin: 0 14px 12px; } }
+
+  .tabs { display: flex; gap: 4px; padding: 0 14px; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+    background: var(--surface-2); overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { border: 0; background: transparent; padding: 11px 10px 9px; font-weight: 600; font-size: 13px; color: var(--mut);
+    border-bottom: 2px solid transparent; white-space: nowrap; display: inline-flex; gap: 7px; align-items: center; }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab .n { font-size: 11px; background: var(--grey-soft); color: var(--mut); border-radius: 999px; padding: 0 7px; font-variant-numeric: tabular-nums; }
+  .tab[aria-selected="true"] .n { background: var(--accent-soft); color: var(--accent); }
+  .panel { padding: 6px 18px 16px; }
+  .panel[hidden] { display: none; }
+  @media (max-width: 640px) { .panel { padding: 6px 14px 14px; } }
+  .panel-meta { font-size: 12px; color: var(--mut); margin: 8px 0 2px; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .note { font-size: 12px; color: var(--warn); background: var(--warn-soft); border: 1px solid var(--warn-line);
+    border-radius: 8px; padding: 7px 10px; margin: 10px 0 4px; }
+  .empty { color: var(--mut); font-size: 13px; padding: 16px 0 6px; }
+
+  .tbl { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+  .tbl th { text-align: left; font-weight: 600; color: var(--faint); font-size: 11px; text-transform: uppercase;
+    letter-spacing: .05em; padding: 10px 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .tbl td { padding: 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .tbl tbody tr:hover td { background: var(--surface-2); }
+  .tbl .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tbl .sub { font-size: 12px; color: var(--faint); }
+  .tbl .name { font-weight: 600; color: var(--ink); }
+  .rank { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: var(--grey-soft);
+    font-size: 12px; font-weight: 700; color: var(--ink-2); }
+
+  /* Tables become stacked rows on phones, so nothing scrolls sideways. */
+  @media (max-width: 640px) {
+    .tbl thead { display: none; }
+    .tbl, .tbl tbody, .tbl tr, .tbl td { display: block; width: 100%; }
+    .tbl tr { padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+    .tbl tr:last-child { border-bottom: 0; }
+    .tbl td { border: 0; padding: 3px 0; display: flex; justify-content: space-between; gap: 12px; text-align: right; }
+    .tbl td::before { content: attr(data-label); color: var(--faint); font-size: 12px; text-align: left; flex-shrink: 0; }
+    .tbl td.lead-cell { text-align: left; display: block; padding-bottom: 6px; }
+    .tbl td.lead-cell::before { display: none; }
+    .tbl tbody tr:hover td { background: transparent; }
+  }
+
+  .skeleton { background: linear-gradient(90deg, var(--line-soft), var(--surface-2), var(--line-soft)); background-size: 200% 100%;
+    animation: shimmer 1.3s infinite; border-radius: var(--radius); }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  .empty-state { text-align: center; padding: 56px 20px; background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius); }
+  .empty-state .ico { width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 14px; display: grid; place-items: center;
+    background: var(--grey-soft); color: var(--mut); }
+  .empty-state h3 { margin: 0 0 4px; font-size: 15px; }
+  .empty-state p { margin: 0 auto; max-width: 420px; color: var(--mut); font-size: 13px; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
 
-<div id="loginView" class="wrap" style="max-width:380px;margin-top:12vh">
-  <div class="card">
-    <h1>Panel 2</h1>
-    <p class="mut">Read-only view of the tutor pipeline.</p>
-    <div style="margin-top:14px"><label>Id</label><input id="u" class="grow" style="width:100%" autocomplete="username"></div>
-    <div style="margin-top:10px"><label>Password</label><input id="p" type="password" style="width:100%" autocomplete="current-password"></div>
-    <div style="margin-top:14px" class="row">
-      <button class="primary" onclick="login()">Sign in</button>
-      <span id="loginMsg" class="err"></span>
+<!-- ============ Sign in ============ -->
+<main id="loginView" class="login">
+  <section class="login-art" aria-hidden="true">
+    <div class="art-brand">
+      <img class="logo" src="/panel2/assets/logo.png" alt="">
+      <div><b>Saraswati Tutorials</b><span>Home tuition · Bangalore &amp; Mumbai</span></div>
     </div>
-  </div>
-</div>
+    <div class="art-copy">
+      <span class="eyebrow"><i></i>Live tutor pipeline</span>
+      <h2>Every enquiry, from the first invite to the parent's choice.</h2>
+      <p>See who was shortlisted, which tutors said yes, and which three went to the parent — as it happens.</p>
+      <div class="art-points">
+        <div><b>Live replies</b>Tutor answers appear on their own</div>
+        <div><b>Top 3 tracking</b>Know when each window closes</div>
+        <div><b>Read-only</b>Nothing here changes a record</div>
+      </div>
+    </div>
+  </section>
 
-<div id="boardView" style="display:none">
-  <header>
-    <h1>Tutor pipeline</h1>
-    <span id="meta" class="mut"></span>
-    <span class="grow"></span>
-    <select id="since" onchange="load()">
-      <option value="today20" selected>since 8 PM today</option>
-      <option value="hours:6">last 6 hours</option>
-      <option value="hours:12">last 12 hours</option>
-      <option value="hours:24">last 24 hours</option>
-      <option value="all">all time</option>
-    </select>
-    <select id="scope" onchange="load()">
-      <option value="real" selected>real enquiries</option>
-      <option value="test">test records</option>
-      <option value="all">both</option>
-    </select>
-    <select id="every" onchange="restart()">
-      <option value="10">refresh every 10s</option>
-      <option value="30" selected>refresh every 30s</option>
-      <option value="60">refresh every 60s</option>
-      <option value="0">manual</option>
-    </select>
-    <button onclick="load()">Refresh now</button>
-    <button onclick="signOut()">Sign out</button>
-  </header>
-  <div class="wrap" id="board"></div>
+  <section class="login-side">
+    <form class="login-form" onsubmit="event.preventDefault(); login();" novalidate>
+      <img class="logo-lg" src="/panel2/assets/logo.png" alt="Saraswati Tutorials">
+      <h1>Welcome back</h1>
+      <p class="lede">Sign in to Panel 2 to follow the tutor pipeline.</p>
+
+      <div class="field">
+        <label for="u">Id</label>
+        <div class="with-icon">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+          <input id="u" class="input" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Your panel id">
+        </div>
+      </div>
+      <div class="field">
+        <label for="p">Password</label>
+        <div class="with-icon">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <input id="p" class="input has-reveal" type="password" autocomplete="current-password" placeholder="••••••••">
+          <button type="button" class="reveal" id="reveal" onclick="toggleReveal()" aria-controls="p" aria-pressed="false">Show</button>
+        </div>
+        <div class="caps" id="caps" hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+          Caps Lock is on
+        </div>
+      </div>
+
+      <button id="loginBtn" class="btn btn-primary btn-block" type="submit">Sign in</button>
+      <div id="loginMsg" class="form-err" role="alert"></div>
+
+      <div class="secure-note">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+        Read-only access. You stay signed in for 12 hours on this tab.
+      </div>
+    </form>
+    <div class="login-foot"><span>© Saraswati Tutorials</span><span>Panel 2</span></div>
+  </section>
+</main>
+
+<!-- ============ Board ============ -->
+<div id="boardView" hidden>
+  <aside class="sidebar" id="sidebar" aria-label="Pipeline navigation">
+    <div class="side-head">
+      <div class="brand">
+        <img class="brand-mark" src="/panel2/assets/logo.png" alt="">
+        <div><div class="brand-name">Saraswati</div><div class="brand-sub">Panel 2 · Tutor pipeline</div></div>
+      </div>
+      <button class="icon-btn side-close" onclick="closeNav()" aria-label="Close menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="side-body">
+      <div class="side-label">Pipeline</div>
+      <ul class="nav" id="stageNav"></ul>
+
+      <div class="side-label">Filters</div>
+      <div class="side-field">
+        <label for="since">Time window</label>
+        <select id="since" class="select" onchange="load()">
+          <option value="today20" selected>Since 8 PM today</option>
+          <option value="hours:6">Last 6 hours</option>
+          <option value="hours:12">Last 12 hours</option>
+          <option value="hours:24">Last 24 hours</option>
+          <option value="all">All time</option>
+        </select>
+      </div>
+      <div class="side-field">
+        <label for="scope">Records</label>
+        <select id="scope" class="select" onchange="load()">
+          <option value="real" selected>Real enquiries</option>
+          <option value="test">Test records</option>
+          <option value="all">Both</option>
+        </select>
+      </div>
+      <div class="side-field">
+        <label for="every">Auto-refresh</label>
+        <select id="every" class="select" onchange="restart()">
+          <option value="10">Every 10 seconds</option>
+          <option value="30" selected>Every 30 seconds</option>
+          <option value="60">Every minute</option>
+          <option value="0">Off (manual)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="side-foot">
+      <button onclick="toggleTheme()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        <span id="themeLabel">Dark mode</span>
+      </button>
+      <button onclick="signOut()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+        Sign out
+      </button>
+    </div>
+  </aside>
+  <div class="scrim" onclick="closeNav()"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-in">
+        <button class="icon-btn" id="hamburger" onclick="toggleNav()" aria-label="Toggle menu" aria-controls="sidebar" aria-expanded="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="title">
+          <h1 id="pageTitle">All enquiries</h1>
+          <div class="sub" id="meta">Loading…</div>
+        </div>
+        <label class="search">
+          <span class="sr">Search enquiries</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input class="input js-search" type="search" placeholder="Search name, phone, ID, area" autocomplete="off">
+          <kbd>/</kbd>
+        </label>
+        <span class="live" id="live"><i></i><span id="liveText">Live</span></span>
+        <button class="icon-btn" id="refreshBtn" onclick="load()" aria-label="Refresh now" title="Refresh now">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>
+        </button>
+      </div>
+      <div class="search-row">
+        <label class="search">
+          <span class="sr">Search enquiries</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input class="input js-search" type="search" placeholder="Search name, phone, ID, area" autocomplete="off">
+        </label>
+      </div>
+    </header>
+
+    <main class="content">
+      <div id="error"></div>
+      <div id="deliveryBanner"></div>
+      <section class="kpis" id="kpis" aria-label="Summary"></section>
+      <div class="list-head"><h2 id="listTitle">Enquiries</h2><span class="mut" id="listMeta"></span></div>
+      <section class="cards" id="board" aria-live="polite"></section>
+    </main>
+  </div>
 </div>
 
 <script>
 let TOKEN = sessionStorage.getItem("panel2") || "";
 let timer = null;
+let ticker = null;
+let loading = false;
+let lastData = null;
+let lastLoadedAt = 0;
+let stageFilter = "all";
+let query = "";
+const openTab = {}; // requirementId -> tab name, so a refresh does not reset what you were reading
 
 const el = (id) => document.getElementById(id);
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
-  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const when = (d) => (d ? new Date(d).toLocaleString() : "");
-
-async function login() {
-  el("loginMsg").textContent = "";
-  const r = await fetch("/panel2/api/login", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user: el("u").value, password: el("p").value }),
-  });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) { el("loginMsg").textContent = j.message || "Sign in failed."; return; }
-  TOKEN = j.token;
-  sessionStorage.setItem("panel2", TOKEN);
-  show();
-}
-
-function signOut() {
-  TOKEN = ""; sessionStorage.removeItem("panel2");
-  clearInterval(timer);
-  el("boardView").style.display = "none";
-  el("loginView").style.display = "";
-}
-
-function show() {
-  el("loginView").style.display = "none";
-  el("boardView").style.display = "";
-  load(); restart();
-}
-
-function restart() {
-  clearInterval(timer);
-  const s = Number(el("every").value);
-  if (s > 0) timer = setInterval(load, s * 1000);
-}
-
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const when = (d) => (d ? new Date(d).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
 const hhmm = (d) => (d ? new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
 const leftFor = (mins) => {
   if (mins == null) return "";
   const m = Math.abs(mins), h = Math.floor(m / 60), r = m % 60;
   return (h ? h + "h " : "") + r + "m";
 };
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+const ICON = {
+  clock: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  send: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
+  check: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  info: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>',
+  pin: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+  phone: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg>',
+  book: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/></svg>',
+  cap: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>',
+  star: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1Z"/></svg>',
+  inbox: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1Z"/></svg>',
+};
+
+// Every stage the server can report, in pipeline order, with how it looks.
+const STAGES = [
+  { key: "all",         label: "All enquiries",      color: "var(--accent)" },
+  { key: "waiting",     label: "Waiting on tutors",  color: "var(--warn)", tone: "t-warn" },
+  { key: "due",         label: "Ready to send",      color: "var(--info)", tone: "t-info" },
+  { key: "top3_sent",   label: "Top 3 sent",         color: "var(--ok)",   tone: "t-ok" },
+  { key: "chosen",      label: "Parent chose",       color: "var(--ok)",   tone: "t-ok" },
+  { key: "no_replies",  label: "No replies",         color: "var(--bad)",  tone: "t-bad" },
+  { key: "undelivered", label: "Not delivered",      color: "var(--bad)",  tone: "t-bad" },
+  { key: "shortlisted", label: "Shortlisted only",   color: "var(--faint)", tone: "t-grey" },
+  { key: "new",         label: "Not started",        color: "var(--faint)", tone: "t-grey" },
+];
+const stageInfo = (key) => STAGES.find((s) => s.key === key) || { label: key, tone: "t-grey" };
+
+/* ---------------- Auth ---------------- */
+
+function loginError(message) {
+  el("loginMsg").innerHTML = message ? ICON.info + "<span>" + esc(message) + "</span>" : "";
+}
+
+async function login() {
+  loginError("");
+  if (!el("u").value.trim()) { loginError("Enter your id."); el("u").focus(); return; }
+  if (!el("p").value) { loginError("Enter your password."); el("p").focus(); return; }
+  el("loginBtn").disabled = true;
+  el("loginBtn").innerHTML = '<span class="spinner"></span>Signing in…';
+  try {
+    const r = await fetch("/panel2/api/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user: el("u").value.trim(), password: el("p").value }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { loginError(j.message || "Sign in failed."); el("p").select(); return; }
+    TOKEN = j.token;
+    sessionStorage.setItem("panel2", TOKEN);
+    el("p").value = "";
+    show();
+  } catch {
+    loginError("Could not reach the server. Check your connection and try again.");
+  } finally {
+    el("loginBtn").disabled = false;
+    el("loginBtn").textContent = "Sign in";
+  }
+}
+
+function toggleReveal() {
+  const showing = el("p").type === "text";
+  el("p").type = showing ? "password" : "text";
+  el("reveal").textContent = showing ? "Show" : "Hide";
+  el("reveal").setAttribute("aria-pressed", String(!showing));
+  el("p").focus();
+}
+
+["keydown", "keyup"].forEach((type) => el("p").addEventListener(type, (e) => {
+  if (e.getModifierState) el("caps").hidden = !e.getModifierState("CapsLock");
+}));
+el("p").addEventListener("blur", () => { el("caps").hidden = true; });
+
+function signOut() {
+  TOKEN = ""; sessionStorage.removeItem("panel2");
+  clearInterval(timer); clearInterval(ticker);
+  lastData = null;
+  document.body.classList.remove("nav-open");
+  el("boardView").hidden = true;
+  el("loginView").hidden = false;
+  el("u").focus();
+}
+
+function show() {
+  el("loginView").hidden = true;
+  el("boardView").hidden = false;
+  if (store.get("panel2-nav") === "collapsed") document.body.classList.add("nav-collapsed");
+  syncNavButton();
+  syncThemeLabel();
+  renderSkeleton();
+  load(); restart();
+  clearInterval(ticker);
+  ticker = setInterval(tickLive, 1000);
+}
+
+/* ---------------- Sidebar ---------------- */
+
+const isMobile = () => window.matchMedia("(max-width: 1023px)").matches;
+
+function toggleNav() {
+  if (isMobile()) {
+    document.body.classList.toggle("nav-open");
+  } else {
+    const collapsed = document.body.classList.toggle("nav-collapsed");
+    store.set("panel2-nav", collapsed ? "collapsed" : "open");
+  }
+  syncNavButton();
+}
+function closeNav() { document.body.classList.remove("nav-open"); syncNavButton(); }
+function syncNavButton() {
+  const open = isMobile() ? document.body.classList.contains("nav-open") : !document.body.classList.contains("nav-collapsed");
+  el("hamburger").setAttribute("aria-expanded", String(open));
+}
+window.matchMedia("(max-width: 1023px)").addEventListener("change", () => { closeNav(); });
+
+function setStage(key) {
+  stageFilter = key;
+  if (isMobile()) closeNav();
+  render();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* ---------------- Theme ---------------- */
+
+function currentTheme() {
+  return document.documentElement.dataset.theme ||
+    (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+}
+function toggleTheme() {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  store.set("panel2-theme", next);
+  syncThemeLabel();
+}
+function syncThemeLabel() { el("themeLabel").textContent = currentTheme() === "dark" ? "Light mode" : "Dark mode"; }
+
+/* ---------------- Data ---------------- */
+
+function restart() {
+  clearInterval(timer);
+  const s = Number(el("every").value);
+  if (s > 0) timer = setInterval(() => { if (!document.hidden) load(); }, s * 1000);
+  tickLive();
+}
+
+// Coming back to the tab after a while: catch up straight away rather than waiting for the next tick.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && TOKEN && !el("boardView").hidden && Date.now() - lastLoadedAt > 10000) load();
+});
+
+async function load() {
+  if (loading) return;
+  loading = true;
+  el("refreshBtn").classList.add("spin");
+  try {
+    const r = await fetch("/panel2/api/board?limit=25&since=" + el("since").value + "&scope=" + el("scope").value, {
+      headers: { Authorization: "Bearer " + TOKEN },
+    });
+    if (r.status === 401) { signOut(); return; }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showError(j.message || "Could not load the board."); return; }
+    showError("");
+    lastData = j;
+    lastLoadedAt = Date.now();
+    render();
+  } catch {
+    showError("Could not reach the server. Retrying on the next refresh.");
+  } finally {
+    loading = false;
+    el("refreshBtn").classList.remove("spin");
+    tickLive();
+  }
+}
+
+function showError(message) {
+  el("error").innerHTML = message
+    ? '<div class="banner err" role="alert">' + ICON.info + "<span>" + esc(message) + "</span></div>"
+    : "";
+}
+
+function tickLive() {
+  const every = Number(el("every").value);
+  el("live").classList.toggle("paused", !every);
+  if (!lastLoadedAt) { el("liveText").textContent = every ? "Live" : "Manual"; return; }
+  const s = Math.round((Date.now() - lastLoadedAt) / 1000);
+  const ago = s < 5 ? "just now" : s < 60 ? s + "s ago" : Math.floor(s / 60) + "m ago";
+  el("liveText").textContent = (every ? "Live · " : "Updated ") + ago;
+}
+
+/* ---------------- Render ---------------- */
+
+function matchesQuery(b) {
+  if (!query) return true;
+  const hay = [b.parentName, b.phone, b.requirementId, b.area, b.subjects, b.grade].join(" ").toLowerCase();
+  return query.split(/\s+/).every((word) => hay.includes(word));
+}
+
+function render() {
+  if (!lastData) return;
+  const all = lastData.board || [];
+  const searched = all.filter(matchesQuery);
+  const shown = stageFilter === "all" ? searched : searched.filter((b) => b.stage === stageFilter);
+
+  renderNav(searched);
+  renderKpis(all);
+
+  // When WhatsApp itself refuses messages, say so above everything else: it
+  // explains every "Not delivered" below, and no pipeline change fixes it.
+  const p = lastData.deliveryProblem;
+  el("deliveryBanner").innerHTML = p
+    ? '<div class="banner err" role="alert">' + ICON.info + "<span><b>WhatsApp is not delivering.</b> " +
+      p.count + " message(s) on this board were refused: " + esc(p.reason) +
+      ". This is the WhatsApp Business account (billing), not the pipeline — fix it in Meta, then use Retry in Odoo.</span></div>"
+    : lastData.deliveryUnavailable
+      ? '<div class="banner err" role="alert">' + ICON.info + "<span><b>Delivery status unavailable.</b> " +
+        "Odoo could not be reached, so this board cannot tell which messages WhatsApp actually delivered. " +
+        "A time in the Sent column only means the message was handed to Odoo.</span></div>"
+      : "";
+
+  const info = stageInfo(stageFilter);
+  el("pageTitle").textContent = info.label;
+  el("meta").textContent = lastData.count + " in the pipeline" +
+    (lastData.hidden ? " · " + lastData.hidden + " not invited yet (hidden)" : "") +
+    " · " + el("since").selectedOptions[0].text.toLowerCase();
+  el("listTitle").textContent = query ? 'Results for "' + query + '"' : info.label;
+  el("listMeta").textContent = shown.length + (shown.length === 1 ? " enquiry" : " enquiries") + " · newest first";
+
+  el("board").innerHTML = shown.length ? shown.map(card).join("") : emptyState(all.length, searched.length);
+}
+
+function renderNav(rows) {
+  const count = (key) => (key === "all" ? rows.length : rows.filter((b) => b.stage === key).length);
+  el("stageNav").innerHTML = STAGES
+    .filter((s) => s.key === "all" || s.key === stageFilter || count(s.key) > 0 || ["waiting", "due", "top3_sent", "chosen"].includes(s.key))
+    .map((s) =>
+      '<li><button data-stage="' + s.key + '" aria-current="' + (stageFilter === s.key) + '">' +
+      '<span class="dot" style="background:' + s.color + '"></span>' + esc(s.label) +
+      '<span class="count">' + count(s.key) + "</span></button></li>").join("");
+}
+
+function renderKpis(rows) {
+  const sum = (f) => rows.reduce((n, b) => n + f(b), 0);
+  const items = [
+    ["Enquiries", rows.length, "var(--accent)", "in this window"],
+    ["Tutors invited", sum((b) => b.counts.invited), "var(--warn)", sum((b) => b.counts.waiting) + " yet to reply"],
+    ["Interested", sum((b) => b.counts.interested), "var(--info)", sum((b) => b.counts.notInterested) + " declined"],
+    ["Top 3 sent", rows.filter((b) => b.top3 && b.top3.sent).length, "var(--ok)", "to parents"],
+    ["Parent chose", rows.filter((b) => b.chosen).length, "var(--ok)", "tutor confirmed"],
+  ];
+  el("kpis").innerHTML = items.map(([label, value, color, foot]) =>
+    '<div class="kpi"><div class="k-label"><i style="background:' + color + '"></i>' + label + "</div>" +
+    '<div class="k-value">' + value + '</div><div class="k-foot">' + esc(foot) + "</div></div>").join("");
+}
+
+function renderSkeleton() {
+  el("kpis").innerHTML = Array.from({ length: 5 }, () => '<div class="kpi skeleton" style="height:88px;border:0"></div>').join("");
+  el("board").innerHTML = Array.from({ length: 3 }, () => '<div class="skeleton" style="height:220px"></div>').join("");
+}
+
+function emptyState(total, searched) {
+  const [title, text] = !total
+    ? ["No enquiries in this window yet", "Widen the time window in the menu, or wait — new enquiries appear here on their own."]
+    : !searched
+      ? ["Nothing matches your search", "Try a name, phone number, requirement ID or area."]
+      : ["Nothing at this stage", "No enquiry in this window is at “" + stageInfo(stageFilter).label + "” right now."];
+  return '<div class="empty-state"><div class="ico">' + ICON.inbox + "</div><h3>" + esc(title) + "</h3><p>" + esc(text) + "</p></div>";
+}
 
 // One plain sentence saying where this enquiry has got to and what happens next.
 function statusLine(b) {
   switch (b.stage) {
     case "chosen":
-      return ["done", "Finished — the parent chose " + esc(b.chosen ? b.chosen.name : "a tutor") + "."];
+      return ["done", ICON.check, "Finished — the parent chose " + esc(b.chosen ? b.chosen.name : "a tutor") + "."];
     case "top3_sent":
-      return ["done", "Top 3 sent to the parent" + (b.top3 && b.top3.at ? " at " + hhmm(b.top3.at) : "") +
+      if (b.top3 && (b.top3.delivery === "error" || b.top3.delivery === "bounced")) {
+        return ["alert", ICON.info, "The top 3 were sent at " + hhmm(b.top3.at) +
+          " but WhatsApp refused them (" + esc(b.top3.deliveryError || b.top3.delivery) +
+          "). The parent has <b>not</b> received them — retry from Odoo once WhatsApp is fixed."];
+      }
+      return ["done", ICON.send, "Top 3 sent to the parent" + (b.top3 && b.top3.at ? " at " + hhmm(b.top3.at) : "") +
         ". Waiting for the parent to pick."];
+    case "undelivered":
+      return ["alert", ICON.info, "Invited " + b.counts.invited + " tutors at " + hhmm(b.firstInviteAt) +
+        ", but WhatsApp refused every one — no tutor has received this requirement, so nobody can reply."];
     case "waiting":
-      return ["wait", "Invited " + b.counts.invited + " tutors at " + hhmm(b.firstInviteAt) + ". " +
-        b.counts.interested + " interested so far. Tutors have " + leftFor(b.minutesLeft) +
-        " left to answer — the top 3 go to the parent at " + hhmm(b.windowClosesAt) + "."];
+      return ["wait", ICON.clock, "Invited " + b.counts.invited + " tutors at " + hhmm(b.firstInviteAt) + ". " +
+        b.counts.interested + " interested so far. Tutors have <b>" + leftFor(b.minutesLeft) +
+        "</b> left to answer — the top 3 go to the parent at " + hhmm(b.windowClosesAt) + "."];
     case "due":
-      return ["due", "The " + b.waitHours + "-hour window closed at " + hhmm(b.windowClosesAt) + ". " +
+      return ["due", ICON.send, "The " + b.waitHours + "-hour window closed at " + hhmm(b.windowClosesAt) + ". " +
         b.counts.interested + " tutors said yes — the best " + Math.min(3, b.counts.interested) +
         " go to the parent on the next sweep."];
     case "no_replies":
-      return ["none", "The " + b.waitHours + "-hour window closed at " + hhmm(b.windowClosesAt) +
+      return ["alert", ICON.info, "The " + b.waitHours + "-hour window closed at " + hhmm(b.windowClosesAt) +
         " and no tutor said yes. Nothing was sent to the parent."];
     case "shortlisted":
-      return ["wait", b.shortlisted.count + " tutors shortlisted. None invited yet."];
+      return ["none", ICON.info, b.shortlisted.count + " tutors shortlisted. None invited yet."];
     default:
-      return ["none", "No tutors shortlisted or invited yet."];
+      return ["none", ICON.info, "No tutors shortlisted or invited yet."];
   }
 }
 
-function pill(reply) {
-  if (reply === "Interested") return '<span class="pill p-ok">Interested</span>';
-  if (reply === "Assigned") return '<span class="pill p-ok">Assigned</span>';
-  if (reply === "Not Interested") return '<span class="pill p-no">Not interested</span>';
-  return '<span class="pill p-wait">Waiting</span>';
+function replyTag(reply) {
+  if (reply === "Interested") return '<span class="tag t-ok"><i></i>Interested</span>';
+  if (reply === "Assigned") return '<span class="tag t-ok"><i></i>Assigned</span>';
+  if (reply === "Not Interested") return '<span class="tag t-bad"><i></i>Not interested</span>';
+  return '<span class="tag t-warn"><i></i>Waiting</span>';
 }
 
-async function load() {
-  const r = await fetch("/panel2/api/board?limit=25&since=" + el("since").value + "&scope=" + el("scope").value, {
-    headers: { Authorization: "Bearer " + TOKEN },
-  });
-  if (r.status === 401) { signOut(); return; }
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) { el("board").innerHTML = '<div class="card err">' + esc(j.message || "Could not load.") + "</div>"; return; }
+const initials = (name) => (String(name || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "?").toUpperCase();
+const km = (d) => (d != null ? esc(d) + " km" : "—");
 
-  el("meta").textContent = j.count + " enquiries in the pipeline · updated " +
-    new Date(j.generatedAt).toLocaleTimeString() +
-    (j.hidden ? " · " + j.hidden + " not invited yet, hidden" : "");
+// What WhatsApp did with a message, as opposed to whether we tried to send it.
+function deliveryTag(state, reason) {
+  if (!state) return "";
+  if (state === "read") return '<div><span class="tag t-ok"><i></i>Read</span></div>';
+  if (state === "replied") return '<div><span class="tag t-ok"><i></i>Replied</span></div>';
+  if (state === "delivered") return '<div><span class="tag t-ok"><i></i>Delivered</span></div>';
+  if (state === "error" || state === "bounced") {
+    return '<div><span class="tag t-bad" title="' + esc(reason) + '"><i></i>Not delivered</span></div>';
+  }
+  return '<div><span class="tag t-grey"><i></i>' + esc(state) + "</span></div>";
+}
 
-  el("board").innerHTML = j.board.map((b) => {
-    const invited = b.invited.length
-      ? '<table><tr><th>Tutor</th><th>Experience</th><th>Occupation</th><th>Distance</th><th>Sent</th><th>Reply</th><th>Replied</th></tr>' +
-        b.invited.map((t) =>
-          "<tr><td>" + esc(t.name) + '<div class="mut" style="font-size:12px">' + esc(t.code) + "</div></td>" +
-          "<td>" + esc(t.experience || "—") + "</td>" +
-          "<td>" + esc(t.occupation || "—") + "</td>" +
-          "<td>" + (t.distanceKm != null ? esc(t.distanceKm) + " km" : "—") + "</td>" +
-          "<td>" + (t.sentAt ? hhmm(t.sentAt) : esc(t.sendStatus)) +
-            (t.failureReason ? '<div class="mut" style="font-size:12px">' + esc(t.failureReason) + "</div>" : "") + "</td>" +
-          "<td>" + pill(t.reply) + "</td><td class=mut>" + esc(when(t.repliedAt)) + "</td></tr>").join("") +
-        "</table>"
-      : '<div class="empty">No invitations sent yet.</div>';
+function table(headers, rows) {
+  return '<table class="tbl"><thead><tr>' + headers.map((h) => "<th>" + h + "</th>").join("") +
+    "</tr></thead><tbody>" + rows.map((cells) =>
+      "<tr>" + cells.map((c, i) =>
+        "<td" + (i === 0 ? ' class="lead-cell"' : ' data-label="' + esc(headers[i]) + '"') +
+        (c.cls ? ' class="' + c.cls + '"' : "") + ">" + (c.html ?? c) + "</td>").join("") + "</tr>").join("") +
+    "</tbody></table>";
+}
 
-    const shortlist = b.shortlisted
-      ? "<details><summary>" + b.shortlisted.count + " tutors shortlisted" +
-        (b.shortlisted.consideredCount != null ? " from " + b.shortlisted.consideredCount + " considered" : "") +
-        (b.shortlisted.radiusKm ? " within " + b.shortlisted.radiusKm + " km" : "") +
-        (b.shortlisted.at ? " at " + hhmm(b.shortlisted.at) : "") + "</summary>" +
-        (b.shortlistAfterInvites
-          ? '<div class="note">This shortlist was made at ' + hhmm(b.shortlisted.at) +
-            ", after the invitations went out at " + hhmm(b.firstInviteAt) +
-            ". The tutors below are from a later run, so they will not all match the invited list.</div>"
-          : "") +
-        '<table><tr><th>#</th><th>Tutor</th><th>Experience</th><th>Occupation</th><th>Distance</th><th>Score</th></tr>' +
-        b.shortlisted.tutors.map((t, i) =>
-          "<tr><td>" + (t.rank || i + 1) + "</td><td>" + esc(t.name) +
-          '<div class="mut" style="font-size:12px">' + esc(t.code) + "</div></td>" +
-          "<td>" + esc(t.experience || "—") + "</td>" +
-          "<td>" + esc(t.occupation || "—") + "</td>" +
-          "<td>" + (t.distanceKm != null ? esc(t.distanceKm) + " km" : "—") +
-          "</td><td>" + esc(t.score) + "</td></tr>").join("") + "</table></details>"
-      : '<div class="empty">' + (b.counts.invited
-          ? "No shortlist was recorded for this enquiry — the tutors below were invited from the admin dashboard rather than by the matching workflow."
-          : "Not shortlisted yet.") + "</div>";
+function tutorCell(t, subline) {
+  return '<div class="name">' + esc(t.name || "(no name)") + '</div><div class="sub">' + esc(subline || t.code || "") + "</div>";
+}
 
-    const top3 = b.top3 && b.top3.tutors.length
-      ? '<table><tr><th>#</th><th>Tutor</th><th>Experience</th><th>Occupation</th><th>Distance</th><th>Score</th></tr>' +
-        b.top3.tutors.map((t, i) =>
-          "<tr><td>" + (t.choice || i + 1) + "</td><td>" + esc(t.name) +
-          '<div class="mut" style="font-size:12px">' + esc(t.area || t.code) + "</div></td>" +
-          "<td>" + esc(t.experience || "—") + "</td>" +
-          "<td>" + esc(t.occupation || "—") + "</td>" +
-          "<td>" + (t.distanceKm != null ? esc(t.distanceKm) + " km" : "—") + "</td>" +
-          "<td>" + esc(t.score) + "</td></tr>").join("") +
-        '</table><div class="mut" style="margin-top:6px">' +
-        (b.top3.sent ? "Sent to parent " : "Prepared ") + esc(when(b.top3.at)) +
-        (b.top3.templateName ? " · template " + esc(b.top3.templateName) : "") + "</div>"
-      : '<div class="empty">Top 3 not sent to the parent yet.</div>';
+function invitedPanel(b) {
+  if (!b.invited.length) return '<div class="empty">No invitations sent yet.</div>';
+  const c = b.counts;
+  return '<div class="panel-meta">' +
+    (c.undelivered ? '<span style="color:var(--bad);font-weight:600">' + c.undelivered + " not delivered</span>" : "") +
+    (c.delivered ? "<span>" + c.delivered + " delivered</span>" : "") +
+    "<span>" + c.interested + " interested</span><span>" + c.notInterested +
+    " declined</span><span>" + c.waiting + " yet to reply</span>" +
+    (b.firstInviteAt ? "<span>first sent " + hhmm(b.firstInviteAt) + "</span>" : "") + "</div>" +
+    table(["Tutor", "Experience", "Occupation", "Distance", "Sent", "Reply", "Replied"],
+      b.invited.map((t) => [
+        tutorCell(t),
+        esc(t.experience || "—"),
+        esc(t.occupation || "—"),
+        { html: km(t.distanceKm), cls: "num" },
+        (t.sentAt ? hhmm(t.sentAt) : esc(t.sendStatus || "—")) + deliveryTag(t.delivery, t.deliveryError) +
+          (t.failureReason ? '<div class="sub" style="color:var(--bad)">' + esc(t.failureReason) + "</div>" : ""),
+        replyTag(t.reply),
+        { html: esc(when(t.repliedAt)) || "—", cls: "num" },
+      ]));
+}
 
-    const chosen = b.chosen
-      ? '<div class="chosen"><b>Parent chose: ' + esc(b.chosen.name) + "</b>" +
+function shortlistPanel(b) {
+  if (!b.shortlisted) {
+    return '<div class="empty">' + (b.counts.invited
+      ? "No shortlist was recorded for this enquiry — the tutors were invited from the admin dashboard rather than by the matching workflow."
+      : "Not shortlisted yet.") + "</div>";
+  }
+  const s = b.shortlisted;
+  return '<div class="panel-meta">' +
+    (s.consideredCount != null ? "<span>from " + s.consideredCount + " considered</span>" : "") +
+    (s.radiusKm ? "<span>within " + s.radiusKm + " km</span>" : "") +
+    (s.at ? "<span>made at " + hhmm(s.at) + "</span>" : "") + "</div>" +
+    (b.shortlistAfterInvites
+      ? '<div class="note">This shortlist was made at ' + hhmm(s.at) + ", after the invitations went out at " +
+        hhmm(b.firstInviteAt) + ". The tutors below are from a later run, so they will not all match the invited list.</div>"
+      : "") +
+    (s.tutors.length
+      ? table(["Tutor", "Rank", "Experience", "Occupation", "Distance", "Score"],
+          s.tutors.map((t, i) => [
+            tutorCell(t),
+            '<span class="rank">' + (t.rank || i + 1) + "</span>",
+            esc(t.experience || "—"),
+            esc(t.occupation || "—"),
+            { html: km(t.distanceKm), cls: "num" },
+            { html: esc(t.score ?? "—"), cls: "num" },
+          ]))
+      : '<div class="empty">The shortlist has no tutors.</div>');
+}
+
+function top3Panel(b) {
+  if (!b.top3 || !b.top3.tutors.length) return '<div class="empty">Top 3 not sent to the parent yet.</div>';
+  return '<div class="panel-meta"><span>' + (b.top3.sent ? "Sent to parent " : "Prepared ") + esc(when(b.top3.at)) + "</span>" + (b.top3.delivery ? deliveryTag(b.top3.delivery, b.top3.deliveryError) : "") +
+    (b.top3.templateName ? "<span>template " + esc(b.top3.templateName) + "</span>" : "") + "</div>" +
+    table(["Tutor", "Option", "Experience", "Occupation", "Distance", "Score"],
+      b.top3.tutors.map((t, i) => [
+        tutorCell(t, t.area || t.code),
+        '<span class="rank">' + (t.choice || i + 1) + "</span>",
+        esc(t.experience || "—"),
+        esc(t.occupation || "—"),
+        { html: km(t.distanceKm), cls: "num" },
+        { html: esc(t.score ?? "—"), cls: "num" },
+      ]));
+}
+
+function steps(b) {
+  const top3Count = b.top3 ? b.top3.tutors.length : 0;
+  const list = [
+    ["Shortlisted", b.shortlisted ? b.shortlisted.count : "—", !!b.shortlisted || b.counts.invited > 0],
+    ["Invited", b.counts.invited, b.counts.invited > 0],
+    ["Interested", b.counts.interested, b.counts.interested > 0],
+    ["Top 3 sent", top3Count, !!(b.top3 && b.top3.sent)],
+    ["Chosen", b.chosen ? ICON.check : "—", !!b.chosen],
+  ];
+  // The first step not yet reached is where the enquiry is now, unless it has stalled.
+  const firstOpen = list.findIndex((s) => !s[2]);
+  const current = b.stage === "no_replies" ? -1 : firstOpen;
+  return '<ol class="steps" aria-label="Progress">' + list.map(([label, value, done], i) =>
+    '<li class="step' + (done ? " done" : "") + (i === current ? " current" : "") + '">' +
+    '<span class="bub">' + value + '</span><span class="lbl">' + label + "</span></li>").join("") + "</ol>";
+}
+
+function card(b) {
+  const id = b.requirementId || b.parentName;
+  const stage = stageInfo(b.stage);
+  const [tone, icon, text] = statusLine(b);
+  const defaultTab = b.top3 && b.top3.tutors.length ? "top3" : b.invited.length ? "invited" : "shortlist";
+  const tab = openTab[id] || defaultTab;
+
+  const tabs = [
+    ["invited", "Invited", b.counts.invited],
+    ["shortlist", "Shortlist", b.shortlisted ? b.shortlisted.count : 0],
+    ["top3", "Top 3", b.top3 ? b.top3.tutors.length : 0],
+  ];
+  const panels = { invited: invitedPanel, shortlist: shortlistPanel, top3: top3Panel };
+
+  const facts = [
+    b.phone && '<span>' + ICON.phone + '<a href="tel:' + esc(b.phone) + '">' + esc(b.phone) + "</a></span>",
+    b.grade && "<span>" + ICON.cap + esc(b.grade) + "</span>",
+    b.subjects && "<span>" + ICON.book + esc(b.subjects) + "</span>",
+    b.area && "<span>" + ICON.pin + esc(b.area) + "</span>",
+  ].filter(Boolean).join("");
+
+  return '<article class="card" data-id="' + esc(id) + '">' +
+    '<div class="card-head">' +
+      '<div class="avatar" aria-hidden="true">' + esc(initials(b.parentName)) + "</div>" +
+      '<div class="who-main"><h3>' + esc(b.parentName || "(no name)") +
+        ' <span class="tag tag-id">' + esc(b.requirementId) + "</span>" +
+        (b.isDemo ? ' <span class="tag t-warn">Test</span>' : "") + "</h3>" +
+        '<div class="facts">' + facts + "</div></div>" +
+      '<div class="head-side"><span class="tag ' + (stage.tone || "t-grey") + '"><i></i>' + esc(stage.label) + "</span>" +
+        '<span class="time">' + esc(b.status) + (b.status ? " · " : "") + esc(when(b.createdAt)) + "</span></div>" +
+    "</div>" +
+
+    steps(b) +
+    // A chosen enquiry gets the banner below instead, which says the same thing with more detail.
+    (b.chosen ? "" : '<div class="callout c-' + tone + '">' + icon + "<span>" + text + "</span></div>") +
+    (b.parentLocation && !b.parentLocation.hasCoordinates && !b.parentLocation.hasArea
+      ? '<div class="callout c-alert">' + ICON.pin + "<span>This enquiry has no location — no coordinates, no area, no pincode. " +
+        "That is why every distance is blank and why matching had nothing to measure from.</span></div>"
+      : "") +
+    (b.chosen
+      ? '<div class="chosen">' + ICON.star + "<div>Parent chose <b>" + esc(b.chosen.name) + "</b>" +
         (b.chosen.choice ? " (option " + esc(b.chosen.choice) + ")" : "") +
-        (b.chosen.at ? ' <span class="mut">' + esc(when(b.chosen.at)) + "</span>" : "") + "</div>"
-      : "";
+        (b.chosen.at ? '<div class="mut">' + esc(when(b.chosen.at)) + "</div>" : "") + "</div></div>"
+      : "") +
 
-    const status = statusLine(b);
-    return '<div class="card">' +
-      '<div class="lead"><div><h2>' + esc(b.parentName || "(no name)") + " " +
-        '<span class="pill p-grey">' + esc(b.requirementId) + "</span>" +
-        (b.isDemo ? ' <span class="pill p-wait">test</span>' : "") + "</h2>" +
-        '<div class="mut">' + [b.phone, b.grade, b.subjects, b.area].filter(Boolean).map(esc).join(" · ") + "</div></div>" +
-        '<div class="mut">' + esc(b.status) + " · " + esc(when(b.createdAt)) + "</div></div>" +
-
-      '<div class="status s-' + status[0] + '">' + status[1] + "</div>" +
-      (b.parentLocation && !b.parentLocation.hasCoordinates && !b.parentLocation.hasArea
-        ? '<div class="note">This enquiry has no location — no coordinates, no area, no pincode. ' +
-          "That is why every distance below is blank and why matching had nothing to measure from.</div>"
-        : "") +
-
-      '<div class="stage">' +
-        '<div class="box"><b>' + (b.shortlisted ? b.shortlisted.count : "—") + "</b><span>shortlisted</span></div>" +
-        '<div class="box"><b>' + b.counts.invited + "</b><span>invited</span></div>" +
-        '<div class="box"><b>' + b.counts.interested + "</b><span>interested</span></div>" +
-        '<div class="box"><b>' + (b.top3 ? b.top3.tutors.length : 0) + "</b><span>sent to parent</span></div>" +
-      "</div>" +
-
-      shortlist +
-      '<h3 style="font-size:14px;margin:14px 0 4px">Invited tutors and replies</h3>' + invited +
-      '<h3 style="font-size:14px;margin:14px 0 4px">Top 3 sent to the parent</h3>' + top3 +
-      chosen +
-    "</div>";
-  }).join("") ||
-    '<div class="card empty">No enquiries in this window yet. Widen the time filter, or wait for the next one to arrive.</div>';
+    '<div class="tabs" role="tablist">' + tabs.map(([key, label, n]) =>
+      '<button class="tab" role="tab" data-tab="' + key + '" aria-selected="' + (tab === key) + '">' +
+      label + '<span class="n">' + n + "</span></button>").join("") + "</div>" +
+    tabs.map(([key]) => '<div class="panel" role="tabpanel" data-panel="' + key + '"' + (tab === key ? "" : " hidden") + ">" +
+      panels[key](b) + "</div>").join("") +
+  "</article>";
 }
 
-if (TOKEN) show();
+/* ---------------- Events ---------------- */
+
+el("stageNav").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-stage]");
+  if (btn) setStage(btn.dataset.stage);
+});
+
+// Tabs switch in place, so a big board does not re-render on every click.
+el("board").addEventListener("click", (e) => {
+  const btn = e.target.closest(".tab");
+  if (!btn) return;
+  const cardEl = btn.closest(".card");
+  openTab[cardEl.dataset.id] = btn.dataset.tab;
+  cardEl.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t === btn)));
+  cardEl.querySelectorAll(".panel").forEach((p) => { p.hidden = p.dataset.panel !== btn.dataset.tab; });
+});
+
+let searchTimer = null;
+document.querySelectorAll(".js-search").forEach((input) => {
+  input.addEventListener("input", () => {
+    document.querySelectorAll(".js-search").forEach((other) => { if (other !== input) other.value = input.value; });
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { query = input.value.trim().toLowerCase(); render(); }, 150);
+  });
+});
+
+document.addEventListener("keydown", (e) => {
+  if (el("boardView").hidden) return;
+  const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
+  if (e.key === "/" && !typing) {
+    e.preventDefault();
+    const visible = [...document.querySelectorAll(".js-search")].find((i) => i.offsetParent !== null);
+    if (visible) visible.focus();
+  } else if (e.key === "Escape") {
+    if (document.body.classList.contains("nav-open")) closeNav();
+    else if (typing && document.activeElement.classList.contains("js-search")) {
+      document.querySelectorAll(".js-search").forEach((i) => { i.value = ""; });
+      query = ""; render(); document.activeElement.blur();
+    }
+  }
+});
+
+if (TOKEN) show(); else el("u").focus();
 </script>
 </body>
 </html>
