@@ -768,6 +768,34 @@ export const REQUIREMENT_TEMPLATE_LEGACY = "tutor_requirement_v3";
 const TEMPLATE_CHECK_TTL_MS = 5 * 60 * 1000;
 let requirementChoice = null; // { at, value }
 
+const firstApprovedCache = new Map(); // names.join("|") -> { at, name }
+
+/**
+ * The first of `names` that Odoo shows approved, re-checked every five
+ * minutes. For a template being replaced by a new one with the SAME
+ * variables: the new one is used as soon as Meta approves it, the old one
+ * until then. If none is approved, the first name is returned and the send
+ * reports why it failed. `isApproved` is injectable for tests.
+ */
+export async function firstApprovedTemplate(names, { isApproved, now = Date.now() } = {}) {
+  const key = names.join("|");
+  const hit = firstApprovedCache.get(key);
+  if (!isApproved && hit && now - hit.at < TEMPLATE_CHECK_TTL_MS) return hit.name;
+  let chosen = names[0];
+  for (const name of names) {
+    let ok = false;
+    try {
+      ok = isApproved ? await isApproved(name) : await validateTemplate(await getOdooUid(), name);
+    } catch (err) {
+      console.error(`[WhatsApp] Could not check template "${name}":`, err.message);
+    }
+    if (ok) { chosen = name; break; }
+  }
+  if (chosen !== names[0]) console.warn(`[WhatsApp] "${names[0]}" is not approved yet; using "${chosen}".`);
+  if (!isApproved) firstApprovedCache.set(key, { at: now, name: chosen });
+  return chosen;
+}
+
 // Odoo: display Name "tutor_broadcast_V4", Template Name "tutor_broadcast_v4".
 export const REQUIREMENT_TEMPLATE_NEW = "tutor_broadcast_v4";
 

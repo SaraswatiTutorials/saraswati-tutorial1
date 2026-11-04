@@ -6,7 +6,17 @@
  * closes. One builder means one wording and one set of rules.
  */
 
-import { sendWhatsAppToTutor } from "./whatsappService.js";
+import { sendWhatsAppToTutor, firstApprovedTemplate } from "./whatsappService.js";
+
+/**
+ * Odoo templates for the parent's top-3 message, newest first. Both have the
+ * same seven variables in the same order and the Tutor 1 / 2 / 3 buttons:
+ *   Dear Mr./Ms. {{1}}, ... Students' name: {{2}} / Grade: {{3}} /
+ *   Subject(s): {{4}} ... 1. {{5}}  2. {{6}}  3. {{7}}
+ * "tutor_options_for_parent_working" (4 Nov 2026, bold wording) is used once
+ * Meta approves it; "tutor_options_for_parent" until then.
+ */
+export const TUTOR_OPTIONS_TEMPLATES = ["tutor_options_for_parent_working", "tutor_options_for_parent"];
 
 /** Meta rejects a template whose parameter is empty, so unused slots say this. */
 const UNUSED_SLOT = "—";
@@ -33,13 +43,10 @@ export function buildTutorOptions(lead, tutors) {
     : (ward.subjectsNeeded || "");
 
   const offered = (tutors || []).slice(0, 3);
-  // Odoo: Template Name "tutor_options_for_parent" (found by that even when
-  // the display Name changes). Re-approved 4 Nov 2026 with seven variables:
-  //   Dear Mr./Ms. {{1}}, ... Student's name: {{2}} / Grade: {{3}} /
-  //   Subject(s): {{4}} ... 1. {{5}}  2. {{6}}  3. {{7}}
-  // and the Tutor 1 / 2 / 3 buttons the parent taps.
+  // The preferred template; sendTutorOptions falls back to the older one
+  // while this one awaits approval (see TUTOR_OPTIONS_TEMPLATES).
   const templateName =
-    process.env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME || "tutor_options_for_parent";
+    process.env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME || TUTOR_OPTIONS_TEMPLATES[0];
 
   // Values map to free_text_1..7, i.e. {{1}}..{{7}}, in this order.
   const templateVars = {
@@ -134,7 +141,12 @@ export async function sendTutorCards(lead, tutors) {
  * window — without this the parent would get a list with nothing to tap.
  */
 export async function sendTutorOptions(lead, tutors) {
-  const { offered, templateName, templateVars, messageBody } = buildTutorOptions(lead, tutors);
+  const built = buildTutorOptions(lead, tutors);
+  const { offered, templateVars, messageBody } = built;
+  // An env override is used as given; otherwise the newest approved template.
+  const templateName = process.env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME
+    ? built.templateName
+    : await firstApprovedTemplate(TUTOR_OPTIONS_TEMPLATES);
   const phoneNumber = lead?.phone || "";
   if (!phoneNumber) {
     return { sent: false, failureReason: "No phone number on this lead.", offered, templateName };

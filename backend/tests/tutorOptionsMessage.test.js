@@ -14,7 +14,7 @@ const tutors = [
 
 test("parent options fill tutor_options_for_parent's seven slots in order", () => {
   const { templateVars, templateName } = buildTutorOptions(lead, tutors);
-  assert.equal(templateName, "tutor_options_for_parent");
+  assert.equal(templateName, "tutor_options_for_parent_working");
   assert.deepEqual(Object.values(templateVars), [
     "Test Parent",                    // {{1}}
     "Aarav",                          // {{2}} student's name
@@ -38,4 +38,17 @@ test("dry-run text is worded like the template", () => {
   assert.match(messageBody, /^Dear Mr\.\/Ms\. Test Parent,/);
   assert.match(messageBody, /Student's name: Aarav\nGrade: Grade 8\nSubject\(s\): Maths, Science/);
   assert.match(messageBody, /1\. Tutor A.*\n2\. Tutor B.*\n3\. Tutor C/);
+});
+
+import { firstApprovedTemplate } from "../utils/whatsappService.js";
+import { TUTOR_OPTIONS_TEMPLATES } from "../utils/tutorOptionsMessage.js";
+
+test("top 3 uses the new 'working' template once approved, the current one until then", async () => {
+  assert.deepEqual(TUTOR_OPTIONS_TEMPLATES, ["tutor_options_for_parent_working", "tutor_options_for_parent"]);
+  const pending = await firstApprovedTemplate(TUTOR_OPTIONS_TEMPLATES, { isApproved: async (n) => n === "tutor_options_for_parent" });
+  assert.equal(pending, "tutor_options_for_parent");
+  const approved = await firstApprovedTemplate(TUTOR_OPTIONS_TEMPLATES, { isApproved: async () => true });
+  assert.equal(approved, "tutor_options_for_parent_working");
+  const odooDown = await firstApprovedTemplate(TUTOR_OPTIONS_TEMPLATES, { isApproved: async () => { throw new Error("down"); } });
+  assert.equal(odooDown, "tutor_options_for_parent_working"); // send then reports the failure
 });

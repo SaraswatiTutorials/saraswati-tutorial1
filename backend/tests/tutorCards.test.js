@@ -6,7 +6,10 @@ import assert from "node:assert/strict";
 const sent = [];
 before(() => {
   mock.module(new URL("../utils/whatsappService.js", import.meta.url).href, {
-    namedExports: { sendWhatsAppToTutor: async (opts) => { sent.push(opts); return { success: true }; } },
+    namedExports: {
+      sendWhatsAppToTutor: async (opts) => { sent.push(opts); return { success: true }; },
+      firstApprovedTemplate: async (names) => names[0],
+    },
   });
 });
 beforeEach(() => { sent.length = 0; });
