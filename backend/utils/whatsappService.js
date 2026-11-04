@@ -682,7 +682,7 @@ Are you *available* for this tuition assignment?
 }
 
 /**
- * Template variables for the tutor invite, template `tutor_requirement_v4`.
+ * Template variables for the tutor invite, template `tutor_broadcast_v4`.
  * Numbered in the order they appear in the message:
  *
  *   {{1}} = Tutor name
@@ -768,7 +768,8 @@ export const REQUIREMENT_TEMPLATE_LEGACY = "tutor_requirement_v3";
 const TEMPLATE_CHECK_TTL_MS = 5 * 60 * 1000;
 let requirementChoice = null; // { at, value }
 
-export const REQUIREMENT_TEMPLATE_NEW = "tutor_requirement_v4";
+// Odoo: display Name "tutor_broadcast_V4", Template Name "tutor_broadcast_v4".
+export const REQUIREMENT_TEMPLATE_NEW = "tutor_broadcast_v4";
 
 /**
  * Which invite template to send, and the matching variable builder.
