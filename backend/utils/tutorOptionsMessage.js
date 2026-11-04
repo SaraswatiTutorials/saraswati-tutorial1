@@ -67,13 +67,33 @@ export function buildTutorOptions(lead, tutors) {
   return { offered, templateName, templateVars, messageBody };
 }
 
+/** The card's text and its template values; no photo (removed 4 Nov 2026). */
+export function buildTutorCard(t, position, total) {
+  const distance = t?.distanceKm != null ? `${t.distanceKm} km` : "";
+  return {
+    // Values map to free_text_1..4, i.e. {{1}}..{{4}}, in this order.
+    templateVars: {
+      position: String(position),
+      tutor_name: t?.name || "",
+      experience: t?.experience || "",
+      distance,
+    },
+    // Used instead of the template inside WhatsApp's 24-hour window.
+    messageBody:
+      `*Tutor Option ${position} of ${total}*\n\n*${t?.name || ""}*\n\n` +
+      `Experience: ${t?.experience || ""}\n` +
+      `Distance: ${distance} from your location\n\n` +
+      `*This tutor has been shortlisted for your registered tuition requirement.*`,
+  };
+}
+
 /**
- * One card per tutor, each carrying that tutor's own photo as the header, sent
- * just before the list the parent chooses from. WhatsApp allows one image per
- * message, so three tutors means three messages.
+ * One card per tutor, sent just before the list the parent chooses from.
  *
- * A tutor with no photo is skipped rather than sent a header-less card, which
- * the template would reject; they still appear in the list that follows.
+ * Cards carry NO profile picture (the owner's decision, 4 Nov 2026), so every
+ * offered tutor gets a card, photo or not, and the Odoo template
+ * "tutor_option_card" must have Header Type: None. Without a picture the card
+ * can also go as plain text inside WhatsApp's 24-hour window.
  */
 export async function sendTutorCards(lead, tutors) {
   const offered = (tutors || []).slice(0, 3);
@@ -84,27 +104,12 @@ export async function sendTutorCards(lead, tutors) {
 
   const results = [];
   for (const [i, t] of offered.entries()) {
-    if (!t?.photo) {
-      results.push({ position: i + 1, name: t?.name || "", sent: false, skipped: true });
-      continue;
-    }
-    // Values map to free_text_1..4, i.e. {{1}}..{{4}}, in this order.
+    const { templateVars, messageBody } = buildTutorCard(t, i + 1, offered.length);
     const result = await sendWhatsAppToTutor({
       phoneNumber,
-      messageBody:
-        `Tutor option ${i + 1} of ${offered.length}\n\n${t.name || ""}\n` +
-        `Experience: ${t.experience || ""}\n` +
-        `Distance: ${t.distanceKm != null ? `${t.distanceKm} km` : ""} from your location`,
+      messageBody,
       templateName,
-      templateVars: {
-        position: String(i + 1),
-        tutor_name: t.name || "",
-        experience: t.experience || "",
-        distance: t.distanceKm != null ? `${t.distanceKm} km` : "",
-      },
-      headerImageUrl: t.photo,
-      // The header image can only travel on the template, never as free text.
-      forceTemplate: true,
+      templateVars,
     });
     results.push({
       position: i + 1, name: t.name || "", sent: result.success,

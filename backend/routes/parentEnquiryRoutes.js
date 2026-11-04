@@ -1357,30 +1357,15 @@ router.post("/:id/send-tutor-cards", verifyToken(["admin"]), async (req, res) =>
       });
     }
 
-    // One send per card. A card with no picture is skipped rather than sent
-    // without one, because the template's header is always an image; that
-    // tutor is still listed in the options message that follows.
+    // One send per card. Cards carry no profile picture (removed 4 Nov 2026),
+    // so every tutor gets one, photo or not.
     const results = [];
     for (const card of cards) {
-      if (!card.photo) {
-        results.push({
-          position: card.position,
-          name: card.name,
-          sent: false,
-          skipped: true,
-          failureReason: "No profile picture on this tutor",
-        });
-        continue;
-      }
-
       const sendResult = await sendWhatsAppToTutor({
         phoneNumber,
         messageBody: card.messageBody,
         templateName,
         templateVars: card.templateVars,
-        headerImageUrl: card.photo,
-        // The header image can only travel on the template, never as free text.
-        forceTemplate: true,
       });
 
       results.push({
