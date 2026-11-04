@@ -54,6 +54,8 @@ before(async () => {
       sendWhatsAppToTutor: noop, buildBroadcastMessage: () => "", buildAssignmentMessage: () => "",
       buildOnboardingMessage: () => "", isPermanentFailure: () => false, getOdooUid: noop,
       callOdooMethod: noop, buildRequirementTemplateVars: () => ({}),
+      buildRequirementTemplateVarsV3: () => ({}),
+      chooseRequirementTemplate: async () => ({ templateName: "tutor_requirement_v3", buildVars: () => ({}) }),
     },
   });
   mock.module(modulePath("utils/matchingEngine.js"), {

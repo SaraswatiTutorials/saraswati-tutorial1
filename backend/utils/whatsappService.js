@@ -270,6 +270,18 @@ async function findActiveConversation(uid, phoneNumber) {
  * Verify template existence and approval status in Odoo.
  * Returns true if template exists and is approved, false otherwise.
  */
+/**
+ * A value for one {{n}} of a template. Never empty: when a value is empty,
+ * Odoo silently sends the template's SAMPLE value in its place — that is how
+ * a tutor was told of a demo on "Sat, 1 Nov 2026 at 5:00 PM", a date nobody
+ * chose. A dash says plainly that the value is missing.
+ */
+export const EMPTY_TEMPLATE_VALUE = "—";
+export function templateValue(val) {
+  const s = val == null ? "" : String(val).trim();
+  return s || EMPTY_TEMPLATE_VALUE;
+}
+
 export async function validateTemplate(uid, templateIdentifier) {
   try {
     let domain;
@@ -434,7 +446,7 @@ async function sendTemplateMessage(uid, phoneNumber, templateName, templateLang,
 
     standardValues.forEach((val, idx) => {
       if (idx < 10) {
-        composerPayload[`free_text_${idx + 1}`] = String(val);
+        composerPayload[`free_text_${idx + 1}`] = templateValue(val);
       }
     });
   }
@@ -648,28 +660,68 @@ A parent in your nearby area is looking for a home tutor. Based on your profile,
 
 ⚠️ _Parent contact details will be shared only after you are selected and assigned._
 
-Are you *interested* in this tuition assignment?
+Are you *available* for this tuition assignment?
 
-👉 Reply *INTERESTED* to accept
-👉 Reply *NOT INTERESTED* if unavailable`;
+👉 Reply *AVAILABLE* to accept
+👉 Reply *NOT AVAILABLE* if you cannot take it`;
 }
 
 /**
- * Build template variable mapping for tutor requirement notification.
- * Maps to {{1}}–{{9}} in the Odoo WhatsApp template `tutor_requirement_v3`.
+ * Template variables for the tutor invite, template `tutor_requirement_v4`.
+ * Numbered in the order they appear in the message:
  *
- * Template expects:
- *   {{1}} = Tutor Name
- *   {{2}} = Grade
- *   {{3}} = Board
+ *   {{1}} = Tutor name
+ *   {{2}} = Monthly fee
+ *   {{3}} = Grade with board, "Class 8 (CBSE)"
  *   {{4}} = Subjects
- *   {{5}} = Location (Area, City)
- *   {{6}} = Preferred Timing
- *   {{7}} = Sessions/Week
- *   {{8}} = Expected Fees
- *   {{9}} = Requirement ID
+ *   {{5}} = Location (area, city, pincode)
+ *   {{6}} = Preferred time
+ *   {{7}} = Classes per week
+ *   {{8}} = Reference (requirement) ID
+ *   {{9}} = Parent name
+ *
+ * ("Shortlisting closes by EOD" is fixed text in the template.)
+ * Odoo's sender has only ten free-text slots (free_text_1..10), so a
+ * template can never take more than ten of these.
+ *
+ * v3 also had nine variables, but in a different order: senders get the
+ * right template and builder together from chooseRequirementTemplate().
  */
 export function buildRequirementTemplateVars(tutorName, lead, ward) {
+  const grade = ward?.classGrade ? `Class ${ward.classGrade}` : "N/A";
+  const board = ward?.curriculum || "";
+  const subjects = Array.isArray(ward?.subjectsNeeded)
+    ? ward.subjectsNeeded.join(", ")
+    : (ward?.subjectsNeeded || "N/A");
+  const timing = lead.preferredTime || "N/A";
+  const sessionsPerWeek = lead.sessionsPerWeek || lead.frequency || "N/A";
+  const area = lead.area || "";
+  const city = lead.city || lead.geoInfo?.city || "";
+  const pincode = lead.pincode || "";
+  const locationStr = [area, city, pincode].filter(Boolean).join(", ") || "N/A";
+  const budget = lead.monthlyFees ? `₹${lead.monthlyFees}/month` : "Negotiable";
+  const reqId = lead.requirementId || "N/A";
+
+  return {
+    free_text_1: tutorName || "Tutor",
+    free_text_2: budget,
+    free_text_3: board ? `${grade} (${board})` : grade,
+    free_text_4: subjects,
+    free_text_5: locationStr,
+    free_text_6: timing,
+    free_text_7: String(sessionsPerWeek),
+    free_text_8: reqId,
+    free_text_9: lead.parentName || "N/A",
+  };
+}
+
+/**
+ * Template variables for the previous invite template, `tutor_requirement_v3`:
+ *   {{1}} tutor name, {{2}} grade, {{3}} board, {{4}} subjects,
+ *   {{5}} location, {{6}} timing, {{7}} sessions/week, {{8}} fees, {{9}} req ID
+ * Kept so invites keep going out on v3 while v4 waits for Meta's approval.
+ */
+export function buildRequirementTemplateVarsV3(tutorName, lead, ward) {
   const grade = ward?.classGrade ? `Class ${ward.classGrade}` : "N/A";
   const board = ward?.curriculum || "N/A";
   const subjects = Array.isArray(ward?.subjectsNeeded)
@@ -695,6 +747,50 @@ export function buildRequirementTemplateVars(tutorName, lead, ward) {
     free_text_8: budget,
     free_text_9: reqId,
   };
+}
+
+export const REQUIREMENT_TEMPLATE_LEGACY = "tutor_requirement_v3";
+const TEMPLATE_CHECK_TTL_MS = 5 * 60 * 1000;
+let requirementChoice = null; // { at, value }
+
+/**
+ * Which invite template to send, and the matching variable builder.
+ *
+ * The new template (WHATSAPP_REQUIREMENT_TEMPLATE_NAME, default
+ * "tutor_requirement_v4") is used only once Odoo shows it approved. Until
+ * then invites keep going out on v3 with v3's variable order, so deploying
+ * this before Meta approves v4 does not stop a single invite — and the
+ * switch to v4 happens by itself, within five minutes of approval.
+ *
+ * `isApproved` is injectable so the choice can be tested without Odoo.
+ */
+export async function chooseRequirementTemplate({ isApproved, now = Date.now() } = {}) {
+  const preferred = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v4";
+  const legacy = { templateName: REQUIREMENT_TEMPLATE_LEGACY, buildVars: buildRequirementTemplateVarsV3 };
+  if (preferred === REQUIREMENT_TEMPLATE_LEGACY) return legacy;
+
+  if (!isApproved && requirementChoice && requirementChoice.name === preferred &&
+      now - requirementChoice.at < TEMPLATE_CHECK_TTL_MS) {
+    return requirementChoice.value;
+  }
+
+  let approved = false;
+  try {
+    approved = isApproved
+      ? await isApproved(preferred)
+      : await validateTemplate(await getOdooUid(), preferred);
+  } catch (err) {
+    console.error(`[WhatsApp] Could not check template "${preferred}":`, err.message);
+  }
+
+  const value = approved
+    ? { templateName: preferred, buildVars: buildRequirementTemplateVars }
+    : legacy;
+  if (!isApproved) requirementChoice = { name: preferred, at: now, value };
+  if (!approved) {
+    console.warn(`[WhatsApp] "${preferred}" is not approved yet; sending invites with "${REQUIREMENT_TEMPLATE_LEGACY}".`);
+  }
+  return value;
 }
 
 /**

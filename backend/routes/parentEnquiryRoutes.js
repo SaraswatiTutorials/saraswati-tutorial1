@@ -23,7 +23,8 @@ import {
   isPermanentFailure,
   getOdooUid,
   callOdooMethod,
-  buildRequirementTemplateVars,
+  buildRequirementTemplateVarsV3,
+  chooseRequirementTemplate,
 } from "../utils/whatsappService.js";
 import {
   buildCentralizedQuery,
@@ -1020,17 +1021,18 @@ router.post("/:id/broadcast", verifyToken(["admin"]), async (req, res) => {
           continue;
         }
 
-        // Use admin-selected template ID if provided, otherwise fall back to env default name
-        const templateName = templateId
-          ? String(templateId)
-          : (process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v3");
+        // An admin-selected template ID is sent with v3's variable order, as
+        // before. Otherwise v4 once approved, v3 until then.
+        const chosen = templateId ? null : await chooseRequirementTemplate();
+        const templateName = templateId ? String(templateId) : chosen.templateName;
+        const buildVars = templateId ? buildRequirementTemplateVarsV3 : chosen.buildVars;
 
         const sendResult = await sendWhatsAppToTutor({
           phoneNumber: whatsappNumber,
           messageBody,
           templateName,
           templateLang: "en",
-          templateVars: buildRequirementTemplateVars(tutor.name, lead, firstWard),
+          templateVars: buildVars(tutor.name, lead, firstWard),
           ...(templateId ? { templateId: Number(templateId) } : {}),
         });
 
@@ -1085,6 +1087,9 @@ router.post("/:id/assign-tutor", verifyToken(["admin"]), async (req, res) => {
     const tutor = await Tutor.findById(tutorId);
     if (!tutor) return res.status(404).json({ message: "Tutor not found." });
 
+    // Pressing Assign again for the same tutor must not message them again.
+    const alreadyAssignedHere = String(lead.assignedTutorId || "") === String(tutor._id);
+
     // Update MongoDB lead
     lead.assignedTutor = tutor.name;
     lead.assignedTutorId = tutor._id;
@@ -1131,13 +1136,25 @@ router.post("/:id/assign-tutor", verifyToken(["admin"]), async (req, res) => {
       }
     }
 
-    // Auto-send parent details to tutor via WhatsApp
+    // A tutor is told they were picked only when the PARENT picks them from
+    // the top 3 (select-tutor). Assigning from the dashboard records the
+    // assignment and messages nobody: on 4 Nov 2026 three presses of Assign,
+    // with no demo date, sent a tutor three "demo" messages carrying the
+    // template's sample date. ASSIGN_TUTOR_SENDS_WHATSAPP=true restores the
+    // old message, and even then only with a real demo date and only once.
     const firstWard = lead.wards?.[0] || {};
     const whatsappNumber = tutor.whatsapp || tutor.phone || "";
     let parentDetailsSent = false;
     let parentDetailsError = "";
+    const sendingEnabled = String(process.env.ASSIGN_TUTOR_SENDS_WHATSAPP || "").toLowerCase() === "true";
 
-    if (whatsappNumber) {
+    if (!sendingEnabled) {
+      parentDetailsError = "Not sent: the tutor is messaged only when the parent selects them from the top 3";
+    } else if (!demoDate || !demoTime) {
+      parentDetailsError = "Not sent: a demo date and time are needed before the tutor is told";
+    } else if (alreadyAssignedHere) {
+      parentDetailsError = "Not sent: this tutor was already assigned to this enquiry";
+    } else if (whatsappNumber) {
       try {
         const assignmentMsg = buildAssignmentMessage(tutor.name, lead, firstWard, demoDate, demoTime);
         // Inside the 24h window the full message above is sent as-is. Outside it,
@@ -1177,6 +1194,7 @@ router.post("/:id/assign-tutor", verifyToken(["admin"]), async (req, res) => {
       lead,
       parentDetailsSent,
       parentDetailsError,
+      whatsappEnabled: sendingEnabled,
     });
   } catch (error) {
     console.error("Assign tutor error:", error);
@@ -1711,7 +1729,7 @@ router.post("/webhook/whatsapp-reply", async (req, res) => {
       "busy", "later", "unavailable", "mat karo", "band karo", "cancel",
     ];
     const INTERESTED_KEYWORDS = [
-      "interested", "yes", "accept", "ok", "okay", "confirm",
+      "interested", "available", "yes", "accept", "ok", "okay", "confirm",
       "ji", "haan", "han", "ha", "chalega", "bilkul", "zaroor", "theek",
     ];
 
@@ -2011,14 +2029,15 @@ async function autoBroadcastTutorsForLead(leadData) {
           continue;
         }
 
-        const templateName = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v3";
+        // v4 once approved, v3 (with v3's variable order) until then.
+        const { templateName, buildVars } = await chooseRequirementTemplate();
 
         const sendResult = await sendWhatsAppToTutor({
           phoneNumber: whatsappNumber,
           messageBody,
           templateName,
           templateLang: "en",
-          templateVars: buildRequirementTemplateVars(tutor.name, lead, firstWard),
+          templateVars: buildVars(tutor.name, lead, firstWard),
         });
 
         await BroadcastLog.findByIdAndUpdate(log._id, {
