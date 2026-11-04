@@ -348,6 +348,12 @@ function buildSuggestionValues(parentEnquiries) {
   return [...new Set(values.filter(Boolean).map((v) => String(v).trim()))];
 }
 
+// The dashboard is for viewing. Nobody sends WhatsApp or email to tutors or
+// parents from here: invites go out automatically, the parent picks from the
+// top 3, and the chosen tutor is told automatically. The Send WhatsApp /
+// Send Email / Retry buttons are hidden unless VITE_DASHBOARD_CAN_SEND=true.
+const DASHBOARD_CAN_SEND = String(import.meta.env.VITE_DASHBOARD_CAN_SEND || "").toLowerCase() === "true";
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
 
@@ -964,6 +970,10 @@ export default function AdminDashboard() {
   };
 
   const handleSendBroadcast = async () => {
+    if (!DASHBOARD_CAN_SEND) {
+      alert("Sending from the dashboard is turned off. Tutors are invited automatically, and a tutor is told they were selected only when the parent picks them from the top 3.");
+      return;
+    }
     if (selectedTutorIds.length === 0 || !matchingLeadId) return;
     setSendingBroadcast(true);
     setBroadcastResults([]);
@@ -1029,9 +1039,13 @@ export default function AdminDashboard() {
 
       if (res.ok) {
         const data = await res.json();
+        // Assigning here only records it; the tutor gets a WhatsApp message
+        // only when the parent picks them from the top 3.
         const msg = data.parentDetailsSent
           ? "✅ Tutor assigned! Parent details sent via WhatsApp."
-          : `✅ Tutor assigned! (WhatsApp not sent: ${data.parentDetailsError || "unknown reason"})`;
+          : data.whatsappEnabled === false
+            ? "✅ Tutor assigned. No WhatsApp was sent — the tutor is messaged only when the parent selects them from the top 3."
+            : `✅ Tutor assigned! (WhatsApp not sent: ${data.parentDetailsError || "unknown reason"})`;
         alert(msg);
         fetchData();
         fetchBroadcastLogs();
@@ -3111,6 +3125,7 @@ export default function AdminDashboard() {
                                     {/* Action dropdown/buttons */}
                                     {selectedTutorIds.length > 0 && (
                                       <>
+                                        {DASHBOARD_CAN_SEND && (<>
                                         <button
                                           onClick={() => {
                                             setBroadcastType("whatsapp");
@@ -3134,6 +3149,7 @@ export default function AdminDashboard() {
                                         >
                                           Send Email ({selectedTutorIds.length})
                                         </button>
+                                        </>)}
                                         {selectedTutorIds.length === 1 && (
                                           <button
                                             onClick={() => {
@@ -4393,7 +4409,7 @@ export default function AdminDashboard() {
                                 </select>
                               </td>
                               <td className="p-3">
-                                {log.status === "Failed" && log.retryCount < 3 && (
+                                {DASHBOARD_CAN_SEND && log.status === "Failed" && log.retryCount < 3 && (
                                   <button
                                     onClick={async () => {
                                       const token = localStorage.getItem("adminToken");

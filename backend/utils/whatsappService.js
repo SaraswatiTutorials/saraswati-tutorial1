@@ -270,6 +270,18 @@ async function findActiveConversation(uid, phoneNumber) {
  * Verify template existence and approval status in Odoo.
  * Returns true if template exists and is approved, false otherwise.
  */
+/**
+ * A value for one {{n}} of a template. Never empty: when a value is empty,
+ * Odoo silently sends the template's SAMPLE value in its place — that is how
+ * a tutor was told of a demo on "Sat, 1 Nov 2026 at 5:00 PM", a date nobody
+ * chose. A dash says plainly that the value is missing.
+ */
+export const EMPTY_TEMPLATE_VALUE = "—";
+export function templateValue(val) {
+  const s = val == null ? "" : String(val).trim();
+  return s || EMPTY_TEMPLATE_VALUE;
+}
+
 export async function validateTemplate(uid, templateIdentifier) {
   try {
     let domain;
@@ -434,7 +446,7 @@ async function sendTemplateMessage(uid, phoneNumber, templateName, templateLang,
 
     standardValues.forEach((val, idx) => {
       if (idx < 10) {
-        composerPayload[`free_text_${idx + 1}`] = String(val);
+        composerPayload[`free_text_${idx + 1}`] = templateValue(val);
       }
     });
   }
