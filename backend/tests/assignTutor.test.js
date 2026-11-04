@@ -43,7 +43,10 @@ before(() => {
     },
   });
   mock.module(modulePath("utils/tutorOptionsMessage.js"), {
-    namedExports: { buildTutorOptions: () => ({}), sendTutorOptions: noop },
+    namedExports: {
+      buildTutorOptions: () => ({}), sendTutorOptions: noop,
+      buildTutorCard: () => ({ templateVars: {}, messageBody: "" }), TUTOR_CARD_TEMPLATE: "tutor_option_card_1",
+    },
   });
   mock.module(modulePath("utils/topThreeScheduler.js"), { namedExports: { WAIT_HOURS: 7 } });
   mock.module(modulePath("utils/matchingEngine.js"), {

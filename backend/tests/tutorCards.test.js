@@ -25,7 +25,7 @@ test("every tutor gets a card, photo or not, and no card carries a picture", asy
   assert.equal(sent.length, 3);
   for (const s of sent) {
     assert.equal(s.headerImageUrl, undefined);
-    assert.equal(s.templateName, "tutor_option_card");
+    assert.equal(s.templateName, "tutor_option_card_1");
   }
 });
 

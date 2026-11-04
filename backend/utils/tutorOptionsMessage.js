@@ -67,6 +67,13 @@ export function buildTutorOptions(lead, tutors) {
   return { offered, templateName, templateVars, messageBody };
 }
 
+/**
+ * Odoo template for the option cards: Template Name "tutor_option_card_1"
+ * (Applies to: Lead, Header Type: None, four variables), created 4 Nov 2026
+ * to replace "tutor_option_card", which had a photo header.
+ */
+export const TUTOR_CARD_TEMPLATE = "tutor_option_card_1";
+
 /** The card's text and its template values; no photo (removed 4 Nov 2026). */
 export function buildTutorCard(t, position, total) {
   const distance = t?.distanceKm != null ? `${t.distanceKm} km` : "";
@@ -83,7 +90,9 @@ export function buildTutorCard(t, position, total) {
       `*Tutor Option ${position} of ${total}*\n\n*${t?.name || ""}*\n\n` +
       `Experience: ${t?.experience || ""}\n` +
       `Distance: ${distance} from your location\n\n` +
-      `*This tutor has been shortlisted for your registered tuition requirement.*`,
+      `*This tutor has been shortlisted for your registered tuition requirement.*\n\n` +
+      `You will receive all ${total} shortlisted profile${total === 1 ? "" : "s"}. ` +
+      `Please review the options and select your preferred tutor through the selection message.`,
   };
 }
 
@@ -91,15 +100,15 @@ export function buildTutorCard(t, position, total) {
  * One card per tutor, sent just before the list the parent chooses from.
  *
  * Cards carry NO profile picture (the owner's decision, 4 Nov 2026), so every
- * offered tutor gets a card, photo or not, and the Odoo template
- * "tutor_option_card" must have Header Type: None. Without a picture the card
- * can also go as plain text inside WhatsApp's 24-hour window.
+ * offered tutor gets a card, photo or not (template TUTOR_CARD_TEMPLATE,
+ * Header Type: None). Without a picture the card can also go as plain text
+ * inside WhatsApp's 24-hour window.
  */
 export async function sendTutorCards(lead, tutors) {
   const offered = (tutors || []).slice(0, 3);
   const phoneNumber = lead?.phone || "";
   const templateName =
-    process.env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || "tutor_option_card";
+    process.env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || TUTOR_CARD_TEMPLATE;
   if (!phoneNumber) return { sent: 0, skipped: offered.length, results: [] };
 
   const results = [];

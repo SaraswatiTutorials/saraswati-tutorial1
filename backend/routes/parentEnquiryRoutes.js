@@ -13,7 +13,7 @@ import TutorRegistrationDraft from "../models/TutorRegistrationDraft.js";
 import Enquiry from "../models/Enquiry.js";
 import Booking from "../models/Booking.js";
 import BroadcastLog from "../models/BroadcastLog.js";
-import { buildTutorOptions, sendTutorOptions } from "../utils/tutorOptionsMessage.js";
+import { buildTutorOptions, sendTutorOptions, buildTutorCard, TUTOR_CARD_TEMPLATE } from "../utils/tutorOptionsMessage.js";
 import { WAIT_HOURS } from "../utils/topThreeScheduler.js";
 import {
   sendWhatsAppToTutor,
@@ -1308,11 +1308,12 @@ router.post("/:id/send-tutor-cards", verifyToken(["admin"]), async (req, res) =>
     }
 
     const offered = tutors.slice(0, 3);
+    // Same template and wording as the automatic send (tutorOptionsMessage.js).
     const templateName =
-      process.env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || "tutor_option_card";
+      process.env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || TUTOR_CARD_TEMPLATE;
 
-    // The caller may pass a bare name and code; the photo and the rest come
-    // from the tutor's own record when they are not supplied.
+    // The caller may pass a bare name and code; the rest comes from the
+    // tutor's own record when it is not supplied.
     const codes = offered.map((t) => t?.tutorCode).filter(Boolean);
     const stored = codes.length
       ? await Tutor.find({ tutorCode: { $in: codes } })
@@ -1323,25 +1324,19 @@ router.post("/:id/send-tutor-cards", verifyToken(["admin"]), async (req, res) =>
 
     const cards = offered.map((t, idx) => {
       const record = byCode.get(t?.tutorCode) || {};
+      // The subject is deliberately absent: a tutor is matched on distance,
+      // experience and occupation, so showing it would mislead the parent.
+      const { templateVars, messageBody } = buildTutorCard({
+        name: t?.name || record.name || "",
+        experience: t?.experience || record.experience || "",
+        distanceKm: t?.distanceKm,
+      }, idx + 1, offered.length);
       return {
         position: idx + 1,
         tutorCode: t?.tutorCode || "",
         name: t?.name || record.name || "",
-        photo: t?.photo || record.photo || "",
-        // Values map to free_text_1..4, i.e. {{1}}..{{4}}, in this order.
-        // The subject is deliberately absent: a tutor is matched on distance,
-        // experience and occupation, so showing it would mislead the parent.
-        templateVars: {
-          position: String(idx + 1),
-          tutor_name: t?.name || record.name || "",
-          experience: t?.experience || record.experience || "",
-          distance: t?.distanceKm != null ? `${t.distanceKm} km` : "",
-        },
-        messageBody:
-          `Tutor option ${idx + 1} of ${offered.length}\n\n` +
-          `${t?.name || record.name || ""}\n` +
-          `Experience: ${t?.experience || record.experience || ""}\n` +
-          `Distance: ${t?.distanceKm != null ? `${t.distanceKm} km` : ""} from your location`,
+        templateVars,
+        messageBody,
       };
     });
 
@@ -1353,7 +1348,6 @@ router.post("/:id/send-tutor-cards", verifyToken(["admin"]), async (req, res) =>
         phoneNumber,
         templateName,
         cards,
-        withoutPhoto: cards.filter((c) => !c.photo).map((c) => c.name),
       });
     }
 
