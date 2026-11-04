@@ -367,7 +367,7 @@ class BroadcastService {
       console.warn(`[BroadcastService] Could not fetch sign link for ${tutor.name}: ${signErr.message}`);
     }
 
-    const templateName = process.env.WHATSAPP_ONBOARDING_TEMPLATE_NAME || "Tutor Agreement";
+    const templateName = process.env.WHATSAPP_ONBOARDING_TEMPLATE_NAME || "tutor_agreement";
     const sendResult = await sendWhatsAppToTutor({
       phoneNumber:  whatsappNumber,
       messageBody,

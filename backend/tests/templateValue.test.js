@@ -15,3 +15,10 @@ test("real values pass through unchanged (trimmed), numbers as text", () => {
   assert.equal(templateValue(3), "3");
   assert.equal(templateValue(0), "0");
 });
+
+import { templateLookupDomain } from "../utils/whatsappService.js";
+
+test("templates are found by display Name OR Template Name, so renames in Odoo do not break sending", () => {
+  assert.deepEqual(templateLookupDomain("demo_confirmation_tutor"),
+    ["|", ["name", "=", "demo_confirmation_tutor"], ["template_name", "=", "demo_confirmation_tutor"]]);
+});

@@ -118,3 +118,43 @@ test("if sending is switched back on: once per tutor, not on every press", async
   assert.equal(sent.length, 1);
   assert.equal(sent[0].templateVars.demo_slot, "2026-11-10 at 17:00");
 });
+
+// ── select-tutor: the automatic message when the PARENT picks from the top 3 ──
+let selectHandler;
+async function select(body) {
+  if (!selectHandler) {
+    const { default: router } = await import(modulePath("routes/parentEnquiryRoutes.js"));
+    const layer = router.stack.find((l) => l.route?.path === "/:id/select-tutor" && l.route.methods.post);
+    selectHandler = layer.route.stack.at(-1).handle;
+  }
+  const res = {
+    statusCode: 200, payload: null,
+    status(c) { this.statusCode = c; return this; },
+    json(d) { this.payload = d; return this; },
+  };
+  await selectHandler({ params: { id: "lead-1" }, body }, res);
+  return res;
+}
+
+test("select-tutor fills demo_confirmation_tutor's five slots in order (subject is not the location)", async () => {
+  delete process.env.WHATSAPP_SELECTION_TEMPLATE_NAME;
+  const res = await select({ tutorId: "tutor-1" });
+  assert.equal(res.statusCode, 200);
+  assert.equal(sent.length, 1); // mocked: nothing leaves the test
+  assert.equal(sent[0].templateName, "demo_confirmation_tutor");
+  assert.deepEqual(Object.values(sent[0].templateVars), [
+    "Test Tutor",   // {{1}}
+    "REQ-TEST",     // {{2}} ID
+    "Grade 10",     // {{3}}
+    "Mathematics",  // {{4}} subject
+    "Area, City",   // {{5}} location
+  ]);
+  assert.match(sent[0].messageBody, /^Hello \*Test Tutor's - Demo Selection Update!\*/);
+  assert.match(sent[0].messageBody, /The parent \*\(ID - REQ-TEST\)\*/);
+});
+
+test("select-tutor pressed twice for the same tutor tells them once", async () => {
+  await select({ tutorId: "tutor-1" });
+  await select({ tutorId: "tutor-1" });
+  assert.equal(sent.length, 1);
+});

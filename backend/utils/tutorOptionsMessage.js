@@ -33,12 +33,18 @@ export function buildTutorOptions(lead, tutors) {
     : (ward.subjectsNeeded || "");
 
   const offered = (tutors || []).slice(0, 3);
+  // Odoo: Template Name "tutor_options_for_parent" (found by that even when
+  // the display Name changes). Re-approved 4 Nov 2026 with seven variables:
+  //   Dear Mr./Ms. {{1}}, ... Student's name: {{2}} / Grade: {{3}} /
+  //   Subject(s): {{4}} ... 1. {{5}}  2. {{6}}  3. {{7}}
+  // and the Tutor 1 / 2 / 3 buttons the parent taps.
   const templateName =
-    process.env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME || "Tutor Options For Parent";
+    process.env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME || "tutor_options_for_parent";
 
-  // Values map to free_text_1..6, i.e. {{1}}..{{6}}, in this order.
+  // Values map to free_text_1..7, i.e. {{1}}..{{7}}, in this order.
   const templateVars = {
     parent_name: lead?.parentName || "",
+    student_name: ward.studentName || UNUSED_SLOT,
     grade,
     subjects,
     option_1: offered[0] ? describeTutor(offered[0]) : UNUSED_SLOT,
@@ -46,16 +52,17 @@ export function buildTutorOptions(lead, tutors) {
     option_3: offered[2] ? describeTutor(offered[2]) : UNUSED_SLOT,
   };
 
-  const choiceLine = offered.length === 1
-    ? "Please reply 1 to confirm this tutor."
-    : `Please reply with the number of your preferred tutor (1-${offered.length}).`;
-
+  // Free-text version, worded like the template. The scheduler always sends
+  // the template (the buttons live there); this is what a dry run shows.
   const messageBody =
-    `Hello Mr./Ms. ${lead?.parentName || ""},\n\n` +
-    `We have shortlisted ${offered.length} tutor(s) for your requirement.\n\n` +
+    `Dear Mr./Ms. ${templateVars.parent_name},\n\n` +
+    `Your tuition requirement has been reviewed, and the following tutors have been ` +
+    `shortlisted based on the submitted requirements.\n\n` +
+    `Student's name: ${templateVars.student_name}\n` +
     `Grade: ${grade}\nSubject(s): ${subjects}\n\n` +
-    offered.map((t, i) => `${i + 1}) ${describeTutor(t)}`).join("\n") +
-    `\n\n${choiceLine}`;
+    `Shortlisted Tutors\n\n` +
+    offered.map((t, i) => `${i + 1}. ${describeTutor(t)}`).join("\n") +
+    `\n\nOnce we receive your selection, our team will coordinate the demo schedule with the chosen tutor.`;
 
   return { offered, templateName, templateVars, messageBody };
 }
@@ -72,7 +79,7 @@ export async function sendTutorCards(lead, tutors) {
   const offered = (tutors || []).slice(0, 3);
   const phoneNumber = lead?.phone || "";
   const templateName =
-    process.env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || "Tutor Option Card";
+    process.env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || "tutor_option_card";
   if (!phoneNumber) return { sent: 0, skipped: offered.length, results: [] };
 
   const results = [];

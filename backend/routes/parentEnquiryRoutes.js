@@ -1309,7 +1309,7 @@ router.post("/:id/send-tutor-cards", verifyToken(["admin"]), async (req, res) =>
 
     const offered = tutors.slice(0, 3);
     const templateName =
-      process.env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || "Tutor Option Card";
+      process.env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || "tutor_option_card";
 
     // The caller may pass a bare name and code; the photo and the rest come
     // from the tutor's own record when they are not supplied.
@@ -1452,23 +1452,33 @@ router.post("/:id/select-tutor", verifyToken(["admin"]), async (req, res) => {
       ? firstWard.subjectsNeeded.join(", ")
       : (firstWard.subjectsNeeded || "");
     const whatsappNumber = tutor.whatsapp || tutor.phone || "";
+    // Odoo template: Template Name "demo_confirmation_tutor" (display Name
+    // "Demo Confirmation Tutor"; matched by either). Five variables, 4 Nov 2026:
+    //   Hello *{{1}}'s - Demo Selection Update!*
+    //   The parent *(ID - {{2}})* has selected your profile ...
+    //   Grade: {{3}} / Subject(s): {{4}} / Location: {{5}}
     const templateName =
-      process.env.WHATSAPP_SELECTION_TEMPLATE_NAME || "tutor_selected_v1";
+      process.env.WHATSAPP_SELECTION_TEMPLATE_NAME || "demo_confirmation_tutor";
 
-    // Values map to free_text_1..4, i.e. {{1}}..{{4}}, in this order.
+    // Values map to free_text_1..5, i.e. {{1}}..{{5}}, in this order.
     const templateVars = {
       tutor_name: tutor.name || "",
+      requirement_id: lead.requirementId || "",
       grade: firstWard.classGrade ? `Grade ${firstWard.classGrade}` : "",
       subjects,
       location: [lead.area, lead.city].filter(Boolean).join(", "),
     };
 
+    // Sent instead of the template inside WhatsApp's 24-hour window; worded
+    // like the template.
     const messageBody =
-      `Hello ${tutor.name || ""},\n\n` +
-      `Good news. The parent has selected you for this tuition requirement.\n\n` +
+      `Hello *${templateVars.tutor_name}'s - Demo Selection Update!*\n\n` +
+      `The parent *(ID - ${templateVars.requirement_id})* has selected your profile ` +
+      `for the following tuition requirement.\n\n` +
       `Grade: ${templateVars.grade}\nSubject(s): ${subjects}\n` +
       `Location: ${templateVars.location}\n\n` +
-      `Our team will contact you shortly to arrange the demo class.`;
+      `Your selection is confirmed at the shortlisting stage.\n\n` +
+      `*Our coordination team will contact you to confirm the demo schedule.*`;
 
     if (dryRun) {
       return res.json({
