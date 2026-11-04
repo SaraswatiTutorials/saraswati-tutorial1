@@ -282,21 +282,36 @@ export function templateValue(val) {
   return s || EMPTY_TEMPLATE_VALUE;
 }
 
+/**
+ * Odoo search for a template by the name the code uses. It matches the
+ * display Name OR the Template Name (Meta's name), because staff rename the
+ * display Name in Odoo: on 4 Nov 2026 "tutor_selected_v1" became
+ * "demo_confirmation_tutor" and the selection message could no longer be
+ * found. Approved first, so a draft copy with the same Name never wins.
+ */
+export function templateLookupDomain(templateName) {
+  return ["|", ["name", "=", templateName], ["template_name", "=", templateName]];
+}
+
 export async function validateTemplate(uid, templateIdentifier) {
   try {
     let domain;
     if (typeof templateIdentifier === "number") {
       domain = [["id", "=", templateIdentifier]];
     } else {
-      domain = [["name", "=", templateIdentifier]];
+      domain = templateLookupDomain(templateIdentifier);
     }
-    const templates = await callOdooMethod(
+    const found = await callOdooMethod(
       uid,
       "whatsapp.template",
       "search_read",
       [domain],
-      { fields: ["id", "status"], limit: 1 }
+      { fields: ["id", "status"], limit: 10 }
     );
+    // Any approved match will do; otherwise report the first match's status.
+    const templates = found && found.length
+      ? [found.find((t) => t.status === "approved") || found[0]]
+      : found;
     if (!templates || templates.length === 0) {
       console.warn(`[WhatsApp Validation] Template "${templateIdentifier}" does not exist in Odoo.`);
       return false;
@@ -393,7 +408,7 @@ async function sendTemplateMessage(uid, phoneNumber, templateName, templateLang,
       uid,
       "whatsapp.template",
       "search_read",
-      [[["name", "=", templateName], ["status", "=", "approved"]]],
+      [[...templateLookupDomain(templateName), ["status", "=", "approved"]]],
       { fields: ["id", "name", "body", "model"], limit: 1 }
     );
 
@@ -667,7 +682,7 @@ Are you *available* for this tuition assignment?
 }
 
 /**
- * Template variables for the tutor invite, template `tutor_requirement_v4`.
+ * Template variables for the tutor invite, template `tutor_broadcast_v4`.
  * Numbered in the order they appear in the message:
  *
  *   {{1}} = Tutor name
@@ -753,43 +768,83 @@ export const REQUIREMENT_TEMPLATE_LEGACY = "tutor_requirement_v3";
 const TEMPLATE_CHECK_TTL_MS = 5 * 60 * 1000;
 let requirementChoice = null; // { at, value }
 
+const firstApprovedCache = new Map(); // names.join("|") -> { at, name }
+
+/**
+ * The first of `names` that Odoo shows approved, re-checked every five
+ * minutes. For a template being replaced by a new one with the SAME
+ * variables: the new one is used as soon as Meta approves it, the old one
+ * until then. If none is approved, the first name is returned and the send
+ * reports why it failed. `isApproved` is injectable for tests.
+ */
+export async function firstApprovedTemplate(names, { isApproved, now = Date.now() } = {}) {
+  const key = names.join("|");
+  const hit = firstApprovedCache.get(key);
+  if (!isApproved && hit && now - hit.at < TEMPLATE_CHECK_TTL_MS) return hit.name;
+  let chosen = names[0];
+  for (const name of names) {
+    let ok = false;
+    try {
+      ok = isApproved ? await isApproved(name) : await validateTemplate(await getOdooUid(), name);
+    } catch (err) {
+      console.error(`[WhatsApp] Could not check template "${name}":`, err.message);
+    }
+    if (ok) { chosen = name; break; }
+  }
+  if (chosen !== names[0]) console.warn(`[WhatsApp] "${names[0]}" is not approved yet; using "${chosen}".`);
+  if (!isApproved) firstApprovedCache.set(key, { at: now, name: chosen });
+  return chosen;
+}
+
+// Odoo: display Name "tutor_broadcast_V4", Template Name "tutor_broadcast_v4".
+export const REQUIREMENT_TEMPLATE_NEW = "tutor_broadcast_v4";
+
 /**
  * Which invite template to send, and the matching variable builder.
  *
- * The new template (WHATSAPP_REQUIREMENT_TEMPLATE_NAME, default
- * "tutor_requirement_v4") is used only once Odoo shows it approved. Until
- * then invites keep going out on v3 with v3's variable order, so deploying
- * this before Meta approves v4 does not stop a single invite — and the
- * switch to v4 happens by itself, within five minutes of approval.
+ * Tries the preferred template (WHATSAPP_REQUIREMENT_TEMPLATE_NAME, default
+ * v4) and, if Odoo does not show it approved, the other one (v4 <-> v3).
+ * Whichever is approved is used, with ITS variable order. So invites keep
+ * going whether v4 is still pending, or v3 has been archived (as on
+ * 4 Nov 2026), or the env var still says v3. The answer is re-checked every
+ * five minutes. If neither is approved the preferred one is returned and
+ * the send reports why it failed.
  *
  * `isApproved` is injectable so the choice can be tested without Odoo.
  */
 export async function chooseRequirementTemplate({ isApproved, now = Date.now() } = {}) {
-  const preferred = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v4";
-  const legacy = { templateName: REQUIREMENT_TEMPLATE_LEGACY, buildVars: buildRequirementTemplateVarsV3 };
-  if (preferred === REQUIREMENT_TEMPLATE_LEGACY) return legacy;
+  const preferred = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || REQUIREMENT_TEMPLATE_NEW;
+  const other = preferred === REQUIREMENT_TEMPLATE_LEGACY ? REQUIREMENT_TEMPLATE_NEW : REQUIREMENT_TEMPLATE_LEGACY;
+  const option = (name) => ({
+    templateName: name,
+    buildVars: name === REQUIREMENT_TEMPLATE_LEGACY ? buildRequirementTemplateVarsV3 : buildRequirementTemplateVars,
+  });
 
   if (!isApproved && requirementChoice && requirementChoice.name === preferred &&
       now - requirementChoice.at < TEMPLATE_CHECK_TTL_MS) {
     return requirementChoice.value;
   }
 
-  let approved = false;
-  try {
-    approved = isApproved
-      ? await isApproved(preferred)
-      : await validateTemplate(await getOdooUid(), preferred);
-  } catch (err) {
-    console.error(`[WhatsApp] Could not check template "${preferred}":`, err.message);
-  }
+  const check = async (name) => {
+    try {
+      return isApproved ? await isApproved(name) : await validateTemplate(await getOdooUid(), name);
+    } catch (err) {
+      console.error(`[WhatsApp] Could not check template "${name}":`, err.message);
+      return false;
+    }
+  };
 
-  const value = approved
-    ? { templateName: preferred, buildVars: buildRequirementTemplateVars }
-    : legacy;
-  if (!isApproved) requirementChoice = { name: preferred, at: now, value };
-  if (!approved) {
-    console.warn(`[WhatsApp] "${preferred}" is not approved yet; sending invites with "${REQUIREMENT_TEMPLATE_LEGACY}".`);
+  let value;
+  if (await check(preferred)) {
+    value = option(preferred);
+  } else if (await check(other)) {
+    console.warn(`[WhatsApp] "${preferred}" is not approved; sending invites with "${other}".`);
+    value = option(other);
+  } else {
+    console.error(`[WhatsApp] Neither "${preferred}" nor "${other}" is approved; invites will fail.`);
+    value = option(preferred);
   }
+  if (!isApproved) requirementChoice = { name: preferred, at: now, value };
   return value;
 }
 

@@ -56,6 +56,7 @@ before(async () => {
       callOdooMethod: noop, buildRequirementTemplateVars: () => ({}),
       buildRequirementTemplateVarsV3: () => ({}),
       chooseRequirementTemplate: async () => ({ templateName: "tutor_requirement_v3", buildVars: () => ({}) }),
+      firstApprovedTemplate: async (names) => names[0],
     },
   });
   mock.module(modulePath("utils/matchingEngine.js"), {

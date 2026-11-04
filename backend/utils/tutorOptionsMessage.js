@@ -6,7 +6,17 @@
  * closes. One builder means one wording and one set of rules.
  */
 
-import { sendWhatsAppToTutor } from "./whatsappService.js";
+import { sendWhatsAppToTutor, firstApprovedTemplate } from "./whatsappService.js";
+
+/**
+ * Odoo templates for the parent's top-3 message, newest first. Both have the
+ * same seven variables in the same order and the Tutor 1 / 2 / 3 buttons:
+ *   Dear Mr./Ms. {{1}}, ... Students' name: {{2}} / Grade: {{3}} /
+ *   Subject(s): {{4}} ... 1. {{5}}  2. {{6}}  3. {{7}}
+ * "tutor_options_for_parent_working" (4 Nov 2026, bold wording) is used once
+ * Meta approves it; "tutor_options_for_parent" until then.
+ */
+export const TUTOR_OPTIONS_TEMPLATES = ["tutor_options_for_parent_working", "tutor_options_for_parent"];
 
 /** Meta rejects a template whose parameter is empty, so unused slots say this. */
 const UNUSED_SLOT = "—";
@@ -33,12 +43,15 @@ export function buildTutorOptions(lead, tutors) {
     : (ward.subjectsNeeded || "");
 
   const offered = (tutors || []).slice(0, 3);
+  // The preferred template; sendTutorOptions falls back to the older one
+  // while this one awaits approval (see TUTOR_OPTIONS_TEMPLATES).
   const templateName =
-    process.env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME || "Tutor Options For Parent";
+    process.env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME || TUTOR_OPTIONS_TEMPLATES[0];
 
-  // Values map to free_text_1..6, i.e. {{1}}..{{6}}, in this order.
+  // Values map to free_text_1..7, i.e. {{1}}..{{7}}, in this order.
   const templateVars = {
     parent_name: lead?.parentName || "",
+    student_name: ward.studentName || UNUSED_SLOT,
     grade,
     subjects,
     option_1: offered[0] ? describeTutor(offered[0]) : UNUSED_SLOT,
@@ -46,58 +59,73 @@ export function buildTutorOptions(lead, tutors) {
     option_3: offered[2] ? describeTutor(offered[2]) : UNUSED_SLOT,
   };
 
-  const choiceLine = offered.length === 1
-    ? "Please reply 1 to confirm this tutor."
-    : `Please reply with the number of your preferred tutor (1-${offered.length}).`;
-
+  // Free-text version, worded like the template. The scheduler always sends
+  // the template (the buttons live there); this is what a dry run shows.
   const messageBody =
-    `Hello Mr./Ms. ${lead?.parentName || ""},\n\n` +
-    `We have shortlisted ${offered.length} tutor(s) for your requirement.\n\n` +
+    `Dear Mr./Ms. ${templateVars.parent_name},\n\n` +
+    `Your tuition requirement has been reviewed, and the following tutors have been ` +
+    `shortlisted based on the submitted requirements.\n\n` +
+    `Student's name: ${templateVars.student_name}\n` +
     `Grade: ${grade}\nSubject(s): ${subjects}\n\n` +
-    offered.map((t, i) => `${i + 1}) ${describeTutor(t)}`).join("\n") +
-    `\n\n${choiceLine}`;
+    `Shortlisted Tutors\n\n` +
+    offered.map((t, i) => `${i + 1}. ${describeTutor(t)}`).join("\n") +
+    `\n\nOnce we receive your selection, our team will coordinate the demo schedule with the chosen tutor.`;
 
   return { offered, templateName, templateVars, messageBody };
 }
 
 /**
- * One card per tutor, each carrying that tutor's own photo as the header, sent
- * just before the list the parent chooses from. WhatsApp allows one image per
- * message, so three tutors means three messages.
+ * Odoo template for the option cards: Template Name "tutor_option_card_1"
+ * (Applies to: Lead, Header Type: None, four variables), created 4 Nov 2026
+ * to replace "tutor_option_card", which had a photo header.
+ */
+export const TUTOR_CARD_TEMPLATE = "tutor_option_card_1";
+
+/** The card's text and its template values; no photo (removed 4 Nov 2026). */
+export function buildTutorCard(t, position, total) {
+  const distance = t?.distanceKm != null ? `${t.distanceKm} km` : "";
+  return {
+    // Values map to free_text_1..4, i.e. {{1}}..{{4}}, in this order.
+    templateVars: {
+      position: String(position),
+      tutor_name: t?.name || "",
+      experience: t?.experience || "",
+      distance,
+    },
+    // Used instead of the template inside WhatsApp's 24-hour window.
+    messageBody:
+      `*Tutor Option ${position} of ${total}*\n\n*${t?.name || ""}*\n\n` +
+      `Experience: ${t?.experience || ""}\n` +
+      `Distance: ${distance} from your location\n\n` +
+      `*This tutor has been shortlisted for your registered tuition requirement.*\n\n` +
+      `You will receive all ${total} shortlisted profile${total === 1 ? "" : "s"}. ` +
+      `Please review the options and select your preferred tutor through the selection message.`,
+  };
+}
+
+/**
+ * One card per tutor, sent just before the list the parent chooses from.
  *
- * A tutor with no photo is skipped rather than sent a header-less card, which
- * the template would reject; they still appear in the list that follows.
+ * Cards carry NO profile picture (the owner's decision, 4 Nov 2026), so every
+ * offered tutor gets a card, photo or not (template TUTOR_CARD_TEMPLATE,
+ * Header Type: None). Without a picture the card can also go as plain text
+ * inside WhatsApp's 24-hour window.
  */
 export async function sendTutorCards(lead, tutors) {
   const offered = (tutors || []).slice(0, 3);
   const phoneNumber = lead?.phone || "";
   const templateName =
-    process.env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || "Tutor Option Card";
+    process.env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || TUTOR_CARD_TEMPLATE;
   if (!phoneNumber) return { sent: 0, skipped: offered.length, results: [] };
 
   const results = [];
   for (const [i, t] of offered.entries()) {
-    if (!t?.photo) {
-      results.push({ position: i + 1, name: t?.name || "", sent: false, skipped: true });
-      continue;
-    }
-    // Values map to free_text_1..4, i.e. {{1}}..{{4}}, in this order.
+    const { templateVars, messageBody } = buildTutorCard(t, i + 1, offered.length);
     const result = await sendWhatsAppToTutor({
       phoneNumber,
-      messageBody:
-        `Tutor option ${i + 1} of ${offered.length}\n\n${t.name || ""}\n` +
-        `Experience: ${t.experience || ""}\n` +
-        `Distance: ${t.distanceKm != null ? `${t.distanceKm} km` : ""} from your location`,
+      messageBody,
       templateName,
-      templateVars: {
-        position: String(i + 1),
-        tutor_name: t.name || "",
-        experience: t.experience || "",
-        distance: t.distanceKm != null ? `${t.distanceKm} km` : "",
-      },
-      headerImageUrl: t.photo,
-      // The header image can only travel on the template, never as free text.
-      forceTemplate: true,
+      templateVars,
     });
     results.push({
       position: i + 1, name: t.name || "", sent: result.success,
@@ -113,7 +141,12 @@ export async function sendTutorCards(lead, tutors) {
  * window — without this the parent would get a list with nothing to tap.
  */
 export async function sendTutorOptions(lead, tutors) {
-  const { offered, templateName, templateVars, messageBody } = buildTutorOptions(lead, tutors);
+  const built = buildTutorOptions(lead, tutors);
+  const { offered, templateVars, messageBody } = built;
+  // An env override is used as given; otherwise the newest approved template.
+  const templateName = process.env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME
+    ? built.templateName
+    : await firstApprovedTemplate(TUTOR_OPTIONS_TEMPLATES);
   const phoneNumber = lead?.phone || "";
   if (!phoneNumber) {
     return { sent: false, failureReason: "No phone number on this lead.", offered, templateName };

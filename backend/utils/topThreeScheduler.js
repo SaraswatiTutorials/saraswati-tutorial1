@@ -24,7 +24,7 @@ const SWEEP_MINUTES = Number(process.env.TOP3_SWEEP_MINUTES || 15);
 /** Give up after this many failed attempts, so a bad send is not retried forever. */
 export const MAX_ATTEMPTS =Number(process.env.TOP3_MAX_ATTEMPTS || 3);
 
-/** Send a photo card per tutor before the list. TOP3_PHOTO_CARDS=false turns it off. */
+/** Send an option card per tutor (no photo) before the list. TOP3_PHOTO_CARDS=false turns it off. */
 const SEND_PHOTO_CARDS = String(process.env.TOP3_PHOTO_CARDS || "true").toLowerCase() !== "false";
 
 /** Replies that mean "yes, I'll take it". */
@@ -134,12 +134,12 @@ export async function sweepTopThree({ send } = {}) {
     let error = "";
     let cards = null;
     try {
-      // The photo cards go first, so the parent can see who they are choosing
+      // The option cards go first, so the parent can see who they are choosing
       // between before the message that asks them to choose.
       if (SEND_PHOTO_CARDS) {
         cards = await sendTutorCards(item.lead, offered);
         console.log(
-          `[Top3] ${item.requirementId}: ${cards.sent} of ${offered.length} photo cards sent`
+          `[Top3] ${item.requirementId}: ${cards.sent} of ${offered.length} option cards sent`
         );
       }
       result = await send(item.lead, offered);
