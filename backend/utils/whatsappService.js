@@ -796,25 +796,32 @@ export async function firstApprovedTemplate(names, { isApproved, now = Date.now(
   return chosen;
 }
 
-// Odoo: display Name "tutor_broadcast_V4", Template Name "tutor_broadcast_v4".
-export const REQUIREMENT_TEMPLATE_NEW = "tutor_broadcast_v4";
+/**
+ * Invite templates, newest first. v6 and v4 share the nine-variable order
+ * built by buildRequirementTemplateVars; v3 has its own (V3 builder).
+ *   tutor_broadcast_v6  display "tutor_broadcast_V6", approved 4 Nov 2026,
+ *                       buttons "I'm available" / "I'll pass this time"
+ *   tutor_broadcast_v4  buttons "Interested" / "Not Interested"
+ *   tutor_requirement_v3 (archived 4 Nov 2026)
+ */
+export const REQUIREMENT_TEMPLATES = ["tutor_broadcast_v6", "tutor_broadcast_v4", REQUIREMENT_TEMPLATE_LEGACY];
+export const REQUIREMENT_TEMPLATE_NEW = REQUIREMENT_TEMPLATES[0];
 
 /**
  * Which invite template to send, and the matching variable builder.
  *
- * Tries the preferred template (WHATSAPP_REQUIREMENT_TEMPLATE_NAME, default
- * v4) and, if Odoo does not show it approved, the other one (v4 <-> v3).
- * Whichever is approved is used, with ITS variable order. So invites keep
- * going whether v4 is still pending, or v3 has been archived (as on
- * 4 Nov 2026), or the env var still says v3. The answer is re-checked every
- * five minutes. If neither is approved the preferred one is returned and
- * the send reports why it failed.
+ * The first approved template of: WHATSAPP_REQUIREMENT_TEMPLATE_NAME (if
+ * set), then v6, v4, v3. Whichever is used comes with ITS variable order, so
+ * invites keep going whichever template is pending or archived, and even if
+ * the env var still names an old one. Re-checked every five minutes. If none
+ * is approved the first is returned and the send reports why it failed.
  *
  * `isApproved` is injectable so the choice can be tested without Odoo.
  */
 export async function chooseRequirementTemplate({ isApproved, now = Date.now() } = {}) {
-  const preferred = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || REQUIREMENT_TEMPLATE_NEW;
-  const other = preferred === REQUIREMENT_TEMPLATE_LEGACY ? REQUIREMENT_TEMPLATE_NEW : REQUIREMENT_TEMPLATE_LEGACY;
+  const pinned = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "";
+  const candidates = [...new Set([pinned, ...REQUIREMENT_TEMPLATES].filter(Boolean))];
+  const preferred = candidates[0];
   const option = (name) => ({
     templateName: name,
     buildVars: name === REQUIREMENT_TEMPLATE_LEGACY ? buildRequirementTemplateVarsV3 : buildRequirementTemplateVars,
@@ -834,15 +841,15 @@ export async function chooseRequirementTemplate({ isApproved, now = Date.now() }
     }
   };
 
-  let value;
-  if (await check(preferred)) {
+  let value = null;
+  for (const name of candidates) {
+    if (await check(name)) { value = option(name); break; }
+  }
+  if (!value) {
+    console.error(`[WhatsApp] None of ${candidates.join(", ")} is approved; invites will fail.`);
     value = option(preferred);
-  } else if (await check(other)) {
-    console.warn(`[WhatsApp] "${preferred}" is not approved; sending invites with "${other}".`);
-    value = option(other);
-  } else {
-    console.error(`[WhatsApp] Neither "${preferred}" nor "${other}" is approved; invites will fail.`);
-    value = option(preferred);
+  } else if (value.templateName !== preferred) {
+    console.warn(`[WhatsApp] "${preferred}" is not approved; sending invites with "${value.templateName}".`);
   }
   if (!isApproved) requirementChoice = { name: preferred, at: now, value };
   return value;

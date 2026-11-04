@@ -1714,7 +1714,7 @@ router.post("/webhook/whatsapp-reply", async (req, res) => {
     // â”€â”€ Expanded keyword recognition â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Not Interested checked FIRST to prevent "not interested" matching "interested"
     const NOT_INTERESTED_KEYWORDS = [
-      "not interested", "nahi", "no", "nope", "reject", "not available",
+      "not interested", "nahi", "no", "nope", "reject", "not available", "pass this time", "i'll pass", "i’ll pass",
       "busy", "later", "unavailable", "mat karo", "band karo", "cancel",
     ];
     const INTERESTED_KEYWORDS = [

@@ -19,7 +19,7 @@ const lead = {
 };
 const ward = { classGrade: "8", curriculum: "CBSE", subjectsNeeded: ["Maths", "Science"] };
 
-test("invite values are in tutor_broadcast_v4's {{1}}–{{9}} order", () => {
+test("invite values are in the v6 / v4 {{1}}–{{9}} order", () => {
   const vars = buildRequirementTemplateVars("Test Tutor", lead, ward);
   assert.deepEqual(Object.keys(vars), Array.from({ length: 9 }, (_, i) => `free_text_${i + 1}`));
   assert.deepEqual(Object.values(vars), [
@@ -66,50 +66,49 @@ function withTemplateEnv(value, fn) {
   });
 }
 
-test("v4 pending in Odoo: invites go out on v3 with v3's values", () =>
-  withTemplateEnv(undefined, async () => {
-    const asked = [];
-    const c = await chooseRequirementTemplate({ isApproved: async (n) => { asked.push(n); return n === "tutor_requirement_v3"; } });
-    assert.deepEqual(asked, ["tutor_broadcast_v4", "tutor_requirement_v3"]);
-    assert.equal(c.templateName, "tutor_requirement_v3");
-    assert.equal(c.buildVars, buildRequirementTemplateVarsV3);
-  }));
-
-test("v4 approved in Odoo: invites switch to v4 with v4's values", () =>
+test("all approved (4 Nov): invites use v6 with the nine-value order", () =>
   withTemplateEnv(undefined, async () => {
     const c = await chooseRequirementTemplate({ isApproved: async () => true });
+    assert.equal(c.templateName, "tutor_broadcast_v6");
+    assert.equal(c.buildVars, buildRequirementTemplateVars);
+  }));
+
+test("v6 not approved: v4, same nine-value order", () =>
+  withTemplateEnv(undefined, async () => {
+    const asked = [];
+    const c = await chooseRequirementTemplate({ isApproved: async (n) => { asked.push(n); return n === "tutor_broadcast_v4"; } });
+    assert.deepEqual(asked, ["tutor_broadcast_v6", "tutor_broadcast_v4"]);
     assert.equal(c.templateName, "tutor_broadcast_v4");
     assert.equal(c.buildVars, buildRequirementTemplateVars);
   }));
 
-test("the approval check for v4 failing falls back to an approved v3", () =>
+test("only v3 approved: v3 with v3's own values", () =>
   withTemplateEnv(undefined, async () => {
-    const c = await chooseRequirementTemplate({ isApproved: async (n) => {
-      if (n === "tutor_broadcast_v4") throw new Error("Odoo down");
-      return true;
-    } });
-    assert.equal(c.templateName, "tutor_requirement_v3");
-  }));
-
-test("env says v3 and v3 is approved: v3 with v3's values", () =>
-  withTemplateEnv("tutor_requirement_v3", async () => {
     const c = await chooseRequirementTemplate({ isApproved: async (n) => n === "tutor_requirement_v3" });
     assert.equal(c.templateName, "tutor_requirement_v3");
     assert.equal(c.buildVars, buildRequirementTemplateVarsV3);
   }));
 
-test("env says v3 but v3 is archived and v4 approved (4 Nov): v4 with v4's values", () =>
-  withTemplateEnv("tutor_requirement_v3", async () => {
-    const c = await chooseRequirementTemplate({ isApproved: async (n) => n === "tutor_broadcast_v4" });
+test("Odoo check failing for v6 falls through to the next approved one", () =>
+  withTemplateEnv(undefined, async () => {
+    const c = await chooseRequirementTemplate({ isApproved: async (n) => {
+      if (n === "tutor_broadcast_v6") throw new Error("Odoo down");
+      return true;
+    } });
     assert.equal(c.templateName, "tutor_broadcast_v4");
+  }));
+
+test("env still says v3 but v3 is archived (Render today): v6 is used", () =>
+  withTemplateEnv("tutor_requirement_v3", async () => {
+    const c = await chooseRequirementTemplate({ isApproved: async (n) => n !== "tutor_requirement_v3" });
+    assert.equal(c.templateName, "tutor_broadcast_v6");
     assert.equal(c.buildVars, buildRequirementTemplateVars);
   }));
 
-test("neither approved: the preferred one is returned, so the send reports the failure", () =>
+test("none approved: v6 is returned, so the send reports the failure", () =>
   withTemplateEnv(undefined, async () => {
     const c = await chooseRequirementTemplate({ isApproved: async () => false });
-    assert.equal(c.templateName, "tutor_broadcast_v4");
-    assert.equal(c.buildVars, buildRequirementTemplateVars);
+    assert.equal(c.templateName, "tutor_broadcast_v6");
   }));
 
 test("the new buttons are read correctly, and the old ones still are", () => {
@@ -119,4 +118,10 @@ test("the new buttons are read correctly, and the old ones still are", () => {
   assert.equal(classifyReply("Interested"), "interested");
   assert.equal(classifyReply("Not Interested"), "not_interested");
   assert.equal(classifyReply("Unavailable"), "not_interested");
+  // tutor_broadcast_v6 buttons (curly and straight apostrophes)
+  assert.equal(classifyReply("I’m available"), "interested");
+  assert.equal(classifyReply("I'm available"), "interested");
+  assert.equal(classifyReply("I’ll pass this time"), "not_interested");
+  assert.equal(classifyReply("I'll pass this time"), "not_interested");
+  assert.equal(classifyReply("I passed my B.Ed"), "unclear"); // "passed" is not "pass"
 });
