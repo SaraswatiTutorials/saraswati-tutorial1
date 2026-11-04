@@ -23,7 +23,8 @@ import {
   isPermanentFailure,
   getOdooUid,
   callOdooMethod,
-  buildRequirementTemplateVars,
+  buildRequirementTemplateVarsV3,
+  chooseRequirementTemplate,
 } from "../utils/whatsappService.js";
 import {
   buildCentralizedQuery,
@@ -1020,17 +1021,18 @@ router.post("/:id/broadcast", verifyToken(["admin"]), async (req, res) => {
           continue;
         }
 
-        // Use admin-selected template ID if provided, otherwise fall back to env default name
-        const templateName = templateId
-          ? String(templateId)
-          : (process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v3");
+        // An admin-selected template ID is sent with v3's variable order, as
+        // before. Otherwise v4 once approved, v3 until then.
+        const chosen = templateId ? null : await chooseRequirementTemplate();
+        const templateName = templateId ? String(templateId) : chosen.templateName;
+        const buildVars = templateId ? buildRequirementTemplateVarsV3 : chosen.buildVars;
 
         const sendResult = await sendWhatsAppToTutor({
           phoneNumber: whatsappNumber,
           messageBody,
           templateName,
           templateLang: "en",
-          templateVars: buildRequirementTemplateVars(tutor.name, lead, firstWard),
+          templateVars: buildVars(tutor.name, lead, firstWard),
           ...(templateId ? { templateId: Number(templateId) } : {}),
         });
 
@@ -1711,7 +1713,7 @@ router.post("/webhook/whatsapp-reply", async (req, res) => {
       "busy", "later", "unavailable", "mat karo", "band karo", "cancel",
     ];
     const INTERESTED_KEYWORDS = [
-      "interested", "yes", "accept", "ok", "okay", "confirm",
+      "interested", "available", "yes", "accept", "ok", "okay", "confirm",
       "ji", "haan", "han", "ha", "chalega", "bilkul", "zaroor", "theek",
     ];
 
@@ -2011,14 +2013,15 @@ async function autoBroadcastTutorsForLead(leadData) {
           continue;
         }
 
-        const templateName = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v3";
+        // v4 once approved, v3 (with v3's variable order) until then.
+        const { templateName, buildVars } = await chooseRequirementTemplate();
 
         const sendResult = await sendWhatsAppToTutor({
           phoneNumber: whatsappNumber,
           messageBody,
           templateName,
           templateLang: "en",
-          templateVars: buildRequirementTemplateVars(tutor.name, lead, firstWard),
+          templateVars: buildVars(tutor.name, lead, firstWard),
         });
 
         await BroadcastLog.findByIdAndUpdate(log._id, {

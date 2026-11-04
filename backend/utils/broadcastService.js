@@ -31,7 +31,7 @@ import {
   sendWhatsAppToTutor,
   buildBroadcastMessage,
   buildOnboardingMessage,
-  buildRequirementTemplateVars,
+  chooseRequirementTemplate,
   isPermanentFailure,
   getOdooUid,
   callOdooMethod,
@@ -425,14 +425,15 @@ class BroadcastService {
       matchPercentage: tutor.matchPercentage || null,
     }).save();
 
-    const templateName = process.env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "tutor_requirement_v3";
+    // v4 once approved, v3 (with v3's variable order) until then.
+    const { templateName, buildVars } = await chooseRequirementTemplate();
 
     const sendResult = await sendWhatsAppToTutor({
       phoneNumber:  whatsappNumber,
       messageBody,
       templateName,
       templateLang: "en",
-      templateVars: buildRequirementTemplateVars(tutor.name, lead, firstWard),
+      templateVars: buildVars(tutor.name, lead, firstWard),
     });
 
     await BroadcastLog.findByIdAndUpdate(log._id, {
