@@ -22,7 +22,7 @@ const SWEEP_SECONDS = Number(process.env.TUTOR_REPLY_SWEEP_SECONDS || 60);
 const REPLY_WINDOW_HOURS = Number(process.env.TUTOR_REPLY_WINDOW_HOURS || 72);
 
 const YES = /\b(yes|yeah|yep|interested|intrested|available|ready|ok|okay|sure|confirm|confirmed|accept|accepted|haan|han|ha|ji|theek|thik)\b/i;
-const NO = /\b(no|nope|not interested|notinterested|not available|notavailable|busy|unavailable|can'?t|cannot|cant|decline|declined|reject|sorry|nahi|nai|nhi)\b/i;
+const NO = /\b(no|nope|not interested|notinterested|not available|notavailable|pass|busy|unavailable|can'?t|cannot|cant|decline|declined|reject|sorry|nahi|nai|nhi)\b/i;
 
 /**
  * What a tutor's wording means, or "unclear" when it is not obvious.
