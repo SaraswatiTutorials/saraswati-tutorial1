@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import {
@@ -30,6 +31,7 @@ import ThemeToggle from "../components/ThemeToggle";
 import PortalLogin from "../components/portal/PortalLogin";
 import { headerIconButton } from "../components/portal/PortalShell";
 import { SAMPLE_PLAN, SAMPLE_SUBJECTS, SAMPLE_TUTOR, buildSample, formatShortDate } from "../data/parentDashboardSample";
+import { lockPageScroll } from "../utils/lockPageScroll";
 
 // Public preview of the parent dashboard: the visitor's names on sample data. A name proves
 // nothing about who is asking, so real records stay behind the phone sign-in at /parent/login.
@@ -67,6 +69,11 @@ function saveNames(names) {
 
 const firstNameOf = (name) => name.trim().split(/\s+/)[0];
 
+// Both names are optional. Blank ones read naturally in the sentences that use them.
+const PARENT_FALLBACK = "Parent";
+const STUDENT_FALLBACK = "Your child";
+const NO_NAMES_LABEL = "Demo preview";
+
 function initialsOf(name) {
   const words = name.trim().split(/\s+/);
   const letters = [words[0], words.length > 1 ? words.at(-1) : ""].map((word) => Array.from(word)[0] || "");
@@ -75,7 +82,7 @@ function initialsOf(name) {
 
 function nameProblem(value, label) {
   const name = value.trim();
-  if (!name) return `Enter the ${label} name.`;
+  if (!name) return "";
   if (name.length < 2 || !/\p{L}/u.test(name)) return `Enter a valid ${label} name.`;
   return "";
 }
@@ -90,7 +97,9 @@ function greetingFor(hour) {
 function NameField({ id, label, value, onChange, error, placeholder, autoComplete }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</label>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+        {label} <span className="font-medium text-slate-500 dark:text-slate-400">(optional)</span>
+      </label>
       <input
         id={id}
         type="text"
@@ -135,7 +144,7 @@ function NameForm({ initial, onOpen }) {
           "Homework and remarks straight from the tutor",
         ]}
         title="Open the parent dashboard"
-        subtitle="Add your names to see how it will look for your family. This preview uses sample data."
+        subtitle="Add your names to see how it will look for your family, or leave them blank. This preview uses sample data."
         footer={
           <div className="space-y-2">
             <p>
@@ -237,14 +246,14 @@ function Meter({ percent, label }) {
   );
 }
 
-function SampleNotice({ studentFirstName }) {
+function SampleNotice({ studentFirstName, embedded }) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
       <p className="flex items-start gap-2">
         <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
         <span><strong className="font-semibold">Sample data.</strong> {studentFirstName}'s real attendance, scores and remarks appear here once classes begin.</span>
       </p>
-      <Link to="/parent-enquiry" className="shrink-0 pl-6 font-semibold underline underline-offset-2 hover:no-underline sm:pl-0">Book a free demo</Link>
+      {!embedded && <Link to="/parent-enquiry" className="shrink-0 pl-6 font-semibold underline underline-offset-2 hover:no-underline sm:pl-0">Book a free demo</Link>}
     </div>
   );
 }
@@ -290,9 +299,9 @@ function Hero({ names, sample, hour, studentFirstName }) {
 
       <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
-          <p className="break-words text-sm font-medium text-indigo-100">{greetingFor(hour)}, {names.parentName}</p>
+          <p className="break-words text-sm font-medium text-indigo-100">{greetingFor(hour)}{names.parentName ? `, ${names.parentName}` : ""}</p>
           <h1 className="mt-1.5 break-words text-[1.75rem] font-bold leading-tight tracking-tight text-white sm:text-4xl">
-            {names.studentName} is on track this month
+            {names.studentName || STUDENT_FALLBACK} is on track this month
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-indigo-100">
             {stats.completed} of {stats.total} classes done, {stats.attendancePercent}% attendance, and a new remark from {SAMPLE_TUTOR.name}.
@@ -778,29 +787,40 @@ function Homework({ sample }) {
 
 // ── Page frame ───────────────────────────────────────────────────────────────
 
-function NextSteps({ studentFirstName }) {
+function NextSteps({ studentName, onContinue }) {
+  const forWhom = studentName ? firstNameOf(studentName) : STUDENT_FALLBACK.toLowerCase();
   return (
     <section className={`${card} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6`}>
       <div className="min-w-0">
-        <h2 className="break-words text-base font-bold text-slate-900 dark:text-white">Get this dashboard for {studentFirstName}</h2>
+        <h2 className="break-words text-base font-bold text-slate-900 dark:text-white">Get this dashboard for {forWhom}</h2>
         <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Book a free demo and we'll match a verified tutor. Your dashboard goes live when classes start.</p>
       </div>
-      <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-        <Link to="/parent/login" className="flex h-11 items-center justify-center rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-          Already enrolled? Sign in
-        </Link>
-        <Link to="/parent-enquiry" className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white transition hover:bg-indigo-700">
-          Book a free demo
+      {onContinue ? (
+        <button type="button" onClick={onContinue} className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white transition hover:bg-indigo-700 cursor-pointer">
+          Continue booking
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
-      </div>
+        </button>
+      ) : (
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <Link to="/parent/login" className="flex h-11 items-center justify-center rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+            Already enrolled? Sign in
+          </Link>
+          <Link to="/parent-enquiry" className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white transition hover:bg-indigo-700">
+            Book a free demo
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+      )}
     </section>
   );
 }
 
-function Dashboard({ names, onChangeNames }) {
+// embedded: shown inside ParentDashboardPopup, where it scrolls within the popup and has no
+// links, so the parent stays on the page behind it.
+function Dashboard({ names, onChangeNames, embedded = false, onClose }) {
   const [tab, setTab] = useState("overview");
   const [now, setNow] = useState(() => new Date());
+  const scrollerRef = useRef(null);
 
   // Keeps the "next class" countdown current
   useEffect(() => {
@@ -809,27 +829,33 @@ function Dashboard({ names, onChangeNames }) {
   }, []);
 
   const sample = useMemo(() => buildSample(now), [now]);
-  const studentFirstName = firstNameOf(names.studentName);
+  const studentFirstName = names.studentName ? firstNameOf(names.studentName) : STUDENT_FALLBACK;
+  const parentLabel = names.parentName || PARENT_FALLBACK;
+  const namesLine = [names.parentName, names.studentName].filter(Boolean).join(" · ") || NO_NAMES_LABEL;
   const remarks = useMemo(() => sample.remarks(studentFirstName), [sample, studentFirstName]);
 
   const goTo = (next) => {
     setTab(next);
-    window.scrollTo({ top: 0 });
+    if (embedded) scrollerRef.current?.scrollTo({ top: 0 });
+    else window.scrollTo({ top: 0 });
   };
 
   const activeLabel = NAV_ITEMS.find((item) => item.id === tab).label;
+  const BrandWrap = embedded ? "div" : Link;
+  const brandLink = embedded ? {} : { to: "/" };
+  const phoneBrandLink = embedded ? {} : { to: "/", "aria-label": "Saraswati Tutorials home" };
 
   return (
-    <div data-dashboard className="plan-font min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
+    <div data-dashboard className={`plan-font bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] ${embedded ? "h-full lg:grid-rows-[minmax(0,1fr)]" : "min-h-screen"}`}>
       {/* Sidebar, large screens */}
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:flex">
-        <Link to="/" className="flex items-center gap-2.5 px-2 py-1">
+      <aside className={`hidden flex-col border-r border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:flex ${embedded ? "h-full" : "sticky top-0 h-screen"}`}>
+        <BrandWrap {...brandLink} className="flex items-center gap-2.5 px-2 py-1">
           <BrandLogo alt="" className="h-10 w-10 shrink-0 rounded-xl object-contain" />
           <span className="min-w-0 leading-tight">
             <span className="block text-sm font-bold text-slate-900 dark:text-white">Saraswati Tutorials</span>
             <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">Parent Dashboard</span>
           </span>
-        </Link>
+        </BrandWrap>
 
         <nav aria-label="Dashboard sections" className="mt-6 flex-1 space-y-1">
           {NAV_ITEMS.map((item) => {
@@ -855,41 +881,52 @@ function Dashboard({ names, onChangeNames }) {
 
         <div className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800/50">
           <div className="flex items-center gap-2.5">
-            <InitialsAvatar text={initialsOf(names.parentName)} size="h-10 w-10 text-sm" />
+            <InitialsAvatar text={initialsOf(parentLabel)} size="h-10 w-10 text-sm" />
             <div className="min-w-0">
-              <p className="break-words text-sm font-bold text-slate-900 dark:text-white">{names.parentName}</p>
-              <p className="break-words text-xs text-slate-500 dark:text-slate-400">Parent of {names.studentName}</p>
+              <p className="break-words text-sm font-bold text-slate-900 dark:text-white">{parentLabel}</p>
+              <p className="break-words text-xs text-slate-500 dark:text-slate-400">{names.studentName ? `Parent of ${names.studentName}` : NO_NAMES_LABEL}</p>
             </div>
           </div>
-          <button type="button" onClick={onChangeNames} className="mt-2.5 w-full rounded-lg border border-slate-200 bg-white py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer">
-            Change names
-          </button>
+          {!embedded && (
+            <button type="button" onClick={onChangeNames} className="mt-2.5 w-full rounded-lg border border-slate-200 bg-white py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer">
+              Change names
+            </button>
+          )}
         </div>
       </aside>
 
-      <div className="min-w-0">
+      <div ref={scrollerRef} className={`min-w-0 ${embedded ? "h-full overflow-y-auto" : ""}`}>
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/85">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-2.5">
-              <Link to="/" aria-label="Saraswati Tutorials home" className="shrink-0 lg:hidden">
+              <BrandWrap {...phoneBrandLink} className="shrink-0 lg:hidden">
                 <BrandLogo alt="" className="h-9 w-9 rounded-xl object-contain" />
-              </Link>
+              </BrandWrap>
               <div className="min-w-0 leading-tight">
                 <p className="truncate text-sm font-bold text-slate-900 dark:text-white lg:text-lg">{activeLabel}</p>
-                <p className="truncate text-xs text-slate-500 dark:text-slate-400 lg:hidden">{names.parentName} · {names.studentName}</p>
+                <p className="truncate text-xs text-slate-500 dark:text-slate-400 lg:hidden">{namesLine}</p>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-              <button type="button" onClick={onChangeNames} className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 lg:hidden cursor-pointer">
-                Change
-              </button>
-              <ThemeToggle buttonClassName={headerIconButton} />
+              {embedded ? (
+                <button type="button" onClick={onClose} aria-label="Close dashboard" className="flex h-10 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer">
+                  <X className="h-4 w-4" aria-hidden="true" />
+                  Close
+                </button>
+              ) : (
+                <>
+                  <button type="button" onClick={onChangeNames} className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 lg:hidden cursor-pointer">
+                    Change
+                  </button>
+                  <ThemeToggle buttonClassName={headerIconButton} />
+                </>
+              )}
             </div>
           </div>
         </header>
 
         <main className="mx-auto max-w-6xl space-y-5 px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-10 lg:pt-6">
-          <SampleNotice studentFirstName={studentFirstName} />
+          <SampleNotice studentFirstName={studentFirstName} embedded={embedded} />
           {tab === "overview" && <Hero names={names} sample={sample} hour={now.getHours()} studentFirstName={studentFirstName} />}
           <div key={tab} className="animate-fadeIn">
             {tab === "overview" && <Overview sample={sample} remarks={remarks} goTo={goTo} />}
@@ -897,12 +934,12 @@ function Dashboard({ names, onChangeNames }) {
             {tab === "progress" && <Progress sample={sample} remarks={remarks} />}
             {tab === "homework" && <Homework sample={sample} />}
           </div>
-          <NextSteps studentFirstName={studentFirstName} />
+          <NextSteps studentName={names.studentName} onContinue={embedded ? onClose : undefined} />
         </main>
       </div>
 
       {/* Bottom navigation, phones and tablets */}
-      <nav aria-label="Dashboard sections" className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 lg:hidden">
+      <nav aria-label="Dashboard sections" className={`${embedded ? "absolute" : "fixed"} inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 lg:hidden`}>
         <div className="mx-auto grid max-w-lg grid-cols-4">
           {NAV_ITEMS.map((item) => {
             const active = item.id === tab;
@@ -924,6 +961,61 @@ function Dashboard({ names, onChangeNames }) {
         </div>
       </nav>
     </div>
+  );
+}
+
+// The same dashboard in a popup, for pages the parent shouldn't have to leave. Rendered on
+// document.body so no animated parent can change how its fixed position works.
+export function ParentDashboardPopup({ names, onClose }) {
+  const panelRef = useRef(null);
+
+  useEffect(() => {
+    const opener = document.activeElement;
+    const unlockPageScroll = lockPageScroll();
+    panelRef.current?.focus();
+    return () => {
+      unlockPageScroll();
+      opener?.focus?.();
+    };
+  }, []);
+
+  const onKeyDown = (e) => {
+    if (e.key === "Escape") {
+      onClose();
+      return;
+    }
+    if (e.key !== "Tab") return;
+    // Keeps keyboard focus inside the popup
+    const focusable = [...panelRef.current.querySelectorAll("button, a[href]")].filter((el) => el.offsetParent !== null);
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey && (active === first || active === panelRef.current)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex justify-center bg-slate-950/60 sm:p-4 lg:p-6" onClick={onClose}>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Sample parent dashboard"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={onKeyDown}
+        className="relative h-full w-full max-w-[1320px] overflow-hidden bg-slate-50 shadow-2xl outline-none dark:bg-slate-950 sm:rounded-3xl"
+      >
+        <Dashboard names={names} embedded onClose={onClose} />
+      </div>
+    </div>,
+    document.body
   );
 }
 

@@ -24,7 +24,7 @@ export const SAMPLE_TUTOR = {
   rating: 4.8,
 };
 
-export const SAMPLE_PLAN = { title: "Advance Growth Plan", classLabel: "Class 9", board: "CBSE" };
+export const SAMPLE_PLAN = { title: "Elite Mentor Plan", classLabel: "Class 9", board: "CBSE" };
 
 export const SAMPLE_SUBJECTS = [
   {

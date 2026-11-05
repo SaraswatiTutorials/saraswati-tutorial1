@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -19,6 +20,7 @@ import {
   GraduationCap,
   Calendar,
   Eye,
+  LayoutDashboard,
   Settings,
   Grid,
   FileText,
@@ -35,7 +37,7 @@ import {
   MessageSquare
 } from "lucide-react";
 import "@fontsource-variable/plus-jakarta-sans";
-import { PLANS } from "../data/plansConfig";
+import { PLANS, getDefaultOption, sortOptionsForDisplay } from "../data/plansConfig";
 import {
   calculateListPrice,
   calculatePlanPrice,
@@ -52,6 +54,8 @@ import { LocationField } from "../components/LocationPicker";
 import { API_BASE } from "../config";
 import { trackEvent } from "../utils/analytics";
 import DemoParentDashboard from "./DemoParentDashboard";
+import { ParentDashboardPopup } from "./ParentDashboardPreview";
+import { lockPageScroll } from "../utils/lockPageScroll";
 import FeedbackWidget from "../components/FeedbackWidget";
 import SiteHeader from "../components/SiteHeader";
 import SiteFooter from "../components/SiteFooter";
@@ -712,6 +716,7 @@ export default function ParentEnquiryForm() {
   const [selectedOption, setSelectedOption] = useState(null);
   const [showAllFeatures, setShowAllFeatures] = useState(false);
   const [showDemoPreview, setShowDemoPreview] = useState(false);
+  const [showDashboardPopup, setShowDashboardPopup] = useState(false);
   const [showCustomTime, setShowCustomTime] = useState(false);
 
   // Auto-save form draft whenever step or form state changes
@@ -756,6 +761,12 @@ export default function ParentEnquiryForm() {
     setShowAllFeatures(false);
   }, [viewingPlanId]);
 
+  // The page behind the plan details popup stays still while it's open
+  useEffect(() => {
+    if (!viewingPlanId) return undefined;
+    return lockPageScroll();
+  }, [viewingPlanId]);
+
   const handleOpenPlanModal = (plan) => {
     setViewingPlanId(plan.id);
     const allowedOptions = getFilteredPricingOptions(plan, form.wards, form.preferredMode);
@@ -763,9 +774,9 @@ export default function ParentEnquiryForm() {
       const matched = allowedOptions.find(
         (opt) => opt.days === form.daysPerWeek && opt.hours === form.hoursPerDay
       );
-      setSelectedOption(matched || allowedOptions[0]);
+      setSelectedOption(matched || getDefaultOption(plan, allowedOptions));
     } else {
-      setSelectedOption(allowedOptions[0]);
+      setSelectedOption(getDefaultOption(plan, allowedOptions));
     }
   };
 
@@ -868,7 +879,7 @@ export default function ParentEnquiryForm() {
 
         // Only carry the homepage plan over when it is offered for this class.
         const planData = prefilledPlan && PLANS.find(p => p.id === prefilledPlan);
-        const selectedOpt = planData && getFilteredPricingOptions(planData, updatedWards, prev.preferredMode)[0];
+        const selectedOpt = planData && getDefaultOption(planData, getFilteredPricingOptions(planData, updatedWards, prev.preferredMode));
         if (selectedOpt) {
           newForm = {
             ...newForm,
@@ -2086,7 +2097,7 @@ export default function ParentEnquiryForm() {
                               key={plan.id}
                               data-own-colors
                               onClick={() => handleOpenPlanModal(plan)}
-                              className={`plan-font relative overflow-hidden premium-shine-card w-[290px] sm:w-[320px] md:w-full flex-shrink-0 snap-center rounded-[1.75rem] border p-5 lg:p-6 flex flex-col min-h-[300px] cursor-pointer transition-all duration-300 group hover:scale-[1.02] ${look.card}`}
+                              className={`plan-font relative overflow-hidden supports-[overflow:clip]:overflow-clip premium-shine-card w-[290px] sm:w-[320px] md:w-full flex-shrink-0 snap-center rounded-[1.75rem] border p-5 lg:p-6 flex flex-col min-h-[300px] cursor-pointer transition-all duration-300 group hover:scale-[1.02] ${look.card}`}
                             >
                               {/* Subtle shine effect overlay on hover */}
                               <div className="shine-overlay pointer-events-none" />
@@ -2117,6 +2128,17 @@ export default function ParentEnquiryForm() {
                                   </li>
                                 ))}
                               </ul>
+
+                              {plan.id === "elite" && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setShowDashboardPopup(true); }}
+                                  className="relative mt-3.5 inline-flex h-10 w-fit items-center gap-2 rounded-xl border border-amber-300/60 bg-amber-300/10 px-3.5 text-xs font-bold text-amber-200 transition-colors hover:bg-amber-300/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 cursor-pointer"
+                                >
+                                  <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+                                  Dashboard
+                                </button>
+                              )}
 
                               {plan.description && (
                                 <p className="relative mt-2 text-xs leading-relaxed font-medium opacity-75 line-clamp-2">
@@ -2167,7 +2189,9 @@ export default function ParentEnquiryForm() {
                   )}
                 </motion.div>
 
-                {/* View Details Modal */}
+                {/* View Details Modal. Rendered on document.body because the animated sections around
+                    it would otherwise become the frame its fixed position is measured from. */}
+                {createPortal(
                 <AnimatePresence>
                   {viewingPlanId && (
                     (() => {
@@ -2283,10 +2307,102 @@ export default function ParentEnquiryForm() {
 
                               {/* Pricing option matrix selection */}
                               <div className="flex flex-col justify-start rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-4 shadow-inner self-start w-full order-1 md:order-2">
+                                <div className="mb-4 space-y-3">
+                                  {/* Dynamic Calculation Summary Card */}
+                                  {(() => {
+                                    const optionQuote = selectedOption ? buildQuote(form, activePlanData.id, selectedOption) : null;
+                                    if (form.wards.length > 1 || optionQuote?.rules?.subjectPricingEnabled) {
+                                      return (
+                                        <div className="animate-slideFade">
+                                          <FeeBreakdown quote={optionQuote} />
+                                        </div>
+                                      );
+                                    } else {
+                                      const firstWardClass = form.wards[0]?.classGrade || "6";
+                                      const firstWardBoard = form.wards[0]?.curriculum || "CBSE";
+                                      const calc = getDynamicCalculation(activePlanData.id, selectedOption, firstWardClass, firstWardBoard, form.preferredMode);
+                                      if (!calc) return null;
+
+                                      if (activePlanData.id === 'foundation') {
+                                        return (
+                                          <div data-own-colors className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-800/50 text-xs space-y-1.5 animate-slideFade">
+                                            <div className="flex justify-between items-center">
+                                              <span className="text-slate-500 dark:text-slate-400 font-semibold">Original Price:</span>
+                                              <span className="text-slate-400 dark:text-slate-300 line-through font-extrabold">₹{calc.originalPrice.toLocaleString('en-IN')}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                              <span className="text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1">
+                                                Discount:
+                                                <span className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">
+                                                  -{calc.discountPercent}%
+                                                </span>
+                                              </span>
+                                              <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">-₹{calc.discount.toLocaleString('en-IN')}</span>
+                                            </div>
+                                            <div className="pt-1.5 border-t border-emerald-200/50 dark:border-emerald-800/50 flex justify-between items-center">
+                                              <span className="text-slate-900 dark:text-white font-black text-xs">Final Price:</span>
+                                              <span className="text-slate-900 dark:text-white font-black text-base">₹{calc.finalPrice.toLocaleString('en-IN')}</span>
+                                            </div>
+                                            <div className="text-right">
+                                              <span className="text-emerald-700 dark:text-emerald-400 text-[10px] font-black">
+                                                Save ₹{calc.discount.toLocaleString('en-IN')} ({calc.discountPercent}%)
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+
+                                      if (activePlanData.id === 'advance') {
+                                        return (
+                                          <div className="p-3.5 rounded-xl bg-amber-50/40 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/50 text-xs space-y-1.5 animate-slideFade">
+                                            <div className="flex justify-between items-center">
+                                              <span className="text-slate-900 dark:text-white font-black text-xs">Total Tuition Investment:</span>
+                                              <span className="text-slate-900 dark:text-white font-black text-base">₹{calc.finalPrice.toLocaleString('en-IN')}</span>
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+
+                                      if (activePlanData.id === 'elite') {
+                                        return (
+                                          <div className="p-3 rounded-xl bg-gradient-to-br from-[#0B1229] to-[#1E2A5A] text-white text-xs space-y-1.5 animate-slideFade">
+                                            <div className="flex justify-between items-center">
+                                              <span className="text-slate-300 font-semibold">Hourly Rate:</span>
+                                              <span className="font-black text-base text-amber-400">{formatHourlyRate(calc.finalPrice, selectedOption.days, selectedOption.hours)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-slate-300">
+                                              <span className="font-semibold">Estimated Monthly Fee:</span>
+                                              <span className="font-extrabold text-white">₹{calc.finalPrice.toLocaleString('en-IN')}/month</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-slate-300">
+                                              <span className="font-semibold">Schedules per Month:</span>
+                                              <span className="font-extrabold text-white">{calc.totalClasses} classes</span>
+                                            </div>
+                                            <div className="pt-1.5 border-t border-white/10 flex justify-between items-center">
+                                              <span className="font-black text-xs">Cost Per Class:</span>
+                                              <span className="font-black text-sm text-white">₹{calc.costPerClass} / Class</span>
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+
+                                      return null;
+                                    }
+                                  })()}
+                                <button
+                                  type="button"
+                                  onClick={() => handleChoosePlan(activePlanData)}
+                                  disabled={!selectedOption}
+                                  className="w-full flex h-10 items-center justify-center gap-2 rounded-xl font-black text-xs transition-all duration-300 bg-slate-900 text-white hover:bg-black active:scale-[0.98] shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  Choose This Plan
+                                </button>
+                                </div>
+
                                 <div>
                                   <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Select Pricing Option</h4>
                                   <div className="space-y-2">
-                                    {getFilteredPricingOptions(activePlanData, form.wards, form.preferredMode).map((opt, idx) => {
+                                    {sortOptionsForDisplay(getFilteredPricingOptions(activePlanData, form.wards, form.preferredMode)).map((opt, idx) => {
                                       const isSelected = selectedOption && selectedOption.days === opt.days && selectedOption.hours === opt.hours;
                                       
                                       // Plan price for the first student (per subject when subject pricing is on).
@@ -2329,99 +2445,6 @@ export default function ParentEnquiryForm() {
                                       );
                                     })}
                                   </div>
-
-                                  {/* Dynamic Calculation Summary Card */}
-                                  {(() => {
-                                    const optionQuote = selectedOption ? buildQuote(form, activePlanData.id, selectedOption) : null;
-                                    if (form.wards.length > 1 || optionQuote?.rules?.subjectPricingEnabled) {
-                                      return (
-                                        <div className="mt-4 animate-slideFade">
-                                          <FeeBreakdown quote={optionQuote} />
-                                        </div>
-                                      );
-                                    } else {
-                                      const firstWardClass = form.wards[0]?.classGrade || "6";
-                                      const firstWardBoard = form.wards[0]?.curriculum || "CBSE";
-                                      const calc = getDynamicCalculation(activePlanData.id, selectedOption, firstWardClass, firstWardBoard, form.preferredMode);
-                                      if (!calc) return null;
-
-                                      if (activePlanData.id === 'foundation') {
-                                        return (
-                                          <div className="mt-4 p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-800/50 text-xs space-y-1.5 animate-slideFade">
-                                            <div className="flex justify-between items-center">
-                                              <span className="text-slate-500 dark:text-slate-400 font-semibold">Original Price:</span>
-                                              <span className="text-slate-400 dark:text-slate-500 line-through font-extrabold">₹{calc.originalPrice.toLocaleString('en-IN')}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                              <span className="text-slate-500 font-semibold flex items-center gap-1">
-                                                Discount: 
-                                                <span className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">
-                                                  -{calc.discountPercent}%
-                                                </span>
-                                              </span>
-                                              <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">-₹{calc.discount.toLocaleString('en-IN')}</span>
-                                            </div>
-                                            <div className="pt-1.5 border-t border-emerald-200/50 dark:border-emerald-800/50 flex justify-between items-center">
-                                              <span className="text-slate-900 dark:text-white font-black text-xs">Final Price:</span>
-                                              <span className="text-slate-900 dark:text-white font-black text-base">₹{calc.finalPrice.toLocaleString('en-IN')}</span>
-                                            </div>
-                                            <div className="text-right">
-                                              <span className="text-emerald-700 text-[10px] font-black">
-                                                Save ₹{calc.discount.toLocaleString('en-IN')} ({calc.discountPercent}%)
-                                              </span>
-                                            </div>
-                                          </div>
-                                        );
-                                      }
-
-                                      if (activePlanData.id === 'advance') {
-                                        return (
-                                          <div className="mt-4 p-3.5 rounded-xl bg-amber-50/40 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/50 text-xs space-y-1.5 animate-slideFade">
-                                            <div className="flex justify-between items-center">
-                                              <span className="text-slate-900 dark:text-white font-black text-xs">Total Tuition Investment:</span>
-                                              <span className="text-slate-900 dark:text-white font-black text-base">₹{calc.finalPrice.toLocaleString('en-IN')}</span>
-                                            </div>
-                                          </div>
-                                        );
-                                      }
-
-                                      if (activePlanData.id === 'elite') {
-                                        return (
-                                          <div className="mt-4 p-3 rounded-xl bg-gradient-to-br from-[#0B1229] to-[#1E2A5A] text-white text-xs space-y-1.5 animate-slideFade">
-                                            <div className="flex justify-between items-center">
-                                              <span className="text-slate-300 font-semibold">Hourly Rate:</span>
-                                              <span className="font-black text-base text-amber-400">{formatHourlyRate(calc.finalPrice, selectedOption.days, selectedOption.hours)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center text-slate-300">
-                                              <span className="font-semibold">Estimated Monthly Fee:</span>
-                                              <span className="font-extrabold text-white">₹{calc.finalPrice.toLocaleString('en-IN')}/month</span>
-                                            </div>
-                                            <div className="flex justify-between items-center text-slate-300">
-                                              <span className="font-semibold">Schedules per Month:</span>
-                                              <span className="font-extrabold text-white">{calc.totalClasses} classes</span>
-                                            </div>
-                                            <div className="pt-1.5 border-t border-white/10 flex justify-between items-center">
-                                              <span className="font-black text-xs">Cost Per Class:</span>
-                                              <span className="font-black text-sm text-white">₹{calc.costPerClass} / Class</span>
-                                            </div>
-                                          </div>
-                                        );
-                                      }
-
-                                      return null;
-                                    }
-                                  })()}
-                                </div>
-
-                                <div className="mt-4">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleChoosePlan(activePlanData)}
-                                    disabled={!selectedOption}
-                                    className="w-full flex h-10 items-center justify-center gap-2 rounded-xl font-black text-xs transition-all duration-300 bg-slate-900 text-white hover:bg-black active:scale-[0.98] shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                  >
-                                    Choose This Plan
-                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -2430,7 +2453,9 @@ export default function ParentEnquiryForm() {
                       );
                     })()
                   )}
-                </AnimatePresence>
+                </AnimatePresence>,
+                document.body
+                )}
 
                 {/* Class Timing: shown once a plan is chosen, so the time ranges match its hours per class */}
                 {form.planType && (() => {
@@ -2734,6 +2759,12 @@ export default function ParentEnquiryForm() {
         <DemoParentDashboard
           onClose={() => setShowDemoPreview(false)}
           selectedPlan={form.planType || "advance"}
+        />
+      )}
+      {showDashboardPopup && (
+        <ParentDashboardPopup
+          names={{ parentName: (form.parentName || "").trim(), studentName: (form.wards[0]?.studentName || "").trim() }}
+          onClose={() => setShowDashboardPopup(false)}
         />
       )}
       </div>
