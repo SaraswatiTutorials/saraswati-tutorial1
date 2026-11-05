@@ -140,7 +140,7 @@ export function buildSample(now = new Date()) {
   const latestAverage = average(SAMPLE_SUBJECTS.map((subject) => subject.tests.at(-1)));
   const previousAverage = average(SAMPLE_SUBJECTS.map((subject) => subject.tests.at(-2)));
 
-  const dueDate = (days) => formatShortDate(addDays(today, days));
+  const nextClassOf = (subject) => formatShortDate(upcoming.find((session) => session.subject === subject).date);
 
   return {
     stats: {
@@ -152,23 +152,22 @@ export function buildSample(now = new Date()) {
       progressPercent: Math.round((COMPLETED_CLASSES / TOTAL_CLASSES) * 100),
       averageScore: latestAverage,
       scoreChange: latestAverage - previousAverage,
-      homeworkDone: 8,
-      homeworkTotal: 10,
+      testsTaken: SAMPLE_SUBJECTS.reduce((sum, subject) => sum + subject.tests.length, 0),
     },
     log: past,
     nextClass: describeNextClass(upcoming[0], now),
     thisWeek: weeks.find((week) => week.some((day) => day.isToday)) || weeks.at(-1),
     weeks,
-    homework: {
-      toDo: [
-        { subject: "Mathematics", task: "Exercise 8.3, questions 1 to 10", due: dueDate(1) },
-        { subject: "English", task: "Essay: A season I enjoy", due: dueDate(4) },
+    // Marks match each subject's latest score in SAMPLE_SUBJECTS
+    tests: {
+      upcoming: [
+        { subject: "Mathematics", title: "Test 5: Trigonometry", date: nextClassOf("Mathematics") },
+        { subject: "English", title: "Test 5: Grammar and Tenses", date: nextClassOf("English") },
       ],
-      done: [
-        { subject: "Science", task: "Lab report: Photosynthesis", marks: "18 / 20", remark: "Clear diagrams and neat observations." },
-        { subject: "Mathematics", task: "Polynomials worksheet", marks: "27 / 30", remark: "Strong work. Check signs while factorising." },
-        { subject: "English", task: "Comprehension: The Sound of Music", marks: "9 / 10", remark: "Good understanding of the passage." },
-        { subject: "Science", task: "Quiz: Is Matter Pure?", marks: "16 / 20", remark: "Revise the separation methods." },
+      results: [
+        { subject: "Mathematics", title: "Test 4: Quadratic Equations", marks: "39 / 50", remark: "Strong improvement. Check signs while factorising." },
+        { subject: "Science", title: "Test 4: Is Matter Pure?", marks: "42 / 50", remark: "Clear answers. Revise the separation methods." },
+        { subject: "English", title: "Test 4: The Sound of Music", marks: "17 / 20", remark: "Good understanding of the passage." },
       ],
     },
     remarks: (studentFirstName) => [

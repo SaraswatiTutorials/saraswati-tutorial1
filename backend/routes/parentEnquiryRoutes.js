@@ -1157,7 +1157,9 @@ router.post("/:id/assign-tutor", verifyToken(["admin"]), async (req, res) => {
     // Update MongoDB lead
     lead.assignedTutor = tutor.name;
     lead.assignedTutorId = tutor._id;
-    lead.status = "Demo Scheduled";
+    // A student already taking classes stays enrolled when the tutor changes
+    const staysEnrolled = lead.status === "Enrolled";
+    if (!staysEnrolled) lead.status = "Demo Scheduled";
     if (demoDate) lead.demoDate = demoDate;
     if (demoTime) lead.demoTime = demoTime;
     await lead.save({ validateBeforeSave: false });
@@ -1177,6 +1179,7 @@ router.post("/:id/assign-tutor", verifyToken(["admin"]), async (req, res) => {
           tutorPhone: tutor.whatsapp || tutor.phone || "",
           demoDate,
           demoTime,
+          keepStatus: staysEnrolled,
         });
       } catch (err) {
         console.error("Odoo update lead assignment error:", err.message);
@@ -1670,6 +1673,7 @@ router.post("/:id/select-tutor", verifyToken(["admin"]), async (req, res) => {
           tutorName: tutor.name,
           tutorCode: tutor.tutorCode || "",
           tutorPhone: whatsappNumber,
+          keepStatus: lead.status === "Enrolled",
         });
       } catch (err) {
         console.error("Odoo update lead assignment error:", err.message);

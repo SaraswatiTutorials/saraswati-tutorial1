@@ -611,7 +611,7 @@ export default function TeacherDashboard() {
             {[
               { id: "active", label: "Mark attendance", short: "Attendance", icon: ClipboardCheck },
               { id: "history", label: "Class history", short: "History", icon: History },
-              { id: "assignments", label: "Assignments & tests", short: "Assignments", icon: ClipboardList },
+              { id: "assignments", label: "Tests", short: "Tests", icon: ClipboardList },
             ].map((tab) => {
               const TabIcon = tab.icon;
               const active = currentTab === tab.id;

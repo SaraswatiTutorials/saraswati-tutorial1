@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 const modulePath = (rel) => new URL(`../${rel}`, import.meta.url).href;
 
 const sent = [];
+const odooAssignments = [];
 let lead;
 const tutor = { _id: "tutor-1", name: "Test Tutor", whatsapp: "919999999999" };
 
@@ -31,7 +32,10 @@ before(() => {
   }
   const noop = async () => null;
   mock.module(modulePath("utils/odooService.js"), {
-    namedExports: { createLead: noop, updateLead: noop, updateLeadAssignment: noop, syncTutorStats: noop, addOdooChatterMessage: noop },
+    namedExports: {
+      createLead: noop, updateLead: noop, syncTutorStats: noop, addOdooChatterMessage: noop,
+      updateLeadAssignment: async (id, details) => { odooAssignments.push(details); return true; },
+    },
   });
   mock.module(modulePath("utils/whatsappService.js"), {
     namedExports: {
@@ -65,6 +69,7 @@ before(() => {
 
 beforeEach(() => {
   sent.length = 0;
+  odooAssignments.length = 0;
   lead = freshLead();
   delete process.env.ASSIGN_TUTOR_SENDS_WHATSAPP;
 });
@@ -94,6 +99,27 @@ test("dashboard assign records the tutor and sends NO WhatsApp", async () => {
   assert.equal(lead.assignedTutorId, "tutor-1");
   assert.equal(lead.status, "Demo Scheduled");
 });
+
+test("an enrolled student stays enrolled when a new tutor is assigned", async () => {
+  lead = freshLead({ status: "Enrolled", assignedTutor: "Old Tutor", assignedTutorId: "tutor-old", odooLeadId: 42 });
+  const res = await assign({ tutorId: "tutor-1" });
+  assert.equal(res.statusCode, 200);
+  assert.equal(lead.status, "Enrolled");
+  assert.equal(lead.assignedTutor, "Test Tutor");
+  assert.equal(lead.assignedTutorId, "tutor-1");
+  assert.equal(odooAssignments.length, 1);
+  assert.equal(odooAssignments[0].keepStatus, true);
+  assert.equal(sent.length, 0);
+});
+
+for (const status of ["New Lead", "Fees Finalized", "Feedback Pending", "Demo Cancelled", "Won"]) {
+  test(`assigning a tutor still moves a ${status} lead to Demo Scheduled`, async () => {
+    lead = freshLead({ status, odooLeadId: 42 });
+    await assign({ tutorId: "tutor-1" });
+    assert.equal(lead.status, "Demo Scheduled");
+    assert.equal(odooAssignments[0].keepStatus, false);
+  });
+}
 
 test("no WhatsApp even when a demo date and time are given", async () => {
   await assign({ tutorId: "tutor-1", demoDate: "2026-11-10", demoTime: "17:00" });
@@ -154,6 +180,13 @@ test("select-tutor fills demo_confirmation_tutor's five slots in order (subject 
   ]);
   assert.match(sent[0].messageBody, /^Hello \*Test Tutor's - Demo Selection Update!\*/);
   assert.match(sent[0].messageBody, /The parent \*\(ID - REQ-TEST\)\*/);
+});
+
+test("select-tutor tells Odoo to leave an enrolled student's status alone", async () => {
+  lead = freshLead({ status: "Enrolled", odooLeadId: 42 });
+  await select({ tutorId: "tutor-1" });
+  assert.equal(lead.status, "Enrolled");
+  assert.equal(odooAssignments[0].keepStatus, true);
 });
 
 test("select-tutor pressed twice for the same tutor tells them once", async () => {
