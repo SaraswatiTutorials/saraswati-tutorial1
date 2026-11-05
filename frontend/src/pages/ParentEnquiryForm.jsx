@@ -2307,7 +2307,55 @@ export default function ParentEnquiryForm() {
 
                               {/* Pricing option matrix selection */}
                               <div className="flex flex-col justify-start rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-4 shadow-inner self-start w-full order-1 md:order-2">
-                                <div className="mb-4 space-y-3">
+                                <div>
+                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Select Pricing Option</h4>
+                                  <div className="space-y-2">
+                                    {sortOptionsForDisplay(getFilteredPricingOptions(activePlanData, form.wards, form.preferredMode)).map((opt, idx) => {
+                                      const isSelected = selectedOption && selectedOption.days === opt.days && selectedOption.hours === opt.hours;
+                                      
+                                      // Plan price for the first student (per subject when subject pricing is on).
+                                      const rowPrice = opt.price;
+
+                                      return (
+                                        <div
+                                          key={idx}
+                                          onClick={() => setSelectedOption(opt)}
+                                          className={`p-3 rounded-xl border transition cursor-pointer flex items-center justify-between ${
+                                            isSelected 
+                                              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/50 shadow-sm'
+                                              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2.5">
+                                            <div className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center shrink-0 ${
+                                              isSelected ? 'border-blue-500 text-blue-500' : 'border-slate-300 dark:border-slate-600'
+                                            }`}>
+                                              {isSelected && <div className="h-2 w-2 rounded-full bg-blue-500" />}
+                                            </div>
+                                            <div>
+                                              <p className="text-[11px] font-black text-slate-800 dark:text-slate-100">
+                                                {opt.days} Days / Week
+                                              </p>
+                                              <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400">
+                                                {opt.hours} Hour{opt.hours !== 1 ? 's' : ''} / Day
+                                              </p>
+                                            </div>
+                                          </div>
+                                          <div className="text-right">
+                                            <p className="text-[11px] font-black text-slate-900 dark:text-white">
+                                              {formatFee(rowPrice)}
+                                            </p>
+                                            <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500">
+                                              / month{subjectPricingOn(activePlanData.id) ? " per subject" : ""}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                <div className="mt-4 space-y-3">
                                   {/* Dynamic Calculation Summary Card */}
                                   {(() => {
                                     const optionQuote = selectedOption ? buildQuote(form, activePlanData.id, selectedOption) : null;
@@ -2397,54 +2445,6 @@ export default function ParentEnquiryForm() {
                                 >
                                   Choose This Plan
                                 </button>
-                                </div>
-
-                                <div>
-                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Select Pricing Option</h4>
-                                  <div className="space-y-2">
-                                    {sortOptionsForDisplay(getFilteredPricingOptions(activePlanData, form.wards, form.preferredMode)).map((opt, idx) => {
-                                      const isSelected = selectedOption && selectedOption.days === opt.days && selectedOption.hours === opt.hours;
-                                      
-                                      // Plan price for the first student (per subject when subject pricing is on).
-                                      const rowPrice = opt.price;
-
-                                      return (
-                                        <div
-                                          key={idx}
-                                          onClick={() => setSelectedOption(opt)}
-                                          className={`p-3 rounded-xl border transition cursor-pointer flex items-center justify-between ${
-                                            isSelected 
-                                              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/50 shadow-sm'
-                                              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'
-                                          }`}
-                                        >
-                                          <div className="flex items-center gap-2.5">
-                                            <div className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center shrink-0 ${
-                                              isSelected ? 'border-blue-500 text-blue-500' : 'border-slate-300 dark:border-slate-600'
-                                            }`}>
-                                              {isSelected && <div className="h-2 w-2 rounded-full bg-blue-500" />}
-                                            </div>
-                                            <div>
-                                              <p className="text-[11px] font-black text-slate-800 dark:text-slate-100">
-                                                {opt.days} Days / Week
-                                              </p>
-                                              <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400">
-                                                {opt.hours} Hour{opt.hours !== 1 ? 's' : ''} / Day
-                                              </p>
-                                            </div>
-                                          </div>
-                                          <div className="text-right">
-                                            <p className="text-[11px] font-black text-slate-900 dark:text-white">
-                                              {formatFee(rowPrice)}
-                                            </p>
-                                            <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500">
-                                              / month{subjectPricingOn(activePlanData.id) ? " per subject" : ""}
-                                            </p>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -2687,7 +2687,7 @@ export default function ParentEnquiryForm() {
                         htmlFor="pricingConsent"
                         className="text-xs font-semibold text-slate-700 leading-relaxed cursor-pointer select-none block"
                       >
-                        I understand and agree that the displayed tuition fee is an estimated price. The final tuition fee may increase or decrease after the demo session based on the student's academic level, learning requirements, syllabus complexity, parents' expectations, preferred tutor experience, travel distance (if applicable), and the overall teaching effort required. <span className="text-red-500">*</span>
+                        Fee is an estimate and may change after the demo on Transport connectivity, Student basics &amp; Parent's Special Requirement. <span className="text-red-500">*</span>
                       </label>
                       {errors.pricingConsent && (
                         <p className="mt-1.5 text-xs font-bold text-red-600 flex items-center gap-1">
