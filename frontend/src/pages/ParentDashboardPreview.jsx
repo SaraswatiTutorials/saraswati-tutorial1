@@ -17,7 +17,6 @@ import {
   Info,
   LayoutDashboard,
   MessageSquareQuote,
-  PenLine,
   Phone,
   Star,
   Target,
@@ -43,7 +42,7 @@ const NAV_ITEMS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "attendance", label: "Attendance", icon: CalendarCheck },
   { id: "progress", label: "Progress", icon: BarChart3 },
-  { id: "homework", label: "Homework", icon: FileText },
+  { id: "tests", label: "Tests", icon: FileText },
 ];
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -141,7 +140,7 @@ function NameForm({ initial, onOpen }) {
         features={[
           "Attendance for every class, with the topics covered",
           "Subject progress and test scores, month by month",
-          "Homework and remarks straight from the tutor",
+          "Remarks from the tutor after every test",
         ]}
         title="Open the parent dashboard"
         subtitle="Add your names to see how it will look for your family, or leave them blank. This preview uses sample data."
@@ -415,13 +414,13 @@ function RemarkCard({ remark }) {
 }
 
 function Overview({ sample, remarks, goTo }) {
-  const { stats, homework, thisWeek } = sample;
+  const { stats, tests, thisWeek } = sample;
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatTile label="Attendance" value={`${stats.attendancePercent}%`} detail={`${stats.missed} class missed`} icon={CalendarCheck} tint="good" />
         <StatTile label="Classes left" value={stats.remaining} detail={`of ${stats.total} this month`} icon={Target} />
-        <StatTile label="Homework" value={`${stats.homeworkDone}/${stats.homeworkTotal}`} detail={`${stats.homeworkTotal - stats.homeworkDone} still to do`} icon={PenLine} tint="warning" />
+        <StatTile label="Tests taken" value={stats.testsTaken} detail={`${tests.upcoming.length} coming up`} icon={FileText} tint="warning" />
         <StatTile label="Average score" value={`${stats.averageScore}%`} detail={`+${stats.scoreChange} since the last test`} icon={TrendingUp} />
       </div>
 
@@ -457,14 +456,14 @@ function Overview({ sample, remarks, goTo }) {
           <SectionCard title="Latest remark" icon={MessageSquareQuote}>
             <RemarkCard remark={remarks[0]} />
           </SectionCard>
-          <SectionCard title="Homework due" icon={PenLine}>
+          <SectionCard title="Upcoming tests" icon={FileText}>
             <ul className="space-y-3">
-              {homework.toDo.map((item) => (
-                <li key={item.task} className="flex items-start gap-2.5">
+              {tests.upcoming.map((item) => (
+                <li key={item.title} className="flex items-start gap-2.5">
                   <Circle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{item.task}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{item.subject} · Due {item.due}</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{item.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{item.subject} · {item.date}</p>
                   </div>
                 </li>
               ))}
@@ -732,46 +731,44 @@ function Progress({ sample, remarks }) {
   );
 }
 
-// ── Homework ─────────────────────────────────────────────────────────────────
+// ── Tests ────────────────────────────────────────────────────────────────────
 
-function Homework({ sample }) {
-  const { stats, homework } = sample;
-  const percent = Math.round((stats.homeworkDone / stats.homeworkTotal) * 100);
+function Tests({ sample }) {
+  const { stats, tests } = sample;
   return (
     <div className="space-y-5">
       <section className={`${card} p-5 sm:p-6`}>
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">Homework this month</h2>
-            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{stats.homeworkTotal - stats.homeworkDone} still to do</p>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">Tests so far</h2>
+            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Average score {stats.averageScore}%</p>
           </div>
-          <p className="text-3xl font-bold leading-none text-slate-900 dark:text-white">{stats.homeworkDone}/{stats.homeworkTotal}</p>
+          <p className="text-3xl font-bold leading-none text-slate-900 dark:text-white">{stats.testsTaken}</p>
         </div>
-        <div className="mt-4"><Meter percent={percent} label={`${stats.homeworkDone} of ${stats.homeworkTotal} submitted`} /></div>
       </section>
 
       <div className="grid items-start gap-5 lg:grid-cols-2">
-        <SectionCard title="To do" icon={PenLine} aside={`${homework.toDo.length} pending`}>
+        <SectionCard title="Coming up" icon={Clock} aside={`${tests.upcoming.length} tests`}>
           <ul className="space-y-3">
-            {homework.toDo.map((item) => (
-              <li key={item.task} className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.task}</p>
+            {tests.upcoming.map((item) => (
+              <li key={item.title} className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.title}</p>
                 <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-slate-600 dark:text-slate-300">
                   <span>{item.subject}</span>
                   <span aria-hidden="true">·</span>
-                  <span className="inline-flex items-center gap-1 font-semibold"><Clock className="h-3 w-3" aria-hidden="true" />Due {item.due}</span>
+                  <span className="inline-flex items-center gap-1 font-semibold"><Clock className="h-3 w-3" aria-hidden="true" />{item.date}</span>
                 </p>
               </li>
             ))}
           </ul>
         </SectionCard>
 
-        <SectionCard title="Checked by the tutor" icon={CheckCircle2} aside={`Latest ${homework.done.length} of ${stats.homeworkDone}`}>
+        <SectionCard title="Results" icon={CheckCircle2} aside={`Latest ${tests.results.length} of ${stats.testsTaken}`}>
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {homework.done.map((item) => (
-              <li key={item.task} className="py-3 first:pt-0 last:pb-0">
+            {tests.results.map((item) => (
+              <li key={item.title} className="py-3 first:pt-0 last:pb-0">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="min-w-0 text-sm font-semibold text-slate-800 dark:text-slate-100">{item.task}</p>
+                  <p className="min-w-0 text-sm font-semibold text-slate-800 dark:text-slate-100">{item.title}</p>
                   <span className="shrink-0 text-sm font-bold text-slate-900 dark:text-white">{item.marks}</span>
                 </div>
                 <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">{item.subject}</p>
@@ -932,7 +929,7 @@ function Dashboard({ names, onChangeNames, embedded = false, onClose }) {
             {tab === "overview" && <Overview sample={sample} remarks={remarks} goTo={goTo} />}
             {tab === "attendance" && <Attendance sample={sample} />}
             {tab === "progress" && <Progress sample={sample} remarks={remarks} />}
-            {tab === "homework" && <Homework sample={sample} />}
+            {tab === "tests" && <Tests sample={sample} />}
           </div>
           <NextSteps studentName={names.studentName} onContinue={embedded ? onClose : undefined} />
         </main>

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  ClipboardList,
   FileCheck2,
   Plus,
   Pencil,
@@ -17,7 +16,9 @@ import {
 import { API_BASE } from "../../config";
 import { cardClass, formatDay, StatTile, EmptyState, Avatar } from "./PortalParts";
 
-// Assignments and tests: the tutor sets them and adds marks and a remark; parents follow the results
+// Tests: the tutor sets them and adds marks and a remark; parents follow the results.
+// Homework saved before the switch to tests only stays in the database but isn't shown.
+const testsOnly = (items) => items.filter((a) => a.kind === "Test");
 
 const STATUS_STYLE = {
   Pending: "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
@@ -43,14 +44,12 @@ function AssignmentStatus({ status }) {
 }
 
 export function AssignmentCard({ item, actions }) {
-  const isTest = item.kind === "Test";
   const percent = scorePercent(item);
-  const KindIcon = isTest ? FileCheck2 : ClipboardList;
   return (
     <article className={`${cardClass} p-4 sm:p-5`}>
       <div className="flex items-start gap-3">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isTest ? "bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300" : "bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-300"}`}>
-          <KindIcon className="h-5 w-5" />
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
+          <FileCheck2 className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -63,9 +62,8 @@ export function AssignmentCard({ item, actions }) {
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="inline-flex items-center gap-1">
               <CalendarDays className="h-3.5 w-3.5" />
-              {isTest ? "Test on" : "Given"} {formatDay(item.givenDate)}
+              Test on {formatDay(item.givenDate)}
             </span>
-            {!isTest && item.dueDate && <span>Due {formatDay(item.dueDate)}</span>}
           </p>
         </div>
         {percent !== null && (
@@ -149,7 +147,7 @@ export function AssignmentSummary({ items }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile label="Given" value={items.length} icon={BookOpen} hint="assignments & tests" />
+        <StatTile label="Tests" value={items.length} icon={BookOpen} />
         <StatTile label="Checked" value={checked} icon={CheckCircle2} tone="emerald" />
         <StatTile label="Waiting for check" value={pending} icon={Hourglass} tone="amber" />
         <StatTile label="Average score" value={average === null ? "—" : `${average}%`} icon={Award} tone="indigo" hint={scored.length ? `from ${scored.length} marked` : "no marks yet"} />
@@ -159,28 +157,26 @@ export function AssignmentSummary({ items }) {
   );
 }
 
-// Parent portal: everything the tutor has set for this student
+// Parent portal: every test the tutor has set for this student
 export function ParentAssignments({ assignments = [] }) {
-  const [filter, setFilter] = useState("all");
-  const shown = filter === "all" ? assignments : assignments.filter((a) => a.kind === filter);
+  const tests = testsOnly(assignments);
   return (
     <section>
       <div className="mb-4">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Assignments &amp; tests</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Homework and tests from the tutor, with marks and remarks.</p>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tests</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Tests from the tutor, with marks and remarks.</p>
       </div>
-      {assignments.length === 0 ? (
+      {tests.length === 0 ? (
         <EmptyState
-          icon={ClipboardList}
-          title="No assignments yet"
-          text="When the tutor gives homework or a test, it will show here with the marks and the tutor's remark."
+          icon={FileCheck2}
+          title="No tests yet"
+          text="When the tutor gives a test, it will show here with the marks and the tutor's remark."
         />
       ) : (
         <div className="space-y-4">
-          <AssignmentSummary items={assignments} />
-          <KindFilter value={filter} onChange={setFilter} items={assignments} />
+          <AssignmentSummary items={tests} />
           <div className="space-y-3">
-            {shown.map((a) => <AssignmentCard key={a._id} item={a} />)}
+            {tests.map((a) => <AssignmentCard key={a._id} item={a} />)}
           </div>
         </div>
       )}
@@ -188,43 +184,16 @@ export function ParentAssignments({ assignments = [] }) {
   );
 }
 
-function KindFilter({ value, onChange, items }) {
-  const options = [
-    { id: "all", label: `All (${items.length})` },
-    { id: "Assignment", label: `Assignments (${items.filter((a) => a.kind === "Assignment").length})` },
-    { id: "Test", label: `Tests (${items.filter((a) => a.kind === "Test").length})` },
-  ];
-  return (
-    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-none">
-      {options.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          onClick={() => onChange(o.id)}
-          className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
-            value === o.id
-              ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-              : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-white"
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// Tutor dashboard: pick a student, then set work and record marks and remarks
+// Tutor dashboard: pick a student, then set tests and record marks and remarks
 export function TutorAssignments({ students, token, onSessionExpired }) {
   const [studentId, setStudentId] = useState(students[0]?._id || null);
-  const [records, setRecords] = useState({}); // studentId -> assignments
+  const [records, setRecords] = useState({}); // studentId -> saved records
   const [loadingId, setLoadingId] = useState(null);
   const [loadError, setLoadError] = useState("");
-  const [editing, setEditing] = useState(null); // { item?, kind } while the form is open
-  const [filter, setFilter] = useState("all");
+  const [editing, setEditing] = useState(null); // { item? } while the form is open
 
   const student = students.find((s) => s._id === studentId) || students[0];
-  const items = student ? records[student._id] : undefined;
+  const items = student && records[student._id] ? testsOnly(records[student._id]) : undefined;
 
   async function load(id) {
     setLoadingId(id);
@@ -236,7 +205,7 @@ export function TutorAssignments({ students, token, onSessionExpired }) {
       if (!res.ok) throw new Error(data.message);
       setRecords((prev) => ({ ...prev, [id]: data.assignments || [] }));
     } catch (err) {
-      setLoadError(err.message || "Couldn't load assignments.");
+      setLoadError(err.message || "Couldn't load tests.");
     } finally {
       setLoadingId(null);
     }
@@ -267,7 +236,6 @@ export function TutorAssignments({ students, token, onSessionExpired }) {
   }
 
   if (!student) return null;
-  const shown = !items ? [] : filter === "all" ? items : items.filter((a) => a.kind === filter);
 
   return (
     <div className="space-y-5">
@@ -281,7 +249,7 @@ export function TutorAssignments({ students, token, onSessionExpired }) {
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => { setStudentId(s._id); setFilter("all"); }}
+                onClick={() => setStudentId(s._id)}
                 className={`flex shrink-0 items-center gap-2.5 rounded-2xl border py-2 pl-2 pr-4 text-left transition cursor-pointer ${
                   active
                     ? "border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
@@ -307,47 +275,37 @@ export function TutorAssignments({ students, token, onSessionExpired }) {
             <p className="text-xs text-slate-500 dark:text-slate-400">The parent sees everything you add here.</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setEditing({ kind: "Assignment" })}
-            className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 sm:flex-none cursor-pointer"
-          >
-            <Plus className="h-4 w-4" /> Assignment
-          </button>
-          <button
-            type="button"
-            onClick={() => setEditing({ kind: "Test" })}
-            className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 sm:flex-none cursor-pointer"
-          >
-            <Plus className="h-4 w-4" /> Test
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setEditing({})}
+          className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 cursor-pointer"
+        >
+          <Plus className="h-4 w-4" /> Add test
+        </button>
       </div>
 
       {loadingId === student._id && !items ? (
         <p className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500 dark:text-slate-400">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading assignments...
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading tests...
         </p>
       ) : !items ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-center dark:border-rose-900 dark:bg-rose-950/20">
-          <p className="text-sm font-medium text-rose-700 dark:text-rose-400">{loadError || "Couldn't load assignments."}</p>
+          <p className="text-sm font-medium text-rose-700 dark:text-rose-400">{loadError || "Couldn't load tests."}</p>
           <button type="button" onClick={() => load(student._id)} className="mt-2 text-sm font-semibold text-indigo-600 underline dark:text-indigo-400 cursor-pointer">
             Try again
           </button>
         </div>
       ) : items.length === 0 ? (
         <EmptyState
-          icon={ClipboardList}
-          title="No assignments or tests yet"
-          text="Give homework or a weekly test, then add the marks and a remark once it's checked. The parent sees them straight away."
+          icon={FileCheck2}
+          title="No tests yet"
+          text="Give a test, then add the marks and a remark once it's checked. The parent sees them straight away."
         />
       ) : (
         <div className="space-y-4">
           <AssignmentSummary items={items} />
-          <KindFilter value={filter} onChange={setFilter} items={items} />
           <div className="space-y-3">
-            {shown.map((item) => (
+            {items.map((item) => (
               <AssignmentCard
                 key={item._id}
                 item={item}
@@ -355,14 +313,14 @@ export function TutorAssignments({ students, token, onSessionExpired }) {
                   <>
                     <button
                       type="button"
-                      onClick={() => setEditing({ item, kind: item.kind, focusResult: true })}
+                      onClick={() => setEditing({ item, focusResult: true })}
                       className="flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 cursor-pointer"
                     >
                       <Award className="h-3.5 w-3.5" /> {item.status === "Pending" ? "Add marks & remark" : "Update result"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEditing({ item, kind: item.kind })}
+                      onClick={() => setEditing({ item })}
                       className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:text-white cursor-pointer"
                     >
                       <Pencil className="h-3.5 w-3.5" /> Edit
@@ -384,10 +342,9 @@ export function TutorAssignments({ students, token, onSessionExpired }) {
 
       {editing && (
         <AssignmentForm
-          key={editing.item?._id || editing.kind}
+          key={editing.item?._id || "new"}
           student={student}
           item={editing.item}
-          initialKind={editing.kind}
           focusResult={editing.focusResult}
           token={token}
           onSessionExpired={onSessionExpired}
@@ -405,14 +362,13 @@ const STATUSES = [
   { id: "Not submitted", label: "Not submitted" },
 ];
 
-function AssignmentForm({ student, item, initialKind, focusResult, token, onSessionExpired, onClose, onSaved }) {
+function AssignmentForm({ student, item, focusResult, token, onSessionExpired, onClose, onSaved }) {
   const [form, setForm] = useState(() => ({
-    kind: item?.kind || initialKind || "Assignment",
+    kind: "Test",
     title: item?.title || "",
     subject: item?.subject || "",
     details: item?.details || "",
     givenDate: item?.givenDate || todayString(),
-    dueDate: item?.dueDate || "",
     maxMarks: item?.maxMarks ?? "",
     marks: item?.marks ?? "",
     remark: item?.remark || "",
@@ -420,7 +376,6 @@ function AssignmentForm({ student, item, initialKind, focusResult, token, onSess
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const isTest = form.kind === "Test";
 
   const set = (key) => (e) => {
     const value = e.target.value;
@@ -435,14 +390,14 @@ function AssignmentForm({ student, item, initialKind, focusResult, token, onSess
 
   async function submit(e) {
     e.preventDefault();
-    if (!form.title.trim()) return setError("Give it a title, e.g. \"Chapter 4 worksheet\".");
+    if (!form.title.trim()) return setError("Give it a title, e.g. \"Weekly test – Fractions\".");
     if (form.marks !== "" && form.maxMarks === "") return setError("Enter the total marks too.");
     if (form.marks !== "" && Number(form.marks) > Number(form.maxMarks)) return setError(`Marks can't be more than the total (${form.maxMarks}).`);
 
     setSaving(true);
     setError("");
     try {
-      const body = { ...form, dueDate: isTest ? "" : form.dueDate, marks: form.status === "Not submitted" ? "" : form.marks };
+      const body = { ...form, dueDate: "", marks: form.status === "Not submitted" ? "" : form.marks };
       const res = await fetch(
         item ? `${API_BASE}/portal/assignments/${item._id}` : `${API_BASE}/portal/students/${student._id}/assignments`,
         {
@@ -477,7 +432,7 @@ function AssignmentForm({ student, item, initialKind, focusResult, token, onSess
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
           <div className="min-w-0">
             <h3 id="assignment-form-title" className="text-base font-bold text-slate-900 dark:text-white">
-              {item ? (focusResult ? "Marks & remark" : `Edit ${form.kind.toLowerCase()}`) : `New ${form.kind.toLowerCase()}`}
+              {item ? (focusResult ? "Marks & remark" : "Edit test") : "New test"}
             </h3>
             <p className="truncate text-xs text-slate-500 dark:text-slate-400">{student.studentName} · {student.requirementId}</p>
           </div>
@@ -495,17 +450,9 @@ function AssignmentForm({ student, item, initialKind, focusResult, token, onSess
               </div>
             ) : (
               <>
-                <div className="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
-                  {["Assignment", "Test"].map((kind) => (
-                    <button key={kind} type="button" onClick={() => setForm((prev) => ({ ...prev, kind }))} className={segment(form.kind === kind)}>
-                      {kind}
-                    </button>
-                  ))}
-                </div>
-
                 <div>
                   <label htmlFor="as-title" className={label}>Title</label>
-                  <input id="as-title" value={form.title} onChange={set("title")} maxLength={120} placeholder={isTest ? "e.g. Weekly test – Fractions" : "e.g. Chapter 4 worksheet"} className={`${field} h-11`} />
+                  <input id="as-title" value={form.title} onChange={set("title")} maxLength={120} placeholder="e.g. Weekly test – Fractions" className={`${field} h-11`} />
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -519,22 +466,14 @@ function AssignmentForm({ student, item, initialKind, focusResult, token, onSess
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="as-given" className={label}>{isTest ? "Test date" : "Given on"}</label>
-                    <input id="as-given" type="date" value={form.givenDate} onChange={set("givenDate")} className={`${field} h-11`} />
-                  </div>
-                  {!isTest && (
-                    <div>
-                      <label htmlFor="as-due" className={label}>Due date <span className="font-normal text-slate-400">(optional)</span></label>
-                      <input id="as-due" type="date" value={form.dueDate} min={form.givenDate || undefined} onChange={set("dueDate")} className={`${field} h-11`} />
-                    </div>
-                  )}
+                <div>
+                  <label htmlFor="as-given" className={label}>Test date</label>
+                  <input id="as-given" type="date" value={form.givenDate} onChange={set("givenDate")} className={`${field} h-11`} />
                 </div>
 
                 <div>
-                  <label htmlFor="as-details" className={label}>{isTest ? "Syllabus / chapters" : "Instructions"} <span className="font-normal text-slate-400">(optional)</span></label>
-                  <textarea id="as-details" rows={3} value={form.details} onChange={set("details")} maxLength={2000} placeholder={isTest ? "Chapters or topics in the test" : "What the student needs to do"} className={`${field} resize-none py-3`} />
+                  <label htmlFor="as-details" className={label}>Syllabus / chapters <span className="font-normal text-slate-400">(optional)</span></label>
+                  <textarea id="as-details" rows={3} value={form.details} onChange={set("details")} maxLength={2000} placeholder="Chapters or topics in the test" className={`${field} resize-none py-3`} />
                 </div>
               </>
             )}
@@ -581,7 +520,7 @@ function AssignmentForm({ student, item, initialKind, focusResult, token, onSess
             </button>
             <button type="submit" disabled={saving} className="flex h-11 flex-[2] items-center justify-center gap-2 rounded-xl bg-indigo-600 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60 cursor-pointer">
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {saving ? "Saving..." : item ? "Save changes" : `Add ${form.kind.toLowerCase()}`}
+              {saving ? "Saving..." : item ? "Save changes" : "Add test"}
             </button>
           </div>
         </form>

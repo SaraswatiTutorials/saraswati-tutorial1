@@ -1619,8 +1619,13 @@ export async function updateLeadAssignment(
     }
 
 
-    payload.x_studio_lead_status =
-      "Demo Scheduled";
+    if (
+      !assignmentDetails.keepStatus
+    ) {
+
+      payload.x_studio_lead_status =
+        "Demo Scheduled";
+    }
 
 
     await callOdoo(
