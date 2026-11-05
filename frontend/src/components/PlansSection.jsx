@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 
 import "@fontsource-variable/plus-jakarta-sans";
-import { PLANS } from "../data/plansConfig";
+import { PLANS, sortOptionsForDisplay } from "../data/plansConfig";
 import { getAvailableOptions, getEffectiveHourlyRate, isPlanAvailable } from "../pricing/feeEngine";
 import { FEE_CONFIG } from "../pricing/feeConfig";
 import { trackEvent } from "../utils/analytics";
@@ -844,7 +844,7 @@ function PlanCard({ plan, isActive, isSelectedAny, isCenter, position, onClick }
 
           {/* Key Benefit tag line */}
           <p className="mt-1 text-[10px] sm:text-[11px] font-bold leading-snug opacity-90">
-            {plan.keyPoints.join(" & ")}
+            {`${plan.keyPoints.slice(0, -1).join(", ")} & ${plan.keyPoints.at(-1)}`}
           </p>
 
           {/* Description */}
@@ -1178,7 +1178,7 @@ function PlanDetails({ plan, onCTA, selectedClass, selectedBoard }) {
   };
 
   // Schedules offered for the selected class, priced by the shared fee engine
-  const pricingOptions = getAvailableOptions(plan.id, [{ classGrade: selectedClass, curriculum: selectedBoard }]);
+  const pricingOptions = sortOptionsForDisplay(getAvailableOptions(plan.id, [{ classGrade: selectedClass, curriculum: selectedBoard }]));
   const perSubject = FEE_CONFIG.subjectPricing.enabled && FEE_CONFIG.subjectPricing.appliesToPlans.includes(plan.id);
 
   return (
