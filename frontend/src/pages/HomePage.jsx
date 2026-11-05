@@ -49,7 +49,6 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
-import DemoParentDashboard from "./DemoParentDashboard";
 import BrandLogo from "../components/BrandLogo";
 
 
@@ -635,7 +634,6 @@ export default function HomePage() {
   const [activeFaq, setActiveFaq] = useState(null);
   const [activeSection, setActiveSection] = useState("home");
   const [visibleTutorsCount, setVisibleTutorsCount] = useState(4);
-  const [showDemoPreview, setShowDemoPreview] = useState(false);
 
   useEffect(() => {
     setVisibleTutorsCount(4);
@@ -1331,19 +1329,17 @@ export default function HomePage() {
                   <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
                 </MotionLink>
 
-                {/* Parents Dashboard Preview button */}
-                <motion.button
+                {/* Opens the parent dashboard preview on its own page */}
+                <MotionLink
                   id="parents-dashboard-btn"
                   data-own-colors
-                  type="button"
-                  onClick={() => setShowDemoPreview(true)}
+                  to="/parent-dashboard"
                   whileHover={{ scale: 1.03, translateY: -2, boxShadow: "0 10px 25px rgba(255,255,255,0.18)" }}
                   whileTap={{ scale: 0.97 }}
                   className="group inline-flex items-center gap-2 rounded-2xl border border-white bg-white px-7 py-4 font-black text-slate-900 transition-all duration-300 hover:bg-blue-50 shadow-xl shadow-black/30 cursor-pointer"
-                  aria-label="Parents dashboard preview"
                 >
                   Parents Dashboard
-                </motion.button>
+                </MotionLink>
               </div>
 
               {/* Quick Stats Grid */}
@@ -2341,13 +2337,6 @@ export default function HomePage() {
         ) : null}
       </AnimatePresence>
 
-      {/* Demo Parent Dashboard Preview Modal */}
-      {showDemoPreview && (
-        <DemoParentDashboard
-          onClose={() => setShowDemoPreview(false)}
-          selectedPlan="advance"
-        />
-      )}
     </div>
   );
 }

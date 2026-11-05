@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
 import PlansSection from "../components/PlansSection";
-import DemoParentDashboard from "./DemoParentDashboard";
 import ThemeToggle from "../components/ThemeToggle";
 import CountUp from "../components/CountUp";
 import {
@@ -184,7 +183,6 @@ export default function MumbaiPage() {
   const [mobileResourcesOpen, setMobileResourcesOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState(null);
   const [activeSection, setActiveSection] = useState("home");
-  const [showDemoPreview, setShowDemoPreview] = useState(false);
 
   useEffect(() => {
     // The active section is the one crossing a line 160px below the top of the window.
@@ -680,11 +678,10 @@ export default function MumbaiPage() {
                   <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
                 </MotionLink>
 
-                <button
+                <Link
                   id="parents-dashboard-btn"
                   data-own-colors
-                  type="button"
-                  onClick={() => setShowDemoPreview(true)}
+                  to="/parent-dashboard"
                   className="rounded-2xl border border-white bg-white px-7 py-4 font-black text-slate-900 transition duration-300 hover:-translate-y-0.5 hover:bg-blue-50 shadow-lg shadow-black/30 flex items-center justify-center gap-2.5 cursor-pointer"
                 >
                   <span className="relative flex h-2.5 w-2.5 items-center justify-center">
@@ -692,7 +689,7 @@ export default function MumbaiPage() {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
                   </span>
                   Parents Dashboard
-                </button>
+                </Link>
               </div>
               {/* Quick Stats Grid */}
               <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1350,9 +1347,6 @@ export default function MumbaiPage() {
         </svg>
       </motion.a>
       </div>
-      {showDemoPreview && (
-        <DemoParentDashboard onClose={() => setShowDemoPreview(false)} />
-      )}
     </div>
   );
 }

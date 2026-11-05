@@ -184,7 +184,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
       .find(match, {
         projection: {
           requirementId: 1, parentName: 1, phone: 1, area: 1, city: 1,
-          status: 1, createdAt: 1, assignedTutor: 1, assignedTutorId: 1,
+          status: 1, createdAt: 1, assignedTutor: 1, assignedTutorId: 1, tutorUnassignedAt: 1,
           latitude: 1, longitude: 1, pincode: 1,
           wards: 1, isDemoRecord: 1,
         },
@@ -308,7 +308,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
       // The scheduler only sends tutors who are on the shortlist, and stops
       // after MAX_ATTEMPTS failures. Anything else needs sending by hand, so
       // the board must not promise it will go out on its own.
-      const autoSendable = failedTop3 < MAX_ATTEMPTS && rankInterested(shortlist?.tutors || [],
+      const autoSendable = !lead.tutorUnassignedAt && failedTop3 < MAX_ATTEMPTS && rankInterested(shortlist?.tutors || [],
         myLogs.filter((l) => l.broadcastType === "requirement")).length > 0;
 
       const stage =

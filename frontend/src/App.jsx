@@ -50,6 +50,7 @@ const Testimonials = lazyPage(() => import("./pages/Testimonials"));
 const TeacherLogin = lazyPage(() => import("./pages/TeacherLogin"));
 const TeacherDashboard = lazyPage(() => import("./pages/TeacherDashboard"));
 const ParentPortal = lazyPage(() => import("./pages/ParentPortal"));
+const ParentDashboardPreview = lazyPage(() => import("./pages/ParentDashboardPreview"));
 
 // Admin Protected Route
 function ProtectedRoute({ children }) {
@@ -125,6 +126,7 @@ export default function App() {
           />
           <Route path="/parent/login" element={<ParentPortal />} />
           <Route path="/parent/attendance" element={<Navigate to="/parent/login" replace />} />
+          <Route path="/parent-dashboard" element={<ParentDashboardPreview />} />
 
           {/* Admin Login */}
           <Route path="/admin-login" element={<AdminLogin />} />

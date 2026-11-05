@@ -204,6 +204,14 @@ html, body {
   --color-indigo-300: #b3aeff;
 }
 
+/* Plan cards, plan details and the parent dashboard preview */
+.plan-font,
+.plan-font [data-dashboard] {
+  font-family: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  word-spacing: 0.09em;
+}
+
 /* Floating WhatsApp button bob, run by the browser instead of JavaScript */
 @keyframes float-bob {
   0%, 100% { transform: translateY(0); }

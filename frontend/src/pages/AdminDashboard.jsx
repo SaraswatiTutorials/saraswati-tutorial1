@@ -54,11 +54,13 @@ import {
   RotateCcw,
   MessageSquare,
   UserPlus,
+  UserMinus,
 } from "lucide-react";
 import { API_BASE } from "../config";
 import { FEEDBACK_CATEGORY_LABELS, FEEDBACK_SOURCE_LABELS } from "../data/feedbackConfig";
 import ThemeToggle from "../components/ThemeToggle";
 import AdminLayout from "../components/admin/AdminLayout";
+import EditLeadModal from "../components/admin/EditLeadModal";
 import { formatClassTimeRange, formatTime12, classTimeError, logMinutes, formatHours, plannedClassMinutes } from "../utils/classTime";
 import TimeInput12 from "../components/TimeInput12";
 import {
@@ -416,6 +418,7 @@ export default function AdminDashboard() {
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [loadingTemplates, setLoadingTemplates] = useState(false);
 
+  const [editingLead, setEditingLead] = useState(null);
   const [editingTutor, setEditingTutor] = useState(null);
   const [editForm, setEditForm] = useState(emptyTutor);
 
@@ -1055,6 +1058,36 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error("Error assigning tutor:", err);
+    }
+  };
+
+  const handleUnassignTutor = async (lead) => {
+    const students = lead.wards?.map((ward) => ward.studentName).filter(Boolean).join(", ") || lead.parentName || "this student";
+    const confirmed = window.confirm(
+      `Remove ${lead.assignedTutor || "the tutor"} from ${students}?\n\n` +
+      "The tutor will no longer see this student or be able to mark attendance. " +
+      "Any demo date is cleared, and past attendance is kept. Nobody is messaged."
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/parent-enquiries/${lead._id}/unassign-tutor`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(`Couldn't unassign the tutor: ${data.message || "please try again."}`);
+        return;
+      }
+      setParentEnquiries((prev) =>
+        prev.map((item) => (item._id === lead._id ? { ...item, ...data.lead } : item))
+      );
+      fetchData();
+      fetchBroadcastLogs();
+    } catch (err) {
+      console.error("Error unassigning tutor:", err);
+      alert("Couldn't reach the server, so the tutor is still assigned. Please try again.");
     }
   };
 
@@ -2707,7 +2740,7 @@ export default function AdminDashboard() {
                 <EmptyState text="No parent leads found for this search or filter." />
               ) : (
                 <div className="xl:overflow-hidden xl:rounded-2xl xl:bg-white xl:dark:bg-slate-900 xl:shadow-[0_1px_3px_rgba(15,23,42,0.05)] xl:dark:shadow-none">
-                  <div className="hidden gap-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 xl:grid xl:grid-cols-[2.25rem_minmax(0,1.75fr)_minmax(0,1.25fr)_minmax(0,0.95fr)_minmax(0,0.95fr)_10rem_7.75rem]">
+                  <div className="hidden gap-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 xl:grid xl:grid-cols-[2.25rem_minmax(0,1.75fr)_minmax(0,1.25fr)_minmax(0,0.95fr)_minmax(0,0.95fr)_10rem_10.25rem]">
                     <span>#</span>
                     <span>Parent</span>
                     <span>Students</span>
@@ -2765,7 +2798,7 @@ export default function AdminDashboard() {
                               toggleExpanded(setExpandedLeadIds, p._id);
                             }
                           }}
-                          className="grid cursor-pointer grid-cols-2 gap-x-4 gap-y-3 px-4 py-3.5 transition hover:bg-slate-50 dark:hover:bg-slate-800/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 sm:px-5 xl:items-center xl:gap-4 xl:grid-cols-[2.25rem_minmax(0,1.75fr)_minmax(0,1.25fr)_minmax(0,0.95fr)_minmax(0,0.95fr)_10rem_7.75rem]"
+                          className="grid cursor-pointer grid-cols-2 gap-x-4 gap-y-3 px-4 py-3.5 transition hover:bg-slate-50 dark:hover:bg-slate-800/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 sm:px-5 xl:items-center xl:gap-4 xl:grid-cols-[2.25rem_minmax(0,1.75fr)_minmax(0,1.25fr)_minmax(0,0.95fr)_minmax(0,0.95fr)_10rem_10.25rem]"
                         >
                           <span className="hidden text-sm font-medium tabular-nums text-slate-400 xl:block">
                             {String(leadIndex + 1).padStart(2, "0")}
@@ -2799,6 +2832,12 @@ export default function AdminDashboard() {
                               icon={Search}
                               tone={matchingLeadId === p._id ? "dark" : "emerald"}
                               onClick={toggleMatching}
+                            />
+                            <IconAction
+                              label="Edit details"
+                              icon={Edit}
+                              tone="slate"
+                              onClick={() => setEditingLead(p)}
                             />
                             <IconAction
                               label="Archive enquiry"
@@ -3054,7 +3093,7 @@ export default function AdminDashboard() {
                         {/* Expandable Match Tutors Panel */}
                         <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-4 sm:px-5">
                           <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               {p.requirementId && (
                                 <span className="rounded-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                                   ID: {p.requirementId}
@@ -3065,6 +3104,7 @@ export default function AdminDashboard() {
                                   Assigned Tutor: {p.assignedTutor}
                                 </span>
                               )}
+                              {p.assignedTutor && <UnassignTutorButton onClick={() => handleUnassignTutor(p)} />}
                             </div>
 
                             <button
@@ -4101,11 +4141,26 @@ export default function AdminDashboard() {
         {currentMainTab === "attendance" && (
           <AdminAttendanceConsole
             parentEnquiries={uniqueParentEnquiries}
+            onUnassignTutor={handleUnassignTutor}
             fetchLeadAttendanceLogs={fetchLeadAttendanceLogs}
             attendanceLogs={attendanceLogs}
             fetchingLogsLeadId={fetchingLogsLeadId}
             setAttendanceLogs={setAttendanceLogs}
             fetchData={fetchData}
+          />
+        )}
+
+        {editingLead && (
+          <EditLeadModal
+            lead={editingLead}
+            onClose={() => setEditingLead(null)}
+            onSaved={(updated) => {
+              setParentEnquiries((prev) =>
+                prev.map((item) => (item._id === updated._id ? { ...item, ...updated } : item))
+              );
+              setEditingLead(null);
+              fetchData();
+            }}
           />
         )}
 
@@ -4534,6 +4589,7 @@ const DEFAULT_ATTENDANCE_COLUMNS = [
 
 function AdminAttendanceConsole({
   parentEnquiries,
+  onUnassignTutor,
   fetchLeadAttendanceLogs,
   attendanceLogs,
   fetchingLogsLeadId,
@@ -5223,8 +5279,9 @@ function AdminAttendanceConsole({
                                               </div>
                                               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5">Cycle Dates: {cycleDates}</p>
                                             </div>
-                                            <div className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                                              Current Assigned: <strong className="text-slate-800 dark:text-slate-100">{p.assignedTutor || "Not Assigned"}</strong>
+                                            <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                                              <span>Current Assigned: <strong className="text-slate-800 dark:text-slate-100">{p.assignedTutor || "Not Assigned"}</strong></span>
+                                              {p.assignedTutor && <UnassignTutorButton onClick={() => onUnassignTutor(p)} />}
                                             </div>
                                           </div>
 
@@ -6122,6 +6179,22 @@ function IconAction({ label, icon: Icon, tone = "indigo", onClick, compact = fal
       className={`flex ${compact ? "h-8 w-8" : "h-9 w-9"} shrink-0 items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer ${ICON_ACTION_TONES[tone] || ICON_ACTION_TONES.slate}`}
     >
       <Icon className="h-4 w-4" />
+    </button>
+  );
+}
+
+function UnassignTutorButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className="inline-flex items-center gap-1 rounded-full border border-rose-200 dark:border-rose-900/60 bg-white dark:bg-slate-900 px-2.5 py-1 text-xs font-semibold text-rose-600 dark:text-rose-400 transition hover:bg-rose-50 dark:hover:bg-rose-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 cursor-pointer"
+    >
+      <UserMinus className="h-3.5 w-3.5" />
+      Unassign
     </button>
   );
 }

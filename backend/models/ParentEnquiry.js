@@ -436,6 +436,23 @@ const parentEnquirySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    // Set when an admin removes the tutor. Also keeps the automatic top-3 message
+    // from going to this parent: an admin is now handling the choice of tutor.
+    tutorUnassignedAt: {
+      type: Date,
+      default: null,
+    },
+
+    tutorUnassignedFrom: {
+      type: String,
+      default: "",
+    },
+
+    tutorUnassignedBy: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

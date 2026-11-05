@@ -34,6 +34,7 @@ import {
   RefreshCw,
   MessageSquare
 } from "lucide-react";
+import "@fontsource-variable/plus-jakarta-sans";
 import { PLANS } from "../data/plansConfig";
 import {
   calculateListPrice,
@@ -609,6 +610,46 @@ const getBenefitIcon = (title, planTheme) => {
   return <SimpleBenefitIcon title={title} planTheme={planTheme} />;
 };
 
+// Colours for the plan cards on the enquiry form. These stay the same in light and dark mode.
+const PLAN_CARD_LOOKS = {
+  silver: {
+    icon: BookOpen,
+    card: "bg-gradient-to-br from-white via-slate-50 to-slate-200 border-slate-200 text-slate-900 shadow-[0_12px_30px_-14px_rgba(51,65,85,0.45)] hover:shadow-[0_22px_44px_-16px_rgba(51,65,85,0.55)]",
+    glow: "bg-sky-300/30",
+    iconTile: "bg-slate-800 text-white",
+    badge: "bg-slate-800/10 text-slate-700",
+    check: "bg-slate-800 text-white",
+    divider: "border-slate-300/80",
+    label: "text-slate-600",
+    price: "text-slate-900",
+    cta: "bg-slate-800 text-white group-hover:bg-slate-950",
+  },
+  gold: {
+    icon: TrendingUp,
+    card: "md:-translate-y-2 bg-gradient-to-br from-[#FFE88A] via-[#FBBF24] to-[#F59E0B] border-amber-300 ring-2 ring-amber-300/70 text-slate-950 shadow-[0_18px_40px_-14px_rgba(217,119,6,0.7)] hover:shadow-[0_26px_50px_-14px_rgba(217,119,6,0.8)]",
+    glow: "bg-white/50",
+    iconTile: "bg-slate-950 text-amber-300",
+    badge: "bg-slate-950 text-amber-300",
+    check: "bg-slate-950 text-amber-300",
+    divider: "border-slate-950/20",
+    label: "text-slate-800",
+    price: "text-slate-950",
+    cta: "bg-slate-950 text-white group-hover:bg-slate-800",
+  },
+  black: {
+    icon: Award,
+    card: "bg-gradient-to-br from-[#16204A] via-[#0B1229] to-black border-amber-300/40 text-white shadow-[0_18px_40px_-14px_rgba(11,18,41,0.8)] hover:shadow-[0_26px_50px_-14px_rgba(11,18,41,0.95)]",
+    glow: "bg-indigo-500/30",
+    iconTile: "bg-gradient-to-br from-amber-200 to-amber-400 text-slate-950",
+    badge: "bg-amber-300/15 text-amber-200",
+    check: "bg-gradient-to-br from-amber-200 to-amber-400 text-slate-950",
+    divider: "border-white/15",
+    label: "text-slate-300",
+    price: "text-amber-200",
+    cta: "bg-gradient-to-r from-amber-200 to-amber-400 text-slate-950 group-hover:from-amber-100 group-hover:to-amber-300",
+  },
+};
+
 const DRAFT_KEY = "parentEnquiryDraft";
 
 // Server drafts are keyed by the parent's phone (required on step 1) once it has 10+ digits,
@@ -669,7 +710,6 @@ export default function ParentEnquiryForm() {
   const [geoInfo, setGeoInfo] = useState({});
   const [viewingPlanId, setViewingPlanId] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
-  const [openFaqIndex, setOpenFaqIndex] = useState(null);
   const [showAllFeatures, setShowAllFeatures] = useState(false);
   const [showDemoPreview, setShowDemoPreview] = useState(false);
   const [showCustomTime, setShowCustomTime] = useState(false);
@@ -713,7 +753,6 @@ export default function ParentEnquiryForm() {
   }, [step, form]);
 
   useEffect(() => {
-    setOpenFaqIndex(null);
     setShowAllFeatures(false);
   }, [viewingPlanId]);
 
@@ -2032,95 +2071,92 @@ export default function ParentEnquiryForm() {
                         </p>
                       )}
 
-                      <div className="flex w-full gap-5 overflow-x-auto pb-4 snap-x md:grid md:grid-cols-3 md:overflow-x-visible md:pb-0 scrollbar-thin">
+                      <div className="flex w-full gap-5 overflow-x-auto pt-3 pb-4 snap-x md:grid md:grid-cols-3 md:overflow-x-visible md:pb-0 scrollbar-thin">
                         {PLANS.map((plan) => {
                           // Plans with no schedule available for every student are hidden
                           // (e.g. Foundation below Class 6).
                           if (!isPlanAvailable(plan.id, form.wards, form.preferredMode)) {
                             return null;
                           }
-                          const isSilver = plan.theme === "silver";
-                          const isGold = plan.theme === "gold";
-
-                          let cardBgClass = "";
-                          let textClass = "";
-                          let hoverShadowClass = "";
-                          if (isSilver) {
-                            cardBgClass = "bg-gradient-to-br from-[#F8FAFC] to-[#CBD5E1] border-white/40 shadow-sm";
-                            textClass = "text-slate-800";
-                            hoverShadowClass = "hover:shadow-[0_0_30px_rgba(203,213,225,0.3)]";
-                          } else if (isGold) {
-                            cardBgClass = "bg-gradient-to-br from-[#FFD700] to-[#F59E0B] border-[#FFD700]/30 shadow-md";
-                            textClass = "text-slate-900";
-                            hoverShadowClass = "hover:shadow-[0_0_30px_rgba(245,158,11,0.4)]";
-                          } else {
-                            cardBgClass = "bg-gradient-to-br from-[#111827] to-[#000000] border-white/12 shadow-lg";
-                            textClass = "text-white";
-                            hoverShadowClass = "hover:shadow-[0_0_30px_rgba(255,255,255,0.15)]";
-                          }
+                          const look = PLAN_CARD_LOOKS[plan.theme] || PLAN_CARD_LOOKS.silver;
+                          const PlanIcon = look.icon;
 
                           return (
                             <div
                               key={plan.id}
                               data-own-colors
                               onClick={() => handleOpenPlanModal(plan)}
-                              className={`relative overflow-hidden premium-shine-card w-[290px] sm:w-[320px] md:w-full flex-shrink-0 snap-center rounded-[2rem] border p-6 flex flex-col justify-between h-[270px] cursor-pointer transition-all duration-300 group hover:scale-[1.02] ${cardBgClass} ${textClass} ${hoverShadowClass}`}
+                              className={`plan-font relative overflow-hidden premium-shine-card w-[290px] sm:w-[320px] md:w-full flex-shrink-0 snap-center rounded-[1.75rem] border p-5 lg:p-6 flex flex-col min-h-[300px] cursor-pointer transition-all duration-300 group hover:scale-[1.02] ${look.card}`}
                             >
                               {/* Subtle shine effect overlay on hover */}
                               <div className="shine-overlay pointer-events-none" />
-                              {/* Top Info */}
-                              <div>
-                                <div className={`inline-block rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-wider border mb-3 ${
-                                  isSilver ? 'bg-slate-900/10 text-slate-800 border-slate-900/20' :
-                                  isGold ? 'bg-black/10 text-slate-900 border-black/20' :
-                                  'bg-white/10 text-white border-white/10'
-                                }`}>
-                                  {plan.badge}
-                                </div>
+                              {/* Soft colour glow in the corner */}
+                              <div aria-hidden="true" className={`pointer-events-none absolute -top-16 -right-16 h-44 w-44 rounded-full blur-3xl ${look.glow}`} />
 
-                                <h4 className="text-xl font-black tracking-tight">{plan.title}</h4>
-                                <p className="mt-1 text-[11px] leading-relaxed font-semibold opacity-90">
-                                  {plan.keyBenefit}
-                                </p>
+                              {/* Badge and plan icon */}
+                              <div className="relative flex items-start justify-between gap-3">
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${look.badge}`}>
+                                  {plan.theme === "gold" && <Star className="h-3 w-3 fill-current" aria-hidden="true" />}
+                                  {plan.badge}
+                                </span>
+                                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-md ${look.iconTile}`}>
+                                  <PlanIcon className="h-5 w-5" aria-hidden="true" />
+                                </span>
                               </div>
 
-                              {/* Description snippet */}
-                              <p className="text-[11px] leading-relaxed font-medium opacity-75 line-clamp-2 my-2">
-                                {plan.description}
-                              </p>
+                              <h4 className="relative mt-3 text-[22px] font-extrabold leading-tight">{plan.title}</h4>
+
+                              {/* Key benefits */}
+                              <ul className="relative mt-3 space-y-2">
+                                {plan.keyPoints.map((point) => (
+                                  <li key={point} className="flex items-start gap-2 text-[13px] font-semibold leading-snug">
+                                    <span className={`mt-px flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full ${look.check}`}>
+                                      <Check className="h-3 w-3" strokeWidth={3} aria-hidden="true" />
+                                    </span>
+                                    <span className="min-w-0">{point}</span>
+                                  </li>
+                                ))}
+                              </ul>
+
+                              {plan.description && (
+                                <p className="relative mt-2 text-xs leading-relaxed font-medium opacity-75 line-clamp-2">
+                                  {plan.description}
+                                </p>
+                              )}
 
                               {/* Price and Explore Button */}
-                              <div className="mt-auto pt-3.5 border-t border-current/10 flex items-center justify-between w-full">
-                                <div>
+                              <div className="relative mt-auto pt-5">
+                                <div className={`flex flex-wrap items-end justify-between gap-x-2 gap-y-3 border-t pt-3.5 ${look.divider}`}>
                                   {plan.id === "elite" ? (
                                     (() => {
                                       const firstOption = getFilteredPricingOptions(plan, form.wards, form.preferredMode)[0];
                                       const estMonthly = firstOption?.price ?? null;
                                       return (
-                                        <div className="flex flex-col">
-                                          <span className="text-[8px] font-black uppercase tracking-wider opacity-60 block">Hourly Rate</span>
-                                          <span className="text-lg font-black tracking-tight text-white">
+                                        <div className="min-w-0">
+                                          <span className={`block text-[11px] font-semibold ${look.label}`}>Hourly rate</span>
+                                          <span className={`block text-2xl font-extrabold leading-tight tracking-tight ${look.price}`}>
                                             {formatHourlyRate(estMonthly, firstOption?.days, firstOption?.hours)}
                                           </span>
-                                          <span className="text-[9px] font-semibold text-slate-300 block mt-0.5">
+                                          <span className={`block mt-0.5 text-[11px] font-medium ${look.label}`}>
                                             Est: {formatFee(estMonthly)}/month
                                           </span>
                                         </div>
                                       );
                                     })()
                                   ) : (
-                                    <div>
-                                      <span className="text-[8px] font-bold uppercase tracking-wider opacity-60 block">Starting Price</span>
-                                      <span className="text-lg font-extrabold tracking-tight">
+                                    <div className="min-w-0">
+                                      <span className={`block text-[11px] font-semibold ${look.label}`}>Starting price</span>
+                                      <span className={`block text-2xl font-extrabold leading-tight tracking-tight ${look.price}`}>
                                         {formatFee(getFilteredPricingOptions(plan, form.wards, form.preferredMode)[0]?.price ?? null)}
+                                        <span className={`text-xs font-semibold tracking-normal ${look.label}`}>/month</span>
                                       </span>
                                     </div>
                                   )}
-                                </div>
-                                
-                                <div className="text-[9px] font-black uppercase tracking-wider opacity-85 group-hover:opacity-100 transition-opacity flex items-center gap-1 py-1 px-3 rounded-full border border-current/25 bg-current/5">
-                                  <span>View Details</span>
-                                  <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+
+                                  <span className={`inline-flex shrink-0 items-center gap-1 rounded-xl px-3 py-2 text-xs font-bold transition-colors ${look.cta}`}>
+                                    View Details
+                                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -2151,7 +2187,7 @@ export default function ParentEnquiryForm() {
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ duration: 0.35 }}
-                            className="relative w-full max-w-3xl md:max-w-4xl lg:max-w-5xl max-h-[90vh] rounded-[1.2rem] sm:rounded-[2rem] bg-white dark:bg-slate-900 shadow-2xl border border-slate-100 dark:border-slate-700 flex flex-col overflow-hidden"
+                            className="plan-font relative w-full max-w-3xl md:max-w-4xl lg:max-w-5xl max-h-[90vh] rounded-[1.2rem] sm:rounded-[2rem] bg-white dark:bg-slate-900 shadow-2xl border border-slate-100 dark:border-slate-700 flex flex-col overflow-hidden"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {/* Modal Header */}
@@ -2238,41 +2274,6 @@ export default function ParentEnquiryForm() {
                                               </button>
                                             )}
                                           </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-
-                                {/* FAQs */}
-                                <div>
-                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Frequently Asked Questions</h4>
-                                  <div className="space-y-1.5">
-                                    {activePlanData.fullDetails.faqs.map((faq, idx) => {
-                                      const isOpen = openFaqIndex === idx;
-                                      return (
-                                        <div key={idx} className="border-b border-slate-100 dark:border-slate-700 pb-1.5">
-                                          <button
-                                            type="button"
-                                            onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
-                                            className="w-full flex items-center justify-between text-left py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
-                                          >
-                                            <span>{faq.q}</span>
-                                            <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
-                                          </button>
-                                          <AnimatePresence initial={false}>
-                                            {isOpen && (
-                                              <motion.div
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: "auto", opacity: 1 }}
-                                                exit={{ height: 0, opacity: 0 }}
-                                                transition={{ duration: 0.2, ease: "easeInOut" }}
-                                                className="overflow-hidden"
-                                              >
-                                                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed mt-0.5 pb-0.5">{faq.a}</p>
-                                              </motion.div>
-                                            )}
-                                          </AnimatePresence>
                                         </div>
                                       );
                                     })}

@@ -34,6 +34,8 @@ import {
 } from "../utils/matchingEngine.js";
 import { getRecommendations, buildParamsFromLead } from "../utils/recommendationEngine.js";
 import { notifyAdminOfNewEnquiry } from "../utils/adminAlerts.js";
+import { parseEnquiryDetails, deriveEnquiryFields, joinStudentNames } from "../utils/enquiryDetails.js";
+import Assignment from "../models/Assignment.js";
 
 
 const router = express.Router();
@@ -77,6 +79,39 @@ async function computeTutorStats(tutor) {
     activeTuitionCount,
     successPercentage,
   };
+}
+
+// Attendance and assignment records keep their own copy of the student names.
+// The edit is already saved, so a failure here is logged rather than reported as a failed save.
+async function applyEditToStudentRecords(enquiry, previous) {
+  const studentName = joinStudentNames(enquiry.wards);
+  if (!studentName || studentName === joinStudentNames(previous.wards)) return;
+  try {
+    const filter = { parentEnquiryId: enquiry._id };
+    await Promise.all([
+      Attendance.updateMany(filter, { studentName }),
+      Assignment.updateMany(filter, { studentName }),
+    ]);
+  } catch (err) {
+    console.error(`[Edit Enquiry] Could not rename student on records of ${enquiry._id}:`, err.message);
+  }
+}
+
+// Sends the edited details to the linked Odoo lead in the background (createLead
+// updates the existing lead). A failure shows on the lead in the dashboard.
+function syncEditedLeadToOdoo(enquiry) {
+  setImmediate(async () => {
+    let outcome = { odooSyncStatus: "synced", odooSyncError: "" };
+    try {
+      await createLead({ ...enquiry.toObject(), userType: "parent" });
+    } catch (err) {
+      console.error(`[Odoo Sync] Edited enquiry ${enquiry.requirementId} failed:`, err.message);
+      outcome = { odooSyncStatus: "failed", odooSyncError: err.message || "Unknown Odoo error" };
+    }
+    await ParentEnquiry.findByIdAndUpdate(enquiry._id, { ...outcome, odooLastSyncAt: new Date() }).catch((err) => {
+      console.error(`[Odoo Sync] Could not record sync result for ${enquiry.requirementId}:`, err.message);
+    });
+  });
 }
 
 // =============================================================
@@ -675,6 +710,35 @@ router.put("/:id", verifyToken(["admin"]), async (req, res) => {
 });
 
 // =============================================================
+// EDIT parent enquiry details from the dashboard's Edit form
+// PATCH /api/parent-enquiries/:id/details
+// =============================================================
+router.patch("/:id/details", verifyToken(["admin"]), async (req, res) => {
+  try {
+    const { value: details, error: detailsError } = parseEnquiryDetails(req.body);
+    if (detailsError) return res.status(400).json({ message: detailsError });
+    if (Object.keys(details).length === 0) return res.status(400).json({ message: "There are no changes to save." });
+
+    const previous = await ParentEnquiry.findById(req.params.id);
+    if (!previous) return res.status(404).json({ message: "Parent enquiry not found" });
+
+    const updates = { ...details, ...deriveEnquiryFields(details, previous) };
+    if (previous.odooLeadId) updates.odooSyncStatus = "pending";
+
+    const enquiry = await ParentEnquiry.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
+    if (!enquiry) return res.status(404).json({ message: "Parent enquiry not found" });
+
+    await applyEditToStudentRecords(enquiry, previous);
+    if (enquiry.odooLeadId) syncEditedLeadToOdoo(enquiry);
+
+    res.json(enquiry);
+  } catch (error) {
+    console.error("Parent enquiry edit error:", error);
+    res.status(500).json({ message: "Failed to save the changes", error: error.message });
+  }
+});
+
+// =============================================================
 // RETRY / SYNC parent enquiry to Odoo Community CRM
 // POST /api/parent-enquiries/:id/sync-odoo
 // =============================================================
@@ -1198,6 +1262,121 @@ router.post("/:id/assign-tutor", verifyToken(["admin"]), async (req, res) => {
     });
   } catch (error) {
     console.error("Assign tutor error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// =============================================================
+// POST remove the assigned tutor from a student (messages nobody)
+// POST /api/parent-enquiries/:id/unassign-tutor
+// =============================================================
+
+// These stages describe a demo with the tutor being removed. Any other status
+// (Enrolled, Won, Lost, ...) is the admin's to change and stays as it is.
+const STAGES_THAT_NEED_THE_TUTOR = ["Demo Scheduled", "Feedback Pending"];
+
+// Updates Odoo in the background, like saving an edit. A failure shows on the lead in the dashboard.
+function syncUnassignToOdoo(lead, { statusChanged, tutor }) {
+  setImmediate(async () => {
+    const problems = [];
+
+    if (lead.odooLeadId) {
+      try {
+        // The fields updateLeadAssignment fills in. It only writes non-empty values, so it can't clear them.
+        const uid = await getOdooUid();
+        await callOdooMethod(uid, "crm.lead", "write", [
+          [parseInt(lead.odooLeadId, 10)],
+          {
+            x_studio_assigned_tutor: false,
+            x_studio_tutor_code: false,
+            x_studio_assigned_tutor_phone: false,
+            x_studio_demo_date: false,
+            x_studio_demo_time: false,
+          },
+        ]);
+      } catch (err) {
+        problems.push(`couldn't clear the tutor: ${err.message}`);
+      }
+
+      if (statusChanged) {
+        try {
+          await updateLead(lead.odooLeadId, { status: lead.status });
+        } catch (err) {
+          problems.push(`couldn't update the status: ${err.message}`);
+        }
+      }
+
+      await ParentEnquiry.findByIdAndUpdate(lead._id, {
+        odooSyncStatus: problems.length ? "failed" : "synced",
+        odooSyncError: problems.length ? `Tutor removed here, but Odoo ${problems.join("; ")}` : "",
+        odooLastSyncAt: new Date(),
+      }).catch((err) => {
+        console.error(`[Unassign Tutor] Could not record the Odoo result for ${lead.requirementId}:`, err.message);
+      });
+    }
+
+    if (tutor?.odooLeadId) {
+      try {
+        const stats = await computeTutorStats(tutor);
+        await syncTutorStats(tutor.odooLeadId, {
+          assignmentsCompleted: stats.totalAssignments,
+          assignmentsActive: stats.activeTuitionCount,
+          demoTaken: stats.demoScheduled,
+          demoCancelled: stats.demoCancelled,
+          successfulEnrollments: stats.successfullyEnrolled,
+          successRate: stats.successPercentage,
+        });
+      } catch (err) {
+        console.error("[Unassign Tutor] Odoo sync tutor stats error:", err.message);
+      }
+    }
+  });
+}
+
+router.post("/:id/unassign-tutor", verifyToken(["admin"]), async (req, res) => {
+  try {
+    const lead = await ParentEnquiry.findById(req.params.id);
+    if (!lead) return res.status(404).json({ message: "Lead not found." });
+
+    const tutorId = lead.assignedTutorId;
+    const tutorName = lead.assignedTutor || "";
+    if (!tutorId && !tutorName) {
+      return res.status(400).json({ message: "This student has no tutor assigned." });
+    }
+
+    const statusChanged = STAGES_THAT_NEED_THE_TUTOR.includes(lead.status);
+
+    lead.assignedTutor = "";
+    lead.assignedTutorId = null;
+    lead.demoDate = "";
+    lead.demoTime = "";
+    if (statusChanged) lead.status = "New Lead";
+    lead.tutorUnassignedAt = new Date();
+    lead.tutorUnassignedFrom = tutorName;
+    lead.tutorUnassignedBy = req.user?.email || "";
+    if (lead.odooLeadId) lead.odooSyncStatus = "pending";
+    await lead.save({ validateBeforeSave: false });
+
+    let tutor = null;
+    if (tutorId) {
+      // The removal is already saved, so these are logged rather than reported as a failure
+      try {
+        // Their earlier reply isn't known any more; "Assigned" must not stay on the log
+        await BroadcastLog.updateMany(
+          { leadId: lead._id, tutorId, responseStatus: "Assigned" },
+          { $set: { responseStatus: "No Response" } }
+        );
+        tutor = await Tutor.findById(tutorId);
+      } catch (err) {
+        console.error(`[Unassign Tutor] Follow-up failed for ${lead.requirementId}:`, err.message);
+      }
+    }
+
+    syncUnassignToOdoo(lead, { statusChanged, tutor });
+
+    res.json({ message: "Tutor unassigned", lead, tutorName });
+  } catch (error) {
+    console.error("Unassign tutor error:", error);
     res.status(500).json({ message: error.message });
   }
 });
