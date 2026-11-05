@@ -11,7 +11,6 @@ import {
   Clock,
   BookOpen,
   ArrowRight,
-  ChevronDown,
   X,
   ChevronLeft,
   ChevronRight,
@@ -25,6 +24,7 @@ import {
   Calendar
 } from "lucide-react";
 
+import "@fontsource-variable/plus-jakarta-sans";
 import { PLANS } from "../data/plansConfig";
 import { getAvailableOptions, getEffectiveHourlyRate, isPlanAvailable } from "../pricing/feeEngine";
 import { FEE_CONFIG } from "../pricing/feeConfig";
@@ -814,7 +814,7 @@ function PlanCard({ plan, isActive, isSelectedAny, isCenter, position, onClick }
       // Gold and black cards look the same in both themes (silver has its own dark: styles)
       data-own-colors={isSilver ? undefined : ""}
       style={getCardStyle()}
-      className={`relative overflow-hidden rounded-[2rem] sm:rounded-[2.2rem] border flex flex-col min-h-[460px] h-auto sm:min-h-[500px] md:min-h-[520px] pb-4 cursor-pointer group ${getCardThemeClasses()} ${getActiveStateClasses()}`}
+      className={`plan-font relative overflow-hidden rounded-[2rem] sm:rounded-[2.2rem] border flex flex-col min-h-[460px] h-auto sm:min-h-[500px] md:min-h-[520px] pb-4 cursor-pointer group ${getCardThemeClasses()} ${getActiveStateClasses()}`}
     >
       {/* Subtle shine effect overlay on hover */}
       <div className="shine-overlay pointer-events-none" />
@@ -844,7 +844,7 @@ function PlanCard({ plan, isActive, isSelectedAny, isCenter, position, onClick }
 
           {/* Key Benefit tag line */}
           <p className="mt-1 text-[10px] sm:text-[11px] font-bold leading-snug opacity-90">
-            {plan.keyBenefit}
+            {plan.keyPoints.join(" & ")}
           </p>
 
           {/* Description */}
@@ -1182,8 +1182,8 @@ function PlanDetails({ plan, onCTA, selectedClass, selectedBoard }) {
   const perSubject = FEE_CONFIG.subjectPricing.enabled && FEE_CONFIG.subjectPricing.appliesToPlans.includes(plan.id);
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr] text-white">
-      {/* Left Column: Benefits & FAQs */}
+    <div className="plan-font grid gap-8 lg:grid-cols-[1.3fr_0.7fr] text-white">
+      {/* Left Column: Benefits */}
       <div className="space-y-8 order-2 lg:order-1">
         <div>
           <h3 className="text-3xl font-black tracking-tight text-white md:text-4xl">
@@ -1226,12 +1226,6 @@ function PlanDetails({ plan, onCTA, selectedClass, selectedBoard }) {
               );
             })}
           </div>
-        </div>
-
-        {/* FAQs */}
-        <div className="mt-8 border-t border-white/5 pt-8">
-          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Frequently Asked Questions</h4>
-          <FAQAccordion faqs={fullDetails.faqs} />
         </div>
       </div>
 
@@ -1289,43 +1283,6 @@ function PlanDetails({ plan, onCTA, selectedClass, selectedBoard }) {
         </button>
 
       </div>
-    </div>
-  );
-}
-
-// FAQ Accordion Helper Component
-function FAQAccordion({ faqs }) {
-  const [openIndex, setOpenIndex] = useState(null);
-
-  return (
-    <div className="space-y-3 mt-4">
-      {faqs.map((faq, idx) => {
-        const isOpen = openIndex === idx;
-        return (
-          <div key={idx} className="border-b border-white/5 pb-3">
-            <button
-              onClick={() => setOpenIndex(isOpen ? null : idx)}
-              className="w-full flex items-center justify-between text-left py-2 text-sm font-semibold text-slate-200 hover:text-white transition-colors"
-            >
-              <span>{faq.q}</span>
-              <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
-            </button>
-            <AnimatePresence initial={false}>
-              {isOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: "easeInOut" }}
-                  className="overflow-hidden"
-                >
-                  <p className="text-xs text-slate-400 leading-relaxed mt-1 pb-1">{faq.a}</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        );
-      })}
     </div>
   );
 }

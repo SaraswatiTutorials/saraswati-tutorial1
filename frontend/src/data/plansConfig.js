@@ -1,79 +1,7 @@
-// Plan content (titles, benefits, FAQs). Prices, availability and discounts
+// Plan content (titles, benefits). Prices, availability and discounts
 // come from the shared fee engine in ../pricing/.
 
 export const PLANS = [
-  {
-    id: "foundation",
-    title: "Foundation Plan",
-    theme: "silver",
-    badge: "SAVE UP TO 18%",
-    description: "",
-    gradient: "from-[#F8FAFC] to-[#CBD5E1]",
-    textColor: "text-slate-800",
-    badgeTheme: "bg-slate-900/10 text-slate-800 border-slate-900/20",
-    keyBenefit: "Background Verified, Homework Support & Beginner-Friendly",
-    cardBenefits: [
-      "Background Verified Tutors",
-      "Homework Support",
-      "Beginner-Friendly Tutors",
-      "Tutor Replacement Within 2 Weeks"
-    ],
-    fullDetails: {
-      benefits: [
-        { title: "Beginner-Friendly Tutors", desc: "Patient tutors who explain core concepts simply", highlight: true },
-        { title: "Background Verified Tutors" },
-        { title: "Homework Support" },
-        { title: "Tutor Replacement Within 2 Weeks" }
-      ],
-      features: [],
-      faqs: [
-        { q: "Can we change classes if we miss a session?", a: "Yes, rescheduling is permitted with a 24-hour notice to the tutor." },
-        { q: "Who are the tutors for this plan?", a: "Vetted tutors and university graduates with 0–1 year of teaching experience who excel in explaining core academic concepts." },
-        { q: "Is there a curriculum choice?", a: "Supports CBSE, ICSE, IGCSE, IB, NIOS and State Boards." }
-      ],
-      additionalInfo: "Minimum commitment of 1 month. Free initial coordinator consultation to assess student learning style."
-    }
-  },
-  {
-    id: "advance",
-    title: "Advance Growth Plan",
-    theme: "gold",
-    badge: "Most Recommended",
-    description: "",
-    gradient: "from-[#FFE082] via-[#F59E0B] to-[#D97706]",
-    textColor: "text-slate-950",
-    textDarkColor: "text-slate-950",
-    badgeTheme: "bg-black/10 text-slate-950 border-black/20",
-    experience: "2–5 Years",
-    keyBenefit: "Strategy, Monthly Tests, Guidance, Allocation & Support",
-    cardBenefits: [
-      "Tutor Experience: 2–5 Years",
-      "Complete Background Verified Tutors",
-      "Academic Strategy & Deadlines",
-      "Internal Test/Assignment — Monthly",
-      "Consistent Guidance & Regular Practice",
-      "Tutor Allocation (5–8 km)",
-      "Tutor Replacement Within 5 Days"
-    ],
-    fullDetails: {
-      benefits: [
-        { title: "Tutor Experience: 2–5 Years", desc: "Experienced tutors verified for secondary grades", highlight: true },
-        { title: "Complete Background Verified Tutors", desc: "Complete background verified tutor (Gov. ID & Education Certificate)" },
-        { title: "Academic Strategy & Deadlines" },
-        { title: "Internal Test/Assignment — Monthly" },
-        { title: "Consistent Guidance & Regular Practice" },
-        { title: "Tutor Allocation (5–8 km)" },
-        { title: "Tutor Replacement Within 5 Days" }
-      ],
-      features: [],
-      faqs: [
-        { q: "How are tutors selected for this plan?", a: "We match tutors with 2 to 5 years of teaching experience, specifically verified for secondary grades." },
-        { q: "What if a student struggles with a specific topic?", a: "Tutors will modify the lesson plan to dedicate additional time for remedial teaching." },
-        { q: "Are test reports shared?", a: "Yes, monthly test scores and conceptual gap analysis reports are shared with parents." }
-      ],
-      additionalInfo: "Custom study materials tailored to the student's weak areas are provided free of cost."
-    }
-  },
   {
     id: "elite",
     title: "Elite Mentor Plan",
@@ -87,7 +15,7 @@ export const PLANS = [
     // Modal header only; the plan cards keep the black gradient above
     modalGradient: "from-[#0B1229] via-[#1E2A5A] to-[#0B1229]",
     experience: "5.1–12 Years",
-    keyBenefit: "Priority Allocation, Result-Oriented Mentorship & Support",
+    keyPoints: ["Tutor Experience: 5.1–12 Years", "Priority Tutor Replacement"],
     cardBenefits: [
       "Tutor Experience: 5.1–12 Years",
       "Priority Tutor Allocation",
@@ -108,12 +36,69 @@ export const PLANS = [
         { title: "Attendance & Compensation Access", desc: "Attendance tracking & missed class support" }
       ],
       features: [],
-      faqs: [
-        { q: "Who are the Elite Mentors?", a: "They are school coordinators, board examiners, and veteran teachers with 5.1 to 12 years of teaching experience." },
-        { q: "Is the schedule highly flexible?", a: "Yes, elite members receive priority slots, meaning schedules can be adjusted dynamically." },
-        { q: "Can this plan cover advanced entrance prep?", a: "Yes, it includes guidance for advanced board preparation and foundational entrance concepts." }
-      ],
       additionalInfo: "Includes a dedicated counselor for academic planning and stress management during exams."
+    }
+  },
+  {
+    id: "advance",
+    title: "Advance Growth Plan",
+    theme: "gold",
+    badge: "Most Recommended",
+    description: "",
+    gradient: "from-[#FFE082] via-[#F59E0B] to-[#D97706]",
+    textColor: "text-slate-950",
+    textDarkColor: "text-slate-950",
+    badgeTheme: "bg-black/10 text-slate-950 border-black/20",
+    experience: "2–5 Years",
+    keyPoints: ["Tutor Experience: 2–5 Years", "Tutor Replacement Within 5 Days"],
+    cardBenefits: [
+      "Tutor Experience: 2–5 Years",
+      "Complete Background Verified Tutors",
+      "Academic Strategy & Deadlines",
+      "Internal Test/Assignment — Monthly",
+      "Consistent Guidance & Regular Practice",
+      "Tutor Allocation (5–8 km)",
+      "Tutor Replacement Within 5 Days"
+    ],
+    fullDetails: {
+      benefits: [
+        { title: "Tutor Experience: 2–5 Years", desc: "Experienced tutors verified for secondary grades", highlight: true },
+        { title: "Complete Background Verified Tutors", desc: "Complete background verified tutor (Gov. ID & Education Certificate)" },
+        { title: "Academic Strategy & Deadlines" },
+        { title: "Internal Test/Assignment — Monthly" },
+        { title: "Consistent Guidance & Regular Practice" },
+        { title: "Tutor Allocation (5–8 km)" },
+        { title: "Tutor Replacement Within 5 Days" }
+      ],
+      features: [],
+      additionalInfo: "Custom study materials tailored to the student's weak areas are provided free of cost."
+    }
+  },
+  {
+    id: "foundation",
+    title: "Foundation Plan",
+    theme: "silver",
+    badge: "SAVE UP TO 18%",
+    description: "",
+    gradient: "from-[#F8FAFC] to-[#CBD5E1]",
+    textColor: "text-slate-800",
+    badgeTheme: "bg-slate-900/10 text-slate-800 border-slate-900/20",
+    keyPoints: ["Beginner-Friendly Tutors", "Tutor Replacement Within 2 Weeks"],
+    cardBenefits: [
+      "Background Verified Tutors",
+      "Homework Support",
+      "Beginner-Friendly Tutors",
+      "Tutor Replacement Within 2 Weeks"
+    ],
+    fullDetails: {
+      benefits: [
+        { title: "Beginner-Friendly Tutors", desc: "Patient tutors who explain core concepts simply", highlight: true },
+        { title: "Background Verified Tutors" },
+        { title: "Homework Support" },
+        { title: "Tutor Replacement Within 2 Weeks" }
+      ],
+      features: [],
+      additionalInfo: "Minimum commitment of 1 month. Free initial coordinator consultation to assess student learning style."
     }
   }
 ];

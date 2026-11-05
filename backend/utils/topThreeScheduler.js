@@ -81,6 +81,7 @@ export async function findDue(db, now = new Date()) {
     const lead = await db.collection("parentenquiries").findOne({ requirementId });
     if (!lead || !lead.phone) continue;
     if (lead.assignedTutorId) continue; // a tutor is already chosen
+    if (lead.tutorUnassignedAt) continue; // an admin removed the tutor and is handling this one
 
     const shortlist = await db.collection("tutor_shortlists")
       .find({ requirementId }).sort({ matchedAt: -1 }).limit(1).next();
