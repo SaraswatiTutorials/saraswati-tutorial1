@@ -316,8 +316,10 @@ export async function inviteTutors(lead, { limit = INVITE_SIZE, dryRun = false, 
     return blocked(stage, `${lead.assignedTutor} is confirmed on this enquiry. Unassign them in the admin panel to start again.`);
   }
 
+  // The newest shortlist with tutors on it: a later run that found nobody must
+  // not hide the list these tutors were invited from.
   const shortlist = await db().collection("tutor_shortlists")
-    .find({ requirementId }).sort({ matchedAt: -1 }).limit(1).next();
+    .find({ requirementId, "tutors.0": { $exists: true } }).sort({ matchedAt: -1 }).limit(1).next();
   if (!shortlist || !(shortlist.tutors || []).length) {
     return blocked(stage, "There is no shortlist for this enquiry yet. Shortlist the tutors first.");
   }
@@ -475,7 +477,7 @@ export async function sendTopThree(lead, { dryRun = false, force = false } = {})
   }
 
   const shortlist = await db().collection("tutor_shortlists")
-    .find({ requirementId }).sort({ matchedAt: -1 }).limit(1).next();
+    .find({ requirementId, "tutors.0": { $exists: true } }).sort({ matchedAt: -1 }).limit(1).next();
   const logs = await db().collection("broadcastlogs")
     .find({ requirementId, broadcastType: "requirement" }).toArray();
 
