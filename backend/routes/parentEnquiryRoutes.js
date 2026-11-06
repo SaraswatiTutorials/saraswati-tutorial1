@@ -47,6 +47,14 @@ function requirementIgnoresOnboarding() {
   return String(process.env.REQUIREMENT_IGNORES_ONBOARDING || "").toLowerCase() === "true";
 }
 
+// The matching pipeline is driven by hand from Panel 2 — a member of staff
+// presses Shortlist, then Invite, for each enquiry. Setting
+// PIPELINE_AUTO_BROADCAST=true goes back to inviting tutors the moment an
+// enquiry arrives.
+function pipelineAutoBroadcast() {
+  return String(process.env.PIPELINE_AUTO_BROADCAST || "").toLowerCase() === "true";
+}
+
 function toCoordinate(value) {
   if (value === "" || value == null) return null;
   const number = Number(value);
@@ -594,9 +602,13 @@ router.post("/", async (req, res) => {
     }
 
     // â”€â”€ Step 4: Trigger auto-broadcast asynchronously â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    autoBroadcastTutorsForLead(saved).catch(err => {
-      console.error("[Auto-Broadcast] Trigger failed:", err.message);
-    });
+    if (pipelineAutoBroadcast()) {
+      autoBroadcastTutorsForLead(saved).catch(err => {
+        console.error("[Auto-Broadcast] Trigger failed:", err.message);
+      });
+    } else {
+      console.log(`[Pipeline] ${requirementId} saved. Manual mode — waiting for the Panel 2 buttons.`);
+    }
 
     // Alert the admin on WhatsApp (non-blocking)
     notifyAdminOfNewEnquiry(saved).catch(err => {

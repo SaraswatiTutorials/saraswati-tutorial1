@@ -406,17 +406,31 @@ export function startReminderScheduler() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Which failed broadcasts the timer may send again. With the pipeline run by
+ * hand, a requirement invite only goes out because someone pressed Invite, so
+ * those are left for Panel 2, where pressing Invite again retries them.
+ * PIPELINE_AUTO_BROADCAST=true puts them back on the timer.
+ */
+export function retryableBroadcastFilter(env = process.env) {
+  const filter = {
+    status: "Failed",
+    retryCount: { $lt: MAX_RETRY_COUNT },
+    failureReason: { $in: RETRYABLE_FAILURE_REASONS },
+  };
+  if (String(env.PIPELINE_AUTO_BROADCAST || "").toLowerCase() !== "true") {
+    filter.broadcastType = { $ne: "requirement" };
+  }
+  return filter;
+}
+
+/**
  * Run one batch of retries for failed broadcasts.
  * Only retries TRANSIENT failures (Timeout, Network Error, Server Error, Rate Limited).
  * Never retries PERMANENT failures (Invalid Number, Blocked, Template Missing, etc.).
  */
 async function runRetryBatch() {
   try {
-    const failedLogs = await BroadcastLog.find({
-      status: "Failed",
-      retryCount: { $lt: MAX_RETRY_COUNT },
-      failureReason: { $in: RETRYABLE_FAILURE_REASONS },
-    })
+    const failedLogs = await BroadcastLog.find(retryableBroadcastFilter())
       .sort({ time: 1 }) // oldest first
       .limit(50);        // max 50 per batch to prevent overload
 

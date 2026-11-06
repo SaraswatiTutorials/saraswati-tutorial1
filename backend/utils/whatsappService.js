@@ -455,15 +455,39 @@ async function sendTemplateMessage(uid, phoneNumber, templateName, templateLang,
       composerPayload.button_dynamic_url_2 = String(templateVars.button_dynamic_url_2);
     }
 
-    const standardValues = Object.entries(templateVars)
-      .filter(([key]) => key !== "button_dynamic_url_1" && key !== "button_dynamic_url_2")
-      .map(([_, val]) => val);
+    const entries = Object.entries(templateVars)
+      .filter(([key]) => key !== "button_dynamic_url_1" && key !== "button_dynamic_url_2");
 
-    standardValues.forEach((val, idx) => {
-      if (idx < 10) {
-        composerPayload[`free_text_${idx + 1}`] = templateValue(val);
+    // A template that mixes Odoo `field` variables with free-text ones cannot
+    // be filled by position: Odoo numbers free_text_1..N among the free-text
+    // variables alone, so on Re-Confirmation the body's {{6}} is the second
+    // free-text slot, not the sixth. Naming the placeholders instead — the
+    // caller passes { "{{6}}": ... } — asks Odoo which slot each one is.
+    const byPlaceholder = entries.length > 0 && entries.every(([key]) => /^\{\{\d+\}\}$/.test(key));
+
+    if (byPlaceholder) {
+      const [tpl] = await callOdooMethod(uid, "whatsapp.template", "read",
+        [[templateId]], { fields: ["variable_ids"] });
+      const vars = await callOdooMethod(uid, "whatsapp.template.variable", "read",
+        [tpl?.variable_ids || []], { fields: ["name", "field_type", "line_type"] });
+      const slots = new Map(
+        vars.filter((v) => v.line_type === "body" && v.field_type === "free_text")
+          .map((v, idx) => [v.name, idx + 1]),
+      );
+      for (const [placeholder, val] of entries) {
+        const slot = slots.get(placeholder);
+        if (!slot) {
+          throw new Error(`template variable ${placeholder} is not a free-text variable on "${templateName}"`);
+        }
+        composerPayload[`free_text_${slot}`] = templateValue(val);
       }
-    });
+    } else {
+      entries.map(([, val]) => val).forEach((val, idx) => {
+        if (idx < 10) {
+          composerPayload[`free_text_${idx + 1}`] = templateValue(val);
+        }
+      });
+    }
   }
 
   // A template declaring an image header must be given one on every send.
