@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
+// Dark mode is switched off for the whole site: the theme menu stays, with Dark unavailable.
+// To turn it back on, set this to true and set darkModeEnabled to true in index.html as well.
+// Saved choices are left alone.
+export const DARK_MODE_ENABLED = false;
+
 const ThemeContext = createContext(undefined);
 
 export function ThemeProvider({ children }) {
@@ -28,7 +33,7 @@ export function ThemeProvider({ children }) {
 
     const updateTheme = () => {
       const isDark =
-        theme === "dark" || (theme === "system" && mediaQuery.matches);
+        DARK_MODE_ENABLED && (theme === "dark" || (theme === "system" && mediaQuery.matches));
       
       if (isDark) {
         root.classList.add("dark");

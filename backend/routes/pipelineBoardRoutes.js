@@ -1,9 +1,10 @@
 /**
- * Panel 2 — a read-only view of the tutor pipeline.
+ * Panel 2 — the tutor pipeline, read side.
  *
  * Shows, for each parent enquiry: who was shortlisted, who was invited, who
  * answered Interested, which three went to the parent, and who the parent
  * chose. It polls, so a tutor replying an hour from now appears on its own.
+ * The buttons that act on an enquiry are in panelActionRoutes.js.
  *
  * Deliberately self-contained:
  *   - mounted at /panel2, nothing under /api is touched
@@ -19,8 +20,10 @@ import crypto from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 import mongoose from "mongoose";
-import { WAIT_HOURS, MAX_ATTEMPTS, rankInterested } from "../utils/topThreeScheduler.js";
+import { WAIT_HOURS, rankInterested } from "../utils/topThreeScheduler.js";
 import { getOdooUid, callOdooMethod } from "../utils/whatsappService.js";
+import { panelSendingEnabled } from "../utils/pipelineStages.js";
+import { LOCAL_SAFE_MODE } from "../utils/localSafeMode.js";
 
 // What WhatsApp actually did with each message, read from Odoo. Our own logs
 // only record that a message was handed to Odoo; Meta can still refuse it,
@@ -29,6 +32,15 @@ import { getOdooUid, callOdooMethod } from "../utils/whatsappService.js";
 const DELIVERY_TTL_MS = 60 * 1000;
 const deliveryCache = new Map();
 const optionsCache = new Map();
+
+// Everything the board reads off a broadcast log. Left out: `message`, which
+// holds the whole WhatsApp body and is never rendered — on a normal window it
+// is more than a third of what this endpoint would otherwise pull out of Mongo.
+const BROADCAST_FIELDS = {
+  requirementId: 1, tutorId: 1, tutorName: 1, tutorCode: 1, tutorPhone: 1,
+  status: 1, responseStatus: 1, respondedAt: 1, time: 1, createdAt: 1,
+  failureReason: 1, whatsappMessageId: 1, distanceKm: 1, broadcastType: 1,
+};
 
 // Set when Odoo could not be asked, so the page can say delivery is unknown
 // rather than let every row look as if it went through.
@@ -124,7 +136,7 @@ function validToken(token) {
   }
 }
 
-function requireLogin(req, res, next) {
+export function requireLogin(req, res, next) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!validToken(token)) return res.status(401).json({ message: "Please sign in." });
@@ -186,7 +198,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
           requirementId: 1, parentName: 1, phone: 1, area: 1, city: 1,
           status: 1, createdAt: 1, assignedTutor: 1, assignedTutorId: 1, tutorUnassignedAt: 1,
           latitude: 1, longitude: 1, pincode: 1,
-          wards: 1, isDemoRecord: 1,
+          wards: 1, isDemoRecord: 1, odooLeadId: 1,
         },
       })
       .sort({ createdAt: -1 })
@@ -195,16 +207,34 @@ router.get("/api/board", requireLogin, async (req, res) => {
 
     const ids = leads.map((l) => l.requirementId).filter(Boolean);
 
-    const [logs, shortlists, top3s, assignments] = await Promise.all([
-      db.collection("broadcastlogs").find({ requirementId: { $in: ids } }).toArray(),
-      db.collection("tutor_shortlists").find({ requirementId: { $in: ids } }).sort({ matchedAt: 1 }).toArray(),
+    const [logs, shortlists, top3s, assignments, reconfirmations] = await Promise.all([
+      db.collection("broadcastlogs")
+        .find({ requirementId: { $in: ids } }, { projection: BROADCAST_FIELDS }).toArray(),
+
+      // Only the newest shortlist per requirement is ever read (see `last`
+      // below), but the matching workflow wrote a fresh row every half hour
+      // for weeks: 320,000 of them, all for these same few requirements.
+      // Reading them all took half a minute and was the whole of this page's
+      // load time. The newest per requirement is picked in the database
+      // instead, which the requirementId + matchedAt index already serves.
+      db.collection("tutor_shortlists").aggregate([
+        { $match: { requirementId: { $in: ids } } },
+        { $sort: { requirementId: 1, matchedAt: 1 } },
+        { $group: { _id: "$requirementId", doc: { $last: "$$ROOT" } } },
+      ], { allowDiskUse: true }).toArray().then((rows) => rows.map((r) => r.doc)),
+
+      // These two stay whole: the board counts the failed top-three attempts,
+      // so it needs every row, and there are only a handful of each.
       db.collection("tutor_top3").find({ requirementId: { $in: ids } }).sort({ preparedAt: 1 }).toArray(),
       db.collection("tutor_assignments").find({ requirementId: { $in: ids } }).sort({ resolvedAt: 1 }).toArray(),
+      db.collection("parent_reconfirmations").find({ requirementId: { $in: ids } }).sort({ sentAt: 1 }).toArray(),
     ]);
 
     deliveryLookupFailed = false;
-    const delivery = await readDeliveryStates(
-      [...new Set(logs.map((l) => Number(l.whatsappMessageId)).filter(Boolean))]);
+    const delivery = await readDeliveryStates([...new Set([
+      ...logs.map((l) => Number(l.whatsappMessageId)),
+      ...reconfirmations.map((r) => Number(r.messageId)),
+    ].filter(Boolean))]);
 
     // Broadcast logs record who was messaged, not what they are like, so the
     // tutors' own records supply experience and occupation for the table.
@@ -229,6 +259,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
     const shortBy = byReq(shortlists);
     const topBy = byReq(top3s);
     const assignBy = byReq(assignments);
+    const reconfirmBy = byReq(reconfirmations);
     const last = (arr) => (arr && arr.length ? arr[arr.length - 1] : null);
     // A failed attempt is recorded too, so prefer the attempt that went out.
     const sentTop3 = (id) => [...(topBy.get(id) || [])].reverse().find((r) => r.sent) || last(topBy.get(id));
@@ -248,8 +279,9 @@ router.get("/api/board", requireLogin, async (req, res) => {
         .filter((l) => l.broadcastType !== "onboarding");
       const shortlist = last(shortBy.get(lead.requirementId));
       const top3 = sentTop3(lead.requirementId);
-      const failedTop3 = (topBy.get(lead.requirementId) || []).filter((r) => r.sent === false).length;
       const assignment = last(assignBy.get(lead.requirementId));
+      const reconfirmRows = reconfirmBy.get(lead.requirementId) || [];
+      const reconfirm = [...reconfirmRows].reverse().find((r) => r.sent) || last(reconfirmRows);
 
       // A tutor invited more than once has a log row per attempt. Keep only
       // the most recent, so the board counts tutors rather than attempts.
@@ -305,24 +337,37 @@ router.get("/api/board", requireLogin, async (req, res) => {
       const notDelivered = (t) => t.delivery === "error" || t.delivery === "bounced"
         || (!t.delivery && t.sendStatus === "Failed");
 
-      // The scheduler only sends tutors who are on the shortlist, and stops
-      // after MAX_ATTEMPTS failures. Anything else needs sending by hand, so
-      // the board must not promise it will go out on its own.
-      const autoSendable = !lead.tutorUnassignedAt && failedTop3 < MAX_ATTEMPTS && rankInterested(shortlist?.tutors || [],
+      // The top three are ranked off the newest shortlist, so a tutor who said
+      // yes but is not on it cannot be offered. Worked out here so the page
+      // never offers a button that is bound to be refused.
+      const canSendTop3 = rankInterested(shortlist?.tutors || [],
         myLogs.filter((l) => l.broadcastType === "requirement")).length > 0;
 
+      // Nothing moves on its own: each stage names what staff can press next.
       const stage =
         lead.assignedTutor ? "chosen"
         : top3?.sent ? "top3_sent"
         : !invited.length ? (shortlist ? "shortlisted" : "new")
         : invited.every(notDelivered) ? "undelivered"
         : minutesLeft > 0 ? "waiting"
-        : interested.length ? (autoSendable ? "due" : "manual")
+        : interested.length ? (canSendTop3 ? "due" : "manual")
         : "no_replies";
 
       return {
         requirementId: lead.requirementId || "",
         stage,
+        canSendTop3,
+        hasOdooLead: !!lead.odooLeadId,
+        assignedTutor: lead.assignedTutor || "",
+        reconfirm: reconfirm
+          ? {
+              at: reconfirm.sentAt || null,
+              sent: reconfirm.sent === true,
+              failureReason: reconfirm.failureReason || "",
+              delivery: delivery.get(Number(reconfirm.messageId))?.state || "",
+              deliveryError: delivery.get(Number(reconfirm.messageId))?.reason || "",
+            }
+          : null,
         // Distance needs both ends. When the enquiry carries no location at
         // all, every distance on this card is blank for that reason alone.
         parentLocation: {
@@ -376,6 +421,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
               at: top3.preparedAt || null,
               sent: top3.sent === true,
               outcome: top3.outcome || "",
+              failureReason: top3.failureReason || "",
               templateName: top3.templateName || "",
               delivery: top3Delivery.get(lead.requirementId)?.state || "",
               deliveryError: top3Delivery.get(lead.requirementId)?.reason || "",
@@ -388,14 +434,15 @@ router.get("/api/board", requireLogin, async (req, res) => {
           : null,
 
         chosen: lead.assignedTutor
-          ? { name: lead.assignedTutor, at: assignment?.resolvedAt || null, choice: assignment?.choice ?? null }
-          : (assignment?.tutorName ? { name: assignment.tutorName, at: assignment.resolvedAt, choice: assignment.choice } : null),
+          ? { name: lead.assignedTutor, code: assignment?.tutorCode || "", at: assignment?.resolvedAt || null, choice: assignment?.choice ?? null }
+          : (assignment?.tutorName ? { name: assignment.tutorName, code: assignment.tutorCode || "", at: assignment.resolvedAt, choice: assignment.choice } : null),
       };
     });
 
-    // An enquiry nobody has been invited for is not part of the pipeline yet,
-    // so by default it is left off the board. ?onlyActive=false shows them.
-    const onlyActive = req.query.onlyActive !== "false";
+    // Every enquiry is shown, including ones nobody has been invited for: with
+    // the pipeline run by hand, those are the ones waiting for someone to press
+    // the first button. ?onlyActive=true narrows it to enquiries already invited.
+    const onlyActive = req.query.onlyActive === "true";
     const shown = onlyActive ? board.filter((b) => b.counts.invited > 0) : board;
 
     // The most common refusal, so the page can name a systemic problem once
@@ -413,6 +460,16 @@ router.get("/api/board", requireLogin, async (req, res) => {
       generatedAt: new Date().toISOString(),
       count: shown.length,
       hidden: board.length - shown.length,
+      // The newest `limit` are shown, so the page can say when there are more.
+      capped: leads.length === limit,
+      limit,
+      sendingEnabled: panelSendingEnabled() && !LOCAL_SAFE_MODE,
+      // The two automatic triggers, read from the same settings the server acts
+      // on, so the page reports the mode this server is really in.
+      automatic: {
+        invites: String(process.env.PIPELINE_AUTO_BROADCAST || "").toLowerCase() === "true",
+        topThree: String(process.env.TOP3_AUTO_SEND || "").toLowerCase() === "true",
+      },
       board: shown,
     });
   } catch (error) {

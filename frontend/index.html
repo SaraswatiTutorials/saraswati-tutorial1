@@ -5,8 +5,11 @@
   <script>
     (function() {
       try {
+        // Dark mode is switched off. To turn it back on, set this to true and set
+        // DARK_MODE_ENABLED to true in src/context/ThemeContext.jsx as well.
+        const darkModeEnabled = false;
         const theme = localStorage.getItem('theme') || 'system';
-        const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        const isDark = darkModeEnabled && (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches));
         if (isDark) {
           document.documentElement.classList.add('dark');
         } else {

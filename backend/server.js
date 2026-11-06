@@ -27,6 +27,7 @@ import geoRoutes from "./routes/geoRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 import portalRoutes from "./routes/portalRoutes.js";
 import pipelineBoardRoutes from "./routes/pipelineBoardRoutes.js";
+import panelActionRoutes from "./routes/panelActionRoutes.js";
 import partialTutorRoutes from "./routes/partialTutorRoutes.js";
 
 import { startReminderScheduler, startRetryScheduler, startSyncScheduler } from "./utils/reminderScheduler.js";
@@ -110,8 +111,12 @@ app.use("/api/feedback",         feedbackRoutes);
 app.use("/api/portal",           portalRoutes);
 app.use("/api/partial-tutors",   partialTutorRoutes);
 
-// Panel 2: a read-only pipeline view with its own login. Mounted outside
-// /api on purpose, so it shares no middleware with the existing routes.
+// Panel 2: the tutor pipeline, with its own login. Mounted outside /api on
+// purpose, so it shares no middleware with the existing routes.
+// Its buttons live in panelActionRoutes, mounted first so the view stays a
+// view: everything that writes or sends is in that one file. That file makes
+// its own local-safe-mode check, because the guard above only covers /api.
+app.use("/panel2",               panelActionRoutes);
 app.use("/panel2",               pipelineBoardRoutes);
 app.use("/api/pricing",          pricingErrorHandler); // generic errors, no stack traces
 
@@ -183,7 +188,13 @@ if (
         // best of whoever said yes — up to three, fewer if fewer replied.
         // Record what tutors answered, from the rows the n8n router writes.
         startTutorReplyScheduler();
-        startTopThreeScheduler(sendTutorOptions);
+        // The top three go to the parent when staff press the button in
+        // Panel 2, not on a timer. TOP3_AUTO_SEND=true restores the sweep.
+        if (String(process.env.TOP3_AUTO_SEND || "").toLowerCase() === "true") {
+          startTopThreeScheduler(sendTutorOptions);
+        } else {
+          console.log("[Top3] Automatic sweep off — the parent's options are sent from Panel 2.");
+        }
       });
     })
     .catch((error) => {

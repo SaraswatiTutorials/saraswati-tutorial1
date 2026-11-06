@@ -3,570 +3,363 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Panel 2 — Tutor pipeline</title>
+<title>Panel 2 | Tutor pipeline</title>
 <script>
-  // Apply the saved theme before first paint so the page does not flash.
-  try { const t = localStorage.getItem("panel2-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+  // Dark mode is switched off, matching the rest of the site. To turn it back on,
+  // set this to true: the dark colours below and the Theme button are still here.
+  window.PANEL_DARK_MODE_ENABLED = false;
+  try {
+    const t = localStorage.getItem("panel2-theme");
+    if (window.PANEL_DARK_MODE_ENABLED && t) document.documentElement.dataset.theme = t;
+  } catch {}
 </script>
 <style>
   :root {
-    --bg: #f5f4f0; --surface: #ffffff; --surface-2: #fafaf8; --line: #e7e5df; --line-soft: #f0eee9;
-    --ink: #1c1f26; --ink-2: #3f4552; --mut: #6b7280; --faint: #9aa0aa;
-    --accent: #4f46e5; --accent-ink: #ffffff; --accent-soft: #eef0ff; --accent-line: #c9cdfb;
-    --ok: #047857; --ok-soft: #e7f6ee; --ok-line: #bfe3cf;
-    --warn: #92600a; --warn-soft: #fdf4dc; --warn-line: #f0dca4;
-    --info: #1d4ed8; --info-soft: #e8efff; --info-line: #c7d6fb;
-    --bad: #b42318; --bad-soft: #fdecea; --bad-line: #f5c6c1;
-    --grey-soft: #f0f0ed;
-    --shadow: 0 1px 2px rgba(20, 22, 30, .04), 0 2px 8px rgba(20, 22, 30, .04);
-    --shadow-lg: 0 12px 40px rgba(20, 22, 30, .18);
-    --radius: 14px; --nav-w: 268px;
+    --bg: #f3f4f6; --surface: #ffffff; --surface-2: #f8f9fa; --line: #d8dce2; --line-soft: #e9ebef;
+    --ink: #1d2329; --ink-2: #3c444d; --mut: #5d6670; --faint: #858d97;
+    --accent: #17579f; --accent-dark: #124680; --accent-soft: #e8f0f9;
+    --ok: #17703f; --ok-soft: #e7f3ec; --warn: #8a5a00; --warn-soft: #fbf3df;
+    --bad: #b3261e; --bad-soft: #fbeceb; --grey-soft: #eef0f2;
+    --bar-h: 52px;
     color-scheme: light;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0b0f17; --surface: #121826; --surface-2: #0f1520; --line: #232b3b; --line-soft: #1a2130;
-      --ink: #e8ebf1; --ink-2: #c4cad6; --mut: #94a0b4; --faint: #677388;
-      --accent: #818cf8; --accent-ink: #0b0f17; --accent-soft: #1d2140; --accent-line: #343b72;
-      --ok: #4ade80; --ok-soft: #10261b; --ok-line: #1d4430;
-      --warn: #fbbf24; --warn-soft: #2a2110; --warn-line: #4a3a14;
-      --info: #93b4ff; --info-soft: #141f3a; --info-line: #263a6b;
-      --bad: #f87171; --bad-soft: #2c1517; --bad-line: #522528;
-      --grey-soft: #1a2130;
-      --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 12px 40px rgba(0, 0, 0, .5);
-      color-scheme: dark;
-    }
-  }
   :root[data-theme="dark"] {
-    --bg: #0b0f17; --surface: #121826; --surface-2: #0f1520; --line: #232b3b; --line-soft: #1a2130;
-    --ink: #e8ebf1; --ink-2: #c4cad6; --mut: #94a0b4; --faint: #677388;
-    --accent: #818cf8; --accent-ink: #0b0f17; --accent-soft: #1d2140; --accent-line: #343b72;
-    --ok: #4ade80; --ok-soft: #10261b; --ok-line: #1d4430;
-    --warn: #fbbf24; --warn-soft: #2a2110; --warn-line: #4a3a14;
-    --info: #93b4ff; --info-soft: #141f3a; --info-line: #263a6b;
-    --bad: #f87171; --bad-soft: #2c1517; --bad-line: #522528;
-    --grey-soft: #1a2130;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .3); --shadow-lg: 0 12px 40px rgba(0, 0, 0, .5);
+    --bg: #14171b; --surface: #1c2025; --surface-2: #22272d; --line: #363c44; --line-soft: #2b3036;
+    --ink: #e6e8eb; --ink-2: #c6cad0; --mut: #9aa2ac; --faint: #79818b;
+    --accent: #7fb2eb; --accent-dark: #a2c8f2; --accent-soft: #1f2d3d;
+    --ok: #6cc592; --ok-soft: #1b2c23; --warn: #e0b45c; --warn-soft: #2e2715; --bad: #ef8a83; --bad-soft: #351f1e; --grey-soft: #2b3036;
     color-scheme: dark;
   }
 
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html, body { margin: 0; }
-  body { background: var(--bg); color: var(--ink);
-    font: 14px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-    -webkit-font-smoothing: antialiased; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; }
   button, input, select { font: inherit; color: inherit; }
   button { cursor: pointer; }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  svg { flex-shrink: 0; }
+  button:disabled { cursor: not-allowed; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  h1, h2, h3, p, dl, dd, ol, ul { margin: 0; }
+  ol, ul { padding: 0; list-style: none; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .num { font-variant-numeric: tabular-nums; }
   .mut { color: var(--mut); }
+  .small { font-size: 12px; }
 
-  /* ---------- Login: photo on the left half, form on the right ---------- */
-  .login { min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); }
-  .login-art { position: relative; overflow: hidden; background: #0f1a33 url("/panel2/assets/login-hero.jpg") center / cover no-repeat;
-    color: #fff; display: flex; flex-direction: column; justify-content: space-between; padding: 36px 40px; }
-  .login-art::before { content: ""; position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(10, 18, 40, .55) 0%, rgba(10, 18, 40, .05) 30%, rgba(10, 18, 40, .25) 55%, rgba(8, 14, 34, .92) 100%); }
-  .login-art > * { position: relative; }
-  .art-brand { display: flex; align-items: center; gap: 12px; }
-  .art-brand .logo { width: 44px; height: 44px; border-radius: 12px; background: #fff; padding: 5px; box-shadow: 0 4px 14px rgba(0, 0, 0, .25); }
-  .art-brand b { display: block; font-size: 16px; letter-spacing: -.01em; }
-  .art-brand span { font-size: 12px; opacity: .8; }
-  .art-copy { max-width: 520px; }
-  .art-copy .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: .04em;
-    padding: 5px 12px; border-radius: 999px; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .22);
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-  .art-copy .eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 3px rgba(74, 222, 128, .25); }
-  .art-copy h2 { font-size: clamp(26px, 2.6vw, 36px); line-height: 1.15; letter-spacing: -.025em; margin: 16px 0 10px; font-weight: 700; }
-  .art-copy p { margin: 0; font-size: 15px; opacity: .85; max-width: 440px; }
-  .art-points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 26px; }
-  .art-points div { padding: 12px 14px; border-radius: 12px; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .16);
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-size: 12px; line-height: 1.4; }
-  .art-points b { display: block; font-size: 13px; margin-bottom: 2px; }
+  /* ---------- Controls ---------- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 4px 12px; border: 1px solid var(--line);
+    border-radius: 4px; background: var(--surface); font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+  .btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--faint); }
+  .btn:disabled { color: var(--faint); background: var(--surface-2); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-dark); border-color: var(--accent-dark); }
+  .btn-send { background: var(--bad); border-color: var(--bad); color: #fff; }
+  .btn-send:hover:not(:disabled) { background: #971f18; border-color: #971f18; }
+  .btn-send:disabled, .btn-primary:disabled { background: var(--grey-soft); border-color: var(--line); color: var(--faint); }
+  .input, .select { height: 30px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); min-width: 0; }
+  .input:focus, .select:focus { border-color: var(--accent); outline: 1px solid var(--accent); outline-offset: 0; }
 
-  .login-side { display: flex; flex-direction: column; padding: 32px 40px; min-width: 0; }
-  .login-form { width: 100%; max-width: 400px; margin: auto; }
-  .login-foot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--faint); }
-  .login-form .logo-lg { width: 52px; height: 52px; border-radius: 14px; background: #fff; padding: 6px; border: 1px solid var(--line); }
-  .login h1 { font-size: 28px; margin: 22px 0 6px; letter-spacing: -.03em; line-height: 1.2; }
-  .login .lede { margin: 0 0 8px; color: var(--mut); font-size: 14px; }
-  .field { margin-top: 18px; }
-  .field label { display: block; font-size: 13px; font-weight: 600; color: var(--ink-2); margin-bottom: 7px; }
-  .with-icon { position: relative; }
-  .with-icon > svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
-  .with-icon .input { padding-left: 40px; height: 46px; }
-  .with-icon .reveal { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: transparent;
-    color: var(--mut); padding: 6px 8px; border-radius: 8px; font-size: 12px; font-weight: 600; }
-  .with-icon .reveal:hover { color: var(--ink); background: var(--grey-soft); }
-  .with-icon .input.has-reveal { padding-right: 64px; }
-  .caps { font-size: 12px; color: var(--warn); margin-top: 6px; display: flex; align-items: center; gap: 6px; }
-  .login .btn-block { height: 46px; font-size: 14px; margin-top: 24px; border-radius: 11px; }
-  .btn .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
-  .form-err:not(:empty) { display: flex; gap: 8px; align-items: flex-start; background: var(--bad-soft); border: 1px solid var(--bad-line);
-    border-radius: 10px; padding: 10px 12px; margin-top: 16px; }
-  .secure-note { display: flex; align-items: center; gap: 8px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line-soft);
-    font-size: 12px; color: var(--mut); }
-
-  @media (max-width: 1100px) { .art-points { grid-template-columns: 1fr; max-width: 320px; } }
-  @media (max-width: 899px) {
+  /* ---------- Sign in ---------- */
+  .login { min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 480px); background: var(--surface); }
+  .login-art { background: #1d2329 url("/panel2/assets/login-hero.jpg") center / cover no-repeat; }
+  .login-side { display: flex; flex-direction: column; justify-content: center; padding: 40px; border-left: 1px solid var(--line); }
+  .login-form { width: 100%; max-width: 340px; margin: 0 auto; }
+  .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+  .login-brand img { width: 40px; height: 40px; }
+  .login-brand b { display: block; font-size: 15px; }
+  .login h1 { font-size: 20px; font-weight: 600; margin-bottom: 18px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-weight: 600; margin-bottom: 4px; }
+  .field .input { width: 100%; height: 36px; }
+  .pw { position: relative; }
+  .pw .input { padding-right: 58px; }
+  .pw button { position: absolute; right: 4px; top: 4px; height: 28px; padding: 0 8px; border: 0; background: transparent; color: var(--accent); font-weight: 600; font-size: 12px; }
+  .caps { color: var(--warn); font-size: 12px; margin-top: 4px; }
+  .login .btn-primary { width: 100%; height: 36px; font-size: 13px; }
+  .form-err { color: var(--bad); margin-top: 10px; min-height: 18px; }
+  @media (max-width: 860px) {
     .login { grid-template-columns: 1fr; }
     .login-art { display: none; }
-    .login-side { padding: 24px 16px; }
-    .login h1 { font-size: 24px; }
+    .login-side { border-left: 0; padding: 24px 16px; }
   }
-
-  .brand { display: flex; align-items: center; gap: 11px; }
-  .brand-mark { width: 38px; height: 38px; border-radius: 11px; background: #fff; padding: 4px; border: 1px solid var(--line); flex-shrink: 0; }
-  .brand-name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.2; }
-  .brand-sub { font-size: 12px; color: var(--mut); }
-  .input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
-    background: var(--surface-2); transition: border-color .15s, box-shadow .15s; }
-  .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 14px;
-    border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-weight: 600;
-    font-size: 13px; transition: background .15s, border-color .15s; }
-  .btn:hover { background: var(--surface-2); border-color: var(--faint); }
-  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  .btn-primary:hover { background: var(--accent); border-color: var(--accent); filter: brightness(1.08); }
-  .btn-block { width: 100%; padding: 11px 14px; margin-top: 20px; }
-  .icon-btn { width: 38px; height: 38px; display: inline-grid; place-items: center; border-radius: 10px;
-    border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); }
-  .icon-btn:hover { color: var(--ink); border-color: var(--faint); }
-  .form-err { color: var(--bad); font-size: 13px; margin-top: 12px; min-height: 1em; }
-
-
-  /* ---------- App shell ---------- */
-  :root {
-    --nav-w: 248px; --top-h: 64px;
-    --side: #0e1424; --side-2: #18213a; --side-ink: #c9d0de; --side-mut: #7d879d; --side-line: rgba(255, 255, 255, .07);
-  }
-  .select { width: 100%; padding: 8px 30px 8px 10px; border: 1px solid var(--line); border-radius: 9px; background-color: var(--surface-2);
-    appearance: none; -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa0aa' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 10px center; }
-
-  .sidebar { position: fixed; inset: 0 auto 0 0; width: var(--nav-w); background: var(--side); color: var(--side-ink);
-    display: flex; flex-direction: column; z-index: 40; transition: transform .22s ease; }
-  .main { margin-left: var(--nav-w); min-width: 0; min-height: 100vh; transition: margin-left .22s ease; }
-  body.nav-collapsed .sidebar { transform: translateX(-100%); }
-  body.nav-collapsed .main { margin-left: 0; }
-  .scrim { display: none; }
-  @media (max-width: 1023px) {
-    .sidebar { transform: translateX(-100%); width: min(var(--nav-w), 84vw); }
-    .main { margin-left: 0; }
-    body.nav-open .sidebar { transform: none; box-shadow: var(--shadow-lg); }
-    body.nav-open .scrim { display: block; position: fixed; inset: 0; background: rgba(8, 10, 18, .5); z-index: 30; }
-    body.nav-open { overflow: hidden; }
-  }
-
-  .side-head { display: flex; align-items: center; gap: 11px; height: var(--top-h); padding: 0 12px 0 18px; border-bottom: 1px solid var(--side-line); flex-shrink: 0; }
-  .side-head .logo { width: 34px; height: 34px; border-radius: 9px; background: #fff; padding: 3px; }
-  .side-head b { display: block; color: #fff; font-size: 14px; letter-spacing: -.01em; line-height: 1.2; }
-  .side-head span { font-size: 12px; color: var(--side-mut); }
-  .side-close { margin-left: auto; display: none; place-items: center; background: transparent; border: 0; color: var(--side-mut);
-    width: 34px; height: 34px; border-radius: 8px; }
-  .side-close:hover { background: var(--side-2); color: #fff; }
-  @media (max-width: 1023px) { .side-close { display: grid; } }
-  .side-body { flex: 1; overflow-y: auto; padding: 6px 10px 16px; }
-  .side-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--side-mut); padding: 18px 10px 6px; }
-  .nav { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
-  .nav button { position: relative; width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 8px;
-    background: transparent; color: var(--side-ink); text-align: left; font-size: 13.5px; font-weight: 500; }
-  .nav button:hover { background: var(--side-2); color: #fff; }
-  .nav button svg { color: var(--side-mut); }
-  .nav button[aria-current="true"] { background: rgba(129, 140, 248, .16); color: #fff; }
-  .nav button[aria-current="true"] svg { color: #a5b4fc; }
-  .nav button[aria-current="true"]::before { content: ""; position: absolute; left: -10px; top: 7px; bottom: 7px; width: 3px; border-radius: 0 3px 3px 0; background: #818cf8; }
-  .nav .count { margin-left: auto; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 24px; text-align: center;
-    padding: 1px 7px; border-radius: 999px; background: rgba(255, 255, 255, .08); color: var(--side-ink); }
-  .nav .count.hot { background: rgba(248, 113, 113, .2); color: #fecaca; }
-  .nav .count.zero { opacity: .4; }
-  .side-foot { border-top: 1px solid var(--side-line); padding: 10px; display: grid; gap: 2px; flex-shrink: 0; }
-  .side-foot button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px;
-    background: transparent; color: var(--side-ink); font-size: 13.5px; font-weight: 500; text-align: left; }
-  .side-foot button:hover { background: var(--side-2); color: #fff; }
-  .side-foot button svg { color: var(--side-mut); }
-  .side-user { display: flex; align-items: center; gap: 10px; padding: 6px 10px 10px; }
-  .side-user i { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: #312e81; color: #c7d2fe;
-    font-style: normal; font-weight: 700; font-size: 13px; flex-shrink: 0; }
-  .side-user b { display: block; font-size: 13px; color: #fff; line-height: 1.3; }
-  .side-user span { font-size: 11.5px; color: var(--side-mut); }
 
   /* ---------- Top bar ---------- */
-  .topbar { position: sticky; top: 0; z-index: 20; height: var(--top-h); background: var(--surface); border-bottom: 1px solid var(--line); }
-  .topbar-in { height: 100%; display: flex; align-items: center; gap: 12px; padding: 0 24px; }
-  .title { min-width: 0; flex: 1; }
-  .crumbs { font-size: 12px; color: var(--faint); display: flex; align-items: center; gap: 5px; white-space: nowrap; }
-  .title h1 { margin: 0; font-size: 17px; letter-spacing: -.02em; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .search { position: relative; display: block; width: min(340px, 30vw); }
-  .search > svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
-  .search .input { padding-left: 34px; height: 38px; background: var(--surface-2); }
-  .search kbd { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 11px/1 ui-monospace, monospace;
-    color: var(--faint); border: 1px solid var(--line); border-radius: 5px; padding: 3px 5px; background: var(--surface); }
-  .live { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; color: var(--mut); white-space: nowrap;
-    border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; }
-  .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); position: relative; }
-  .live i::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--ok); opacity: .5; animation: ping 2s ease-out infinite; }
-  .live.paused i { background: var(--faint); } .live.paused i::after { display: none; }
-  @keyframes ping { from { transform: scale(.6); opacity: .6; } to { transform: scale(1.7); opacity: 0; } }
-  .spin svg { animation: spin .8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @media (max-width: 767px) {
-    .topbar-in { padding: 0 12px; gap: 10px; }
-    .topbar .search, .topbar .live { display: none; }
+  .bar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; height: var(--bar-h); padding: 0 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .bar-brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .bar-brand img { width: 30px; height: 30px; flex-shrink: 0; }
+  .bar-brand b { font-size: 14px; white-space: nowrap; }
+  .bar-brand span { color: var(--mut); white-space: nowrap; }
+  .bar-search { flex: 0 1 320px; margin-left: auto; min-width: 120px; }
+  .bar-search .input { width: 100%; }
+  .bar-right { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .updated { color: var(--mut); font-size: 12px; }
+  .user { color: var(--mut); font-size: 12px; }
+  @media (max-width: 860px) {
+    .bar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .bar-brand span, .user, .updated { display: none; }
+    .bar-right { margin-left: auto; }
+    .bar-search { flex: 1 1 100%; order: 3; margin: 0; }
   }
+
+  /* ---------- Queues ---------- */
+  .queues { display: flex; overflow-x: auto; padding: 0 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .queues button { flex-shrink: 0; padding: 9px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--mut); font-weight: 600; white-space: nowrap; }
+  .queues button:hover { color: var(--ink); }
+  .queues button[aria-current="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .queues .n { margin-left: 5px; font-weight: 400; font-variant-numeric: tabular-nums; }
+  .queues .sep { flex-shrink: 0; width: 1px; margin: 9px 6px; background: var(--line); }
+  .queues .has-problem .n { color: var(--bad); font-weight: 700; }
 
   /* ---------- Page ---------- */
-  .content { padding: 20px 24px 40px; max-width: 1640px; margin: 0 auto; }
-  @media (max-width: 767px) { .content { padding: 14px 12px 32px; } }
+  .content { padding: 12px 16px 24px; }
+  @media (max-width: 860px) { .content { padding: 10px 12px 20px; } }
+  .notice { padding: 7px 10px; margin-bottom: 8px; border: 1px solid var(--line); border-left-width: 3px; background: var(--surface); }
+  .notice.err { border-left-color: var(--bad); color: var(--bad); }
+  .notice.warn { border-left-color: var(--warn); }
+  .notice.info { border-left-color: var(--accent); }
 
-  .banner { border-radius: 12px; padding: 12px 14px; font-size: 13px; margin-bottom: 14px; display: flex; gap: 10px; align-items: flex-start; }
-  .banner svg { margin-top: 2px; }
-  .banner.err { background: var(--bad-soft); border: 1px solid var(--bad-line); color: var(--bad); }
+  .modes { display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 7px 10px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--line); }
+  .modes b { font-weight: 600; }
+  .on { color: var(--ok); font-weight: 600; } .off { color: var(--mut); font-weight: 600; } .alarm { color: var(--bad); font-weight: 700; }
 
-  /* One connected strip, read left to right like the pipeline itself. */
-  .funnel { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background: var(--surface); border: 1px solid var(--line);
-    border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 18px; overflow: hidden; }
-  .f-item { padding: 14px 18px; min-width: 0; position: relative; }
-  .f-item + .f-item { border-left: 1px solid var(--line-soft); }
-  .f-label { font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--mut);
-    display: flex; align-items: center; gap: 7px; white-space: nowrap; }
-  .f-label i { width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0; }
-  .f-value { font-size: 26px; font-weight: 700; letter-spacing: -.02em; margin-top: 4px; font-variant-numeric: tabular-nums; line-height: 1.2; }
-  .f-sub { font-size: 12px; color: var(--faint); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .f-sub b { color: var(--bad); font-weight: 600; }
-  @media (max-width: 1279px) {
-    .funnel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .f-item:nth-child(4) { border-left: 0; }
-    .f-item:nth-child(n+4) { border-top: 1px solid var(--line-soft); }
-  }
-  @media (max-width: 560px) {
-    .funnel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .f-item { padding: 12px 14px; }
-    .f-item:nth-child(odd) { border-left: 0; }
-    .f-item:nth-child(4) { border-left: 1px solid var(--line-soft); }
-    .f-item:nth-child(n+3) { border-top: 1px solid var(--line-soft); }
-    .f-value { font-size: 22px; }
+  .totals { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin-bottom: 8px; background: var(--surface); border: 1px solid var(--line); }
+  .totals div { padding: 7px 10px; min-width: 0; }
+  .totals div + div { border-left: 1px solid var(--line-soft); }
+  .totals dt { color: var(--mut); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .totals dd { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.3; }
+  .totals dd.bad { color: var(--bad); }
+  @media (max-width: 860px) {
+    .totals { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .totals div:nth-child(5) { border-left: 0; }
+    .totals div:nth-child(n+5) { border-top: 1px solid var(--line-soft); }
   }
 
-  .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-  .tb-title { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
-  .tb-title h2 { margin: 0; font-size: 16px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tb-title span { font-size: 12.5px; color: var(--mut); white-space: nowrap; }
-  .toolbar .spacer { flex: 1; }
-  .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px; }
-  .seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--mut); white-space: nowrap; }
-  .seg button:hover { color: var(--ink); }
-  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
-  .select.sm { width: auto; height: 36px; padding-top: 0; padding-bottom: 0; font-size: 12.5px; font-weight: 600; background-color: var(--surface); }
-  .search-m { display: none; }
-  @media (max-width: 767px) {
-    .toolbar .spacer { display: none; }
-    .tb-title { width: 100%; }
-    .seg { flex: 1 1 100%; } .seg button { flex: 1; padding: 6px 4px; }
-    .select.sm { flex: 1; }
-    .search-m { display: block; width: 100%; order: -1; }
-  }
+  .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .filters label { display: inline-flex; align-items: center; gap: 5px; color: var(--mut); }
+  .filters .shown { margin-left: auto; color: var(--mut); }
+  @media (max-width: 860px) { .filters .shown { margin-left: 0; flex-basis: 100%; } }
 
-  /* ---------- List + detail ---------- */
-  .workspace { display: grid; grid-template-columns: minmax(330px, 400px) minmax(0, 1fr); gap: 16px; align-items: start; }
-  .pane { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
-    position: sticky; top: calc(var(--top-h) + 16px); max-height: calc(100vh - var(--top-h) - 32px); display: flex; flex-direction: column; overflow: hidden; }
-  .pane-head { padding: 11px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    font-size: 12px; color: var(--faint); background: var(--surface-2); flex-shrink: 0; }
-  .pane-head b { color: var(--ink-2); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
-  .pane-body { overflow-y: auto; flex: 1; min-height: 0; }
-  .detail-pane { container-type: inline-size; }
-  @media (max-width: 1199px) {
-    .workspace { grid-template-columns: 1fr; }
-    .list-pane { position: static; max-height: none; }
+  /* ---------- List and detail ---------- */
+  .workspace { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+  .pane { background: var(--surface); border: 1px solid var(--line); min-width: 0; }
+  .list-pane { overflow-x: auto; container-type: inline-size; }
+  .detail-pane { position: sticky; top: calc(var(--bar-h) + 12px); max-height: calc(100vh - var(--bar-h) - 24px); overflow-y: auto; container-type: inline-size; }
+  @media (max-width: 1099px) {
+    .workspace { grid-template-columns: minmax(0, 1fr); }
     .detail-pane { display: none; }
-    body.detail-open .detail-pane { display: flex; position: fixed; inset: 0; z-index: 60; border-radius: 0; border: 0; max-height: none; animation: sheetIn .2s ease; }
     body.detail-open { overflow: hidden; }
-    .pane-head .hint { display: none; }
+    body.detail-open .detail-pane { display: block; position: fixed; inset: 0; z-index: 40; max-height: none; border: 0; }
   }
-  @keyframes sheetIn { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 
-  .rows { list-style: none; margin: 0; padding: 0; }
-  .row { width: 100%; text-align: left; border: 0; background: transparent; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto;
-    column-gap: 12px; row-gap: 2px; padding: 13px 16px; border-bottom: 1px solid var(--line-soft); position: relative; align-items: center; }
-  .row:hover { background: var(--surface-2); }
-  .row[aria-selected="true"] { background: var(--accent-soft); }
-  .row[aria-selected="true"]::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
-  .row .avatar { grid-row: 1 / span 3; align-self: start; width: 38px; height: 38px; border-radius: 10px; font-size: 13px; }
-  .r-name { font-weight: 600; font-size: 14px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .r-time { font-size: 11.5px; color: var(--faint); white-space: nowrap; justify-self: end; }
-  .r-sub { font-size: 12.5px; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .r-stage { justify-self: end; }
-  .r-stage .tag { font-size: 11px; padding: 1px 8px; }
-  .r-meter { grid-column: 2 / -1; display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--mut); margin-top: 6px; white-space: nowrap; }
-  .meter { flex: 1; height: 6px; border-radius: 999px; background: var(--line-soft); display: flex; overflow: hidden; min-width: 40px; }
-  .meter span { height: 100%; }
-  .list-empty { padding: 40px 20px; text-align: center; color: var(--mut); font-size: 13px; }
-  .list-empty b { display: block; color: var(--ink); font-size: 14px; margin-bottom: 4px; }
+  table { border-collapse: collapse; width: 100%; }
+  th { text-align: left; font-weight: 600; font-size: 12px; color: var(--mut); background: var(--surface-2); border-bottom: 1px solid var(--line); padding: 6px 10px; white-space: nowrap; }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
 
-  .avatar { border-radius: 12px; display: grid; place-items: center; font-weight: 700; background: var(--accent-soft); color: var(--accent); flex-shrink: 0; }
+  .list tbody tr { cursor: pointer; }
+  .list tbody tr:hover td { background: var(--surface-2); }
+  .list tbody tr[aria-selected="true"] td { background: var(--accent-soft); }
+  .list tbody tr[aria-selected="true"] td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+  .list .who { font-weight: 600; }
+  .list .sub { color: var(--mut); font-size: 12px; }
+  /* Columns leave by how wide the table really is, so none is ever cut off. All of it is in the details too. */
+  @container (max-width: 780px) { .col-area { display: none; } }
+  @container (max-width: 610px) { .col-time { display: none; } }
+  @container (max-width: 480px) { .col-class, .col-count { display: none; } }
+  @container (max-width: 340px) {
+    .list td, .list th { padding-left: 8px; padding-right: 8px; }
+    .list .status { white-space: normal; }
+  }
+  .list .who, .list .sub { overflow-wrap: anywhere; }
+  .empty-row { padding: 28px 16px; text-align: center; color: var(--mut); }
+  .empty-row b { display: block; color: var(--ink); }
+
+  .status { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-weight: 600; }
+  .status::before { content: ""; width: 8px; height: 8px; flex-shrink: 0; background: currentColor; }
+  .s-act { color: var(--accent); } .s-wait { color: var(--warn); } .s-ok { color: var(--ok); } .s-bad { color: var(--bad); } .s-none { color: var(--mut); }
+  .test-mark { margin-left: 5px; padding: 0 4px; border: 1px solid var(--warn); color: var(--warn); font-size: 10.5px; font-weight: 600; }
 
   /* Detail */
-  .d-head { padding: 18px 22px; border-bottom: 1px solid var(--line); display: flex; gap: 14px; align-items: center; position: sticky; top: 0;
-    background: var(--surface); z-index: 2; }
-  .d-head .avatar { width: 46px; height: 46px; border-radius: 13px; font-size: 15px; }
-  .d-back { display: none; }
+  .d-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .d-head h2 { font-size: 16px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+  .d-head .id { color: var(--mut); font-size: 12px; font-family: Consolas, ui-monospace, monospace; }
   .d-title { flex: 1; min-width: 0; }
-  .d-title h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; line-height: 1.3; }
-  .d-title .sub { font-size: 12.5px; color: var(--mut); margin-top: 2px; }
-  @media (max-width: 1199px) { .d-back { display: inline-grid; } .d-head { padding: 12px 14px; } .d-head .avatar { display: none; } }
-  .d-body { padding: 18px 22px 26px; display: grid; gap: 22px; }
-  @container (max-width: 560px) { .d-body { padding: 14px; } }
-  .section h3 { margin: 0 0 10px; font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }
+  .d-back { display: none; }
+  @media (max-width: 1099px) { .d-back { display: inline-flex; } }
+  .sec { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); }
+  .sec:last-child { border-bottom: 0; }
+  .sec > h3 { font-size: 13px; font-weight: 600; margin-bottom: 7px; }
+  .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px 14px; }
+  .facts dt { color: var(--mut); font-size: 12px; }
+  .facts dd { overflow-wrap: anywhere; }
+  @container (max-width: 480px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .alert { padding: 6px 9px; margin-top: 8px; border-left: 3px solid var(--bad); background: var(--bad-soft); }
+  .alert.wait { border-left-color: var(--warn); background: var(--warn-soft); }
+  .alert.fine { border-left-color: var(--ok); background: var(--ok-soft); }
+  .alert.plain { border-left-color: var(--line); background: var(--surface-2); }
 
-  .facts-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line-soft); border: 1px solid var(--line);
-    border-radius: 12px; overflow: hidden; margin: 0; }
-  .facts-grid > div { background: var(--surface); padding: 10px 14px; min-width: 0; }
-  .facts-grid dt { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); }
-  .facts-grid dd { margin: 3px 0 0; font-size: 13.5px; font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
-  .facts-grid a { color: var(--accent); text-decoration: none; } .facts-grid a:hover { text-decoration: underline; }
-  @container (max-width: 640px) { .facts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @container (max-width: 380px) { .facts-grid { grid-template-columns: 1fr; } }
-
-  .tag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600;
-    white-space: nowrap; border: 1px solid transparent; line-height: 1.6; }
-  .tag-id { background: var(--grey-soft); color: var(--mut); font-weight: 500; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
-  .t-ok { background: var(--ok-soft); color: var(--ok); border-color: var(--ok-line); }
-  .t-warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn-line); }
-  .t-info { background: var(--info-soft); color: var(--info); border-color: var(--info-line); }
-  .t-bad { background: var(--bad-soft); color: var(--bad); border-color: var(--bad-line); }
-  .t-grey { background: var(--grey-soft); color: var(--mut); border-color: var(--line); }
-  .tag i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-
-  .steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); list-style: none; margin: 0 0 12px; padding: 4px 0 0; }
-  .step { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 4px; }
-  .step::before { content: ""; position: absolute; top: 15px; left: calc(-50% + 18px); right: calc(50% + 18px); height: 2px; background: var(--line); border-radius: 2px; }
-  .step:first-child::before { display: none; }
-  .step.done::before { background: var(--ok); }
-  .step .bub { min-width: 32px; height: 32px; padding: 0 7px; border-radius: 999px; display: grid; place-items: center; font-weight: 700; font-size: 13px;
-    font-variant-numeric: tabular-nums; border: 2px solid var(--line); background: var(--surface); color: var(--faint); position: relative; z-index: 1; }
-  .step.done .bub { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
-  .step.current .bub { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 4px var(--accent-soft); }
-  .step.fail .bub { border-color: var(--bad); color: var(--bad); background: var(--bad-soft); }
-  .step .lbl { font-size: 12px; color: var(--mut); margin-top: 6px; line-height: 1.3; }
-  .step.done .lbl, .step.current .lbl { color: var(--ink-2); font-weight: 600; }
-  @container (max-width: 480px) { .step .lbl { font-size: 11px; } }
-
-  .callout { border-radius: 10px; padding: 10px 12px; font-size: 13px; display: flex; gap: 10px; align-items: flex-start; border: 1px solid; margin-top: 8px; }
-  .callout svg { margin-top: 2px; }
-  .c-wait { background: var(--warn-soft); border-color: var(--warn-line); color: var(--warn); }
-  .c-due { background: var(--info-soft); border-color: var(--info-line); color: var(--info); }
-  .c-done { background: var(--ok-soft); border-color: var(--ok-line); color: var(--ok); }
-  .c-none { background: var(--grey-soft); border-color: var(--line); color: var(--mut); }
-  .c-alert { background: var(--bad-soft); border-color: var(--bad-line); color: var(--bad); }
-  .chosen { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; margin-top: 8px;
-    background: var(--ok-soft); border: 1px solid var(--ok-line); color: var(--ok); }
-  .chosen b { color: var(--ink); } .chosen .mut { font-size: 12px; }
-
-  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; margin-bottom: 4px; }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tab { border: 0; background: transparent; padding: 9px 10px; font-weight: 600; font-size: 13px; color: var(--mut);
-    border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; display: inline-flex; gap: 7px; align-items: center; }
-  .tab:hover { color: var(--ink); }
-  .tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
-  .tab .n { font-size: 11px; background: var(--grey-soft); color: var(--mut); border-radius: 999px; padding: 0 7px; font-variant-numeric: tabular-nums; }
-  .tab[aria-selected="true"] .n { background: var(--accent-soft); color: var(--accent); }
-  .panel[hidden] { display: none; }
-  .panel-meta { font-size: 12px; color: var(--mut); margin: 10px 0 2px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
-  .panel-meta .bad { color: var(--bad); font-weight: 600; }
-  .note { font-size: 12px; color: var(--warn); background: var(--warn-soft); border: 1px solid var(--warn-line); border-radius: 8px; padding: 7px 10px; margin: 10px 0 4px; }
-  .empty { color: var(--mut); font-size: 13px; padding: 16px 0 6px; }
-
-  .tbl { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
-  .tbl th { text-align: left; font-weight: 600; color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
-    padding: 10px 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-  .tbl td { padding: 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
-  .tbl tr:last-child td { border-bottom: 0; }
-  .tbl tbody tr:hover td { background: var(--surface-2); }
-  .tbl .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .tbl .sub { font-size: 12px; color: var(--faint); }
-  .tbl .why { font-size: 11.5px; color: var(--bad); margin-top: 3px; max-width: 220px; }
-  .tbl .name { font-weight: 600; color: var(--ink); }
-  .rank { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: var(--grey-soft); font-size: 12px; font-weight: 700; color: var(--ink-2); }
-  /* A narrow detail pane turns each table row into a small stacked block, so nothing scrolls sideways. */
-  @container (max-width: 620px) {
-    .tbl thead { display: none; }
-    .tbl, .tbl tbody, .tbl tr, .tbl td { display: block; width: 100%; }
-    .tbl tr { padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
-    .tbl tr:last-child { border-bottom: 0; }
-    .tbl td { border: 0; padding: 3px 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; text-align: right; }
-    .tbl td::before { content: attr(data-label); color: var(--faint); font-size: 12px; text-align: left; flex-shrink: 0; }
-    .tbl td.lead-cell { text-align: left; display: block; padding-bottom: 6px; }
-    .tbl td.lead-cell::before { display: none; }
-    .tbl .why { margin-left: auto; }
-    .tbl td .cv { min-width: 0; }
-    .tbl tbody tr:hover td { background: transparent; }
+  /* Steps */
+  .steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 2px 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line-soft); }
+  .steps li:first-child { border-top: 0; padding-top: 2px; }
+  .steps .no { width: 20px; height: 20px; display: grid; place-items: center; border: 1px solid var(--line); font-size: 11.5px; font-weight: 600; color: var(--mut); }
+  .steps .is-done .no { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+  .steps .is-next .no { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .steps .is-failed .no { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+  .steps .t { font-weight: 600; }
+  .steps .is-next .t { color: var(--accent); }
+  .steps .res { color: var(--ink-2); overflow-wrap: anywhere; }
+  .steps .why { color: var(--mut); font-size: 12px; }
+  .steps .acts { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+  @container (max-width: 420px) {
+    .steps li { grid-template-columns: 22px minmax(0, 1fr); }
+    .steps .acts { grid-column: 2; align-items: flex-start; }
   }
 
-  .d-empty { display: grid; place-items: center; text-align: center; padding: 80px 24px; color: var(--mut); }
-  .d-empty .ico { width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 14px; display: grid; place-items: center; background: var(--grey-soft); color: var(--mut); }
-  .d-empty h3 { margin: 0 0 4px; font-size: 15px; color: var(--ink); }
-  .d-empty p { margin: 0 auto; max-width: 360px; font-size: 13px; }
+  /* Preview */
+  .preview { border: 1px solid var(--line); margin-top: 10px; scroll-margin-top: 70px; }
+  .preview-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 10px; background: var(--surface-2); border-bottom: 1px solid var(--line); font-weight: 600; }
+  .preview-body { padding: 9px 10px; }
+  .preview-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--line); background: var(--surface-2); }
+  .kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; }
+  .kv dt { color: var(--mut); }
+  .kv dd { overflow-wrap: anywhere; }
+  .msg { white-space: pre-wrap; overflow-wrap: anywhere; padding: 8px 10px; margin-top: 8px; background: var(--surface-2); border: 1px solid var(--line-soft); font: 12px/1.5 inherit; }
+  .sub-h { font-weight: 600; margin: 10px 0 3px; }
+  .plain-list li { padding: 1px 0; }
 
-  .skeleton { background: linear-gradient(90deg, var(--line-soft), var(--surface-2), var(--line-soft)); background-size: 200% 100%; animation: shimmer 1.3s infinite; border-radius: 8px; }
-  @keyframes shimmer { to { background-position: -200% 0; } }
-
-  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  /* Tutors */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .tabs button { padding: 5px 10px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: transparent; color: var(--mut); font-weight: 600; }
+  .tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .meta { color: var(--mut); font-size: 12px; margin-bottom: 6px; display: flex; flex-wrap: wrap; gap: 2px 12px; }
+  .meta .bad { color: var(--bad); font-weight: 600; }
+  .note { padding: 5px 8px; margin-bottom: 6px; background: var(--warn-soft); border-left: 3px solid var(--warn); font-size: 12px; }
+  .none { color: var(--mut); padding: 6px 0; }
+  .t-wrap { overflow-x: auto; }
+  .tbl th, .tbl td { padding: 5px 8px; }
+  .tbl th:first-child, .tbl td:first-child { padding-left: 0; }
+  .tbl th { background: transparent; }
+  .tbl .name { font-weight: 600; }
+  .tbl .sub { color: var(--mut); font-size: 12px; }
+  .tbl .err { color: var(--bad); font-size: 12px; max-width: 230px; }
+  @container (max-width: 520px) {
+    .tbl thead { display: none; }
+    .tbl, .tbl tbody, .tbl tr { display: block; }
+    .tbl tr { padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
+    .tbl tr:last-child { border-bottom: 0; }
+    .tbl td { display: flex; justify-content: space-between; gap: 12px; padding: 1px 0; border: 0; text-align: right; }
+    .tbl td::before { content: attr(data-label); color: var(--mut); font-size: 12px; text-align: left; flex-shrink: 0; }
+    .tbl td:first-child { display: block; text-align: left; }
+    .tbl td:first-child::before { display: none; }
+  }
+  .d-empty { padding: 56px 20px; text-align: center; color: var(--mut); }
+  .d-empty b { display: block; color: var(--ink); }
+  .loading { padding: 28px 16px; text-align: center; color: var(--mut); }
 </style>
 </head>
 <body>
 
-<!-- ============ Sign in ============ -->
 <main id="loginView" class="login">
-  <section class="login-art" aria-hidden="true">
-    <div class="art-brand">
-      <img class="logo" src="/panel2/assets/logo.png" alt="">
-      <div><b>Saraswati Tutorials</b><span>Home tuition · Bangalore &amp; Mumbai</span></div>
-    </div>
-    <div class="art-copy">
-      <span class="eyebrow"><i></i>Live tutor pipeline</span>
-      <h2>Every enquiry, from the first invite to the parent's choice.</h2>
-      <p>See who was shortlisted, which tutors said yes, and which three went to the parent — as it happens.</p>
-      <div class="art-points">
-        <div><b>Live replies</b>Tutor answers appear on their own</div>
-        <div><b>Top 3 tracking</b>Know when each window closes</div>
-        <div><b>Read-only</b>Nothing here changes a record</div>
-      </div>
-    </div>
-  </section>
-
+  <div class="login-art" aria-hidden="true"></div>
   <section class="login-side">
     <form class="login-form" onsubmit="event.preventDefault(); login();" novalidate>
-      <img class="logo-lg" src="/panel2/assets/logo.png" alt="Saraswati Tutorials">
-      <h1>Welcome back</h1>
-      <p class="lede">Sign in to Panel 2 to follow the tutor pipeline.</p>
-
+      <div class="login-brand">
+        <img src="/panel2/assets/logo.png" alt="">
+        <div><b>Saraswati Tutorials</b><span class="mut">Panel 2: Tutor pipeline</span></div>
+      </div>
+      <h1>Sign in</h1>
       <div class="field">
         <label for="u">Id</label>
-        <div class="with-icon">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
-          <input id="u" class="input" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Your panel id">
-        </div>
+        <input id="u" class="input" autocomplete="username" autocapitalize="none" spellcheck="false">
       </div>
       <div class="field">
         <label for="p">Password</label>
-        <div class="with-icon">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-          <input id="p" class="input has-reveal" type="password" autocomplete="current-password" placeholder="••••••••">
-          <button type="button" class="reveal" id="reveal" onclick="toggleReveal()" aria-controls="p" aria-pressed="false">Show</button>
+        <div class="pw">
+          <input id="p" class="input" type="password" autocomplete="current-password">
+          <button type="button" id="reveal" onclick="toggleReveal()" aria-controls="p" aria-pressed="false">Show</button>
         </div>
-        <div class="caps" id="caps" hidden>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-          Caps Lock is on
-        </div>
+        <div class="caps" id="caps" hidden>Caps Lock is on</div>
       </div>
-
-      <button id="loginBtn" class="btn btn-primary btn-block" type="submit">Sign in</button>
+      <button id="loginBtn" class="btn btn-primary" type="submit">Sign in</button>
       <div id="loginMsg" class="form-err" role="alert"></div>
-
-      <div class="secure-note">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
-        Read-only access. You stay signed in for 12 hours on this tab.
-      </div>
     </form>
-    <div class="login-foot"><span>© Saraswati Tutorials</span><span>Panel 2</span></div>
   </section>
 </main>
 
-
-<!-- ============ Board ============ -->
 <div id="boardView" hidden>
-  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
-    <div class="side-head">
-      <img class="logo" src="/panel2/assets/logo.png" alt="">
-      <div><b>Saraswati</b><span>Tutor pipeline</span></div>
-      <button class="side-close" onclick="closeNav()" aria-label="Close menu">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
+  <header class="bar">
+    <div class="bar-brand">
+      <img src="/panel2/assets/logo.png" alt="">
+      <b>Saraswati Tutorials</b><span>Tutor pipeline</span>
     </div>
-    <nav class="side-body" id="sideNav"></nav>
-    <div class="side-foot">
-      <div class="side-user"><i id="userInitial">A</i><div><b id="userName">admin</b><span>Read-only access</span></div></div>
-      <button onclick="toggleTheme()"><span id="themeIcon"></span><span id="themeLabel">Dark mode</span></button>
-      <button onclick="signOut()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
-        Sign out
-      </button>
+    <label class="bar-search">
+      <span class="sr">Search enquiries</span>
+      <input class="input js-search" id="search" type="search" placeholder="Search parent, phone, ID, area" autocomplete="off">
+    </label>
+    <div class="bar-right">
+      <span class="updated num" id="updated"></span>
+      <button class="btn" id="refreshBtn" onclick="load()">Refresh</button>
+      <button class="btn" id="themeBtn" onclick="toggleTheme()" hidden>Theme</button>
+      <span class="user" id="userName"></span>
+      <button class="btn" onclick="signOut()">Sign out</button>
     </div>
-  </aside>
-  <div class="scrim" onclick="closeNav()"></div>
+  </header>
 
-  <div class="main">
-    <header class="topbar">
-      <div class="topbar-in">
-        <button class="icon-btn" id="hamburger" onclick="toggleNav()" aria-label="Toggle menu" aria-controls="sidebar" aria-expanded="true">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-        </button>
-        <div class="title">
-          <div class="crumbs">Panel 2
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
-            Tutor pipeline</div>
-          <h1 id="pageTitle">All enquiries</h1>
-        </div>
-        <label class="search">
-          <span class="sr">Search enquiries</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input class="input js-search" type="search" placeholder="Search parent, phone, ID, area" autocomplete="off">
-          <kbd>/</kbd>
-        </label>
-        <span class="live" id="live"><i></i><span id="liveText">Live</span></span>
-        <button class="icon-btn" id="refreshBtn" onclick="load()" aria-label="Refresh now" title="Refresh now">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>
-        </button>
-      </div>
-    </header>
+  <nav class="queues" id="queues" aria-label="Enquiry queues"></nav>
 
-    <main class="content">
-      <div id="error"></div>
-      <div id="deliveryBanner"></div>
-      <section class="funnel" id="funnel" aria-label="Pipeline summary"></section>
+  <main class="content">
+    <div id="error"></div>
+    <div id="modes"></div>
+    <div id="notices"></div>
+    <dl class="totals" id="totals" aria-label="Totals for this window"></dl>
 
-      <div class="toolbar">
-        <label class="search search-m">
-          <span class="sr">Search enquiries</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input class="input js-search" type="search" placeholder="Search parent, phone, ID, area" autocomplete="off">
-        </label>
-        <div class="tb-title"><h2 id="listTitle">All enquiries</h2><span id="listCount"></span></div>
-        <span class="spacer"></span>
-        <div class="seg" id="rangeSeg" role="group" aria-label="Time window">
-          <button data-since="hours:24">24 hours</button>
-          <button data-since="hours:72">3 days</button>
-          <button data-since="hours:168">7 days</button>
-          <button data-since="all">All time</button>
-        </div>
-        <select id="scope" class="select sm" aria-label="Which records">
+    <div class="filters">
+      <label>Period
+        <select id="since" class="select">
+          <option value="hours:24">Last 24 hours</option>
+          <option value="hours:72">Last 3 days</option>
+          <option value="hours:168">Last 7 days</option>
+          <option value="all">All time</option>
+        </select>
+      </label>
+      <label>Records
+        <select id="scope" class="select">
           <option value="real">Real enquiries</option>
           <option value="test">Test records</option>
-          <option value="all">Real + test</option>
+          <option value="all">Real and test</option>
         </select>
-        <select id="every" class="select sm" aria-label="Auto-refresh">
-          <option value="10">Refresh 10s</option>
-          <option value="30">Refresh 30s</option>
-          <option value="60">Refresh 1 min</option>
-          <option value="0">Refresh off</option>
+      </label>
+      <label>Refresh
+        <select id="every" class="select">
+          <option value="10">Every 10 sec</option>
+          <option value="30">Every 30 sec</option>
+          <option value="60">Every minute</option>
+          <option value="0">Off</option>
         </select>
-      </div>
+      </label>
+      <span class="shown" id="shown"></span>
+    </div>
 
-      <div class="workspace">
-        <section class="pane list-pane" aria-label="Enquiries">
-          <div class="pane-head"><b>Enquiries</b><span class="hint">Newest first · ↑ ↓ to move</span></div>
-          <div class="pane-body" id="listBody"><ul class="rows" id="rows" role="listbox" aria-label="Enquiries"></ul></div>
-        </section>
-        <section class="pane detail-pane" id="detailPane" aria-label="Enquiry details">
-          <div class="pane-body" id="detail"></div>
-        </section>
-      </div>
-    </main>
-  </div>
+    <div class="workspace">
+      <section class="pane list-pane" aria-label="Enquiries">
+        <table class="list">
+          <thead><tr>
+            <th>Enquiry</th>
+            <th class="col-class">Class and subjects</th>
+            <th class="col-area">Area</th>
+            <th>Stage</th>
+            <th class="r col-count">Invited</th>
+            <th class="r col-count">Yes</th>
+            <th class="col-time">Received</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </section>
+      <section class="pane detail-pane" id="detail" aria-label="Enquiry details"></section>
+    </div>
+  </main>
 </div>
 
 <script>
@@ -574,18 +367,29 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
 };
+const session = {
+  get(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, v); } catch {} },
+  del(k) { try { sessionStorage.removeItem(k); } catch {} },
+};
 
-let TOKEN = sessionStorage.getItem("panel2") || "";
-let USER = sessionStorage.getItem("panel2-user") || "admin";
+let TOKEN = session.get("panel2") || "";
+let USER = session.get("panel2-user") || "";
 let timer = null;
 let ticker = null;
 let loading = false;
 let lastData = null;
 let lastLoadedAt = 0;
-let stageFilter = "all";
+let queue = "all";
 let query = "";
 let selectedId = null;
-const openTab = {}; // requirementId -> tab, so a refresh does not reset what you were reading
+let lastRowsHtml = "";
+let lastDetailHtml = "";
+const openTab = {};    // requirementId -> tab, so a refresh does not reset what you were reading
+const previews = {};   // requirementId -> the step being previewed and what the server worked out
+const results = {};    // requirementId -> how the last step went
+const running = {};    // requirementId -> true while a step is running; survives a refresh
+
 const prefs = {
   since: store.get("panel2-since") || "hours:72",
   scope: store.get("panel2-scope") || "real",
@@ -595,100 +399,80 @@ const prefs = {
 const el = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const when = (d) => (d ? new Date(d).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
-const hhmm = (d) => (d ? new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
+const when = (d) => (d ? new Date(d).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "");
+const hhmm = (d) => (d ? new Date(d).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) : "");
 const ago = (d) => {
   if (!d) return "";
   const m = Math.round((Date.now() - new Date(d)) / 60000);
   if (m < 1) return "just now";
-  if (m < 60) return m + "m ago";
-  if (m < 48 * 60) return Math.round(m / 60) + "h ago";
-  return Math.round(m / 1440) + "d ago";
+  if (m < 60) return m + " min ago";
+  if (m < 48 * 60) return Math.round(m / 60) + " hr ago";
+  return Math.round(m / 1440) + " days ago";
 };
 const leftFor = (mins) => {
   if (mins == null) return "";
   const m = Math.abs(mins), h = Math.floor(m / 60), r = m % 60;
-  return (h ? h + "h " : "") + r + "m";
+  return (h ? h + " hr " : "") + r + " min";
 };
+const plural = (n, word) => n + " " + word + (n === 1 ? "" : "s");
 const idOf = (b) => b.requirementId || (b.parentName + "|" + b.createdAt);
-const initials = (name) => (String(name || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "?").toUpperCase();
 const km = (d) => (d != null ? esc(d) + " km" : "—");
 
-const svg = (d, size = 16, extra = "") => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' + extra + ">" + d + "</svg>";
-const ICON = {
-  grid: svg('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
-  alert: svg('<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>'),
-  clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
-  send: svg('<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>'),
-  hand: svg('<path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v6"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.4L2.4 16a2 2 0 0 1 2.8-2.8L7 15"/>'),
-  check: svg('<path d="M20 6 9 17l-5-5"/>', 16, ' stroke-width="2.4"'),
-  x: svg('<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>'),
-  msg: svg('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M9 10h.01M13 10h.01M17 10h.01"/>'),
-  users: svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>'),
-  info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>', 15),
-  pin: svg('<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>', 15),
-  star: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1Z"/></svg>',
-  back: svg('<path d="m15 18-6-6 6-6"/>', 18),
-  inbox: svg('<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1Z"/>', 22),
-  moon: svg('<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>'),
-  sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
-};
+/* ---------------- What each stage means ---------------- */
 
-// Every stage the server reports, with how it looks.
 const STAGES = {
-  waiting:     { label: "Waiting on tutors", tone: "t-warn", icon: "clock" },
-  due:         { label: "Ready to send",     tone: "t-info", icon: "send" },
-  manual:      { label: "Send by hand",      tone: "t-warn", icon: "hand" },
-  top3_sent:   { label: "Top 3 sent",        tone: "t-ok",   icon: "send" },
-  chosen:      { label: "Parent chose",      tone: "t-ok",   icon: "check" },
-  undelivered: { label: "Not delivered",     tone: "t-bad",  icon: "x" },
-  no_replies:  { label: "No replies",        tone: "t-bad",  icon: "msg" },
-  shortlisted: { label: "Shortlisted only",  tone: "t-grey", icon: "users" },
-  new:         { label: "Not started",       tone: "t-grey", icon: "users" },
+  new:         { label: "New",                tone: "s-act" },
+  shortlisted: { label: "Shortlisted",        tone: "s-act" },
+  waiting:     { label: "Waiting for replies", tone: "s-wait" },
+  due:         { label: "Ready for top 3",    tone: "s-act" },
+  top3_sent:   { label: "Top 3 sent",         tone: "s-ok" },
+  chosen:      { label: "Tutor confirmed",    tone: "s-ok" },
+  manual:      { label: "Check shortlist",    tone: "s-bad" },
+  undelivered: { label: "Not delivered",      tone: "s-bad" },
+  no_replies:  { label: "No replies",         tone: "s-bad" },
 };
-const ATTENTION = ["undelivered", "no_replies", "manual"];
-const NAV = [
-  { group: "Overview", items: [
-    { key: "all", label: "All enquiries", icon: "grid" },
-    { key: "attention", label: "Needs attention", icon: "alert", hot: true },
-  ] },
-  { group: "Pipeline", items: ["waiting", "due", "manual", "top3_sent", "chosen"].map((k) => ({ key: k, ...STAGES[k] })) },
-  { group: "Problems", items: ["undelivered", "no_replies"].map((k) => ({ key: k, ...STAGES[k], hot: true })) },
+const PROBLEMS = ["manual", "undelivered", "no_replies"];
+const QUEUES = [
+  { key: "all", label: "All" },
+  { key: "new", label: "New" },
+  { key: "shortlisted", label: "Shortlisted" },
+  { key: "waiting", label: "Waiting for replies" },
+  { key: "due", label: "Ready for top 3" },
+  { key: "top3_sent", label: "Top 3 sent" },
+  { key: "chosen", label: "Tutor confirmed" },
+  { sep: true },
+  { key: "problems", label: "Problems", problem: true },
 ];
-const filterLabel = (key) => (key === "all" ? "All enquiries" : key === "attention" ? "Needs attention" : (STAGES[key] || {}).label || key);
-const inFilter = (b, key) => (key === "all" ? true : key === "attention" ? ATTENTION.includes(b.stage) : b.stage === key);
-const stageTag = (stage) => {
-  const s = STAGES[stage] || { label: stage, tone: "t-grey" };
-  return '<span class="tag ' + s.tone + '"><i></i>' + esc(s.label) + "</span>";
+const inQueue = (b, key) => key === "all" ? true : key === "problems" ? PROBLEMS.includes(b.stage) : b.stage === key;
+const queueLabel = (key) => (QUEUES.find((q) => q.key === key) || {}).label || key;
+const stageMark = (stage) => {
+  const s = STAGES[stage] || { label: stage, tone: "s-none" };
+  return '<span class="status ' + s.tone + '">' + esc(s.label) + "</span>";
 };
 
-/* ---------------- Auth ---------------- */
-
-function loginError(message) {
-  el("loginMsg").innerHTML = message ? ICON.info + "<span>" + esc(message) + "</span>" : "";
-}
+/* ---------------- Sign in ---------------- */
 
 async function login() {
-  loginError("");
-  if (!el("u").value.trim()) { loginError("Enter your id."); el("u").focus(); return; }
-  if (!el("p").value) { loginError("Enter your password."); el("p").focus(); return; }
+  el("loginMsg").textContent = "";
+  if (!el("u").value.trim()) { el("loginMsg").textContent = "Enter your id."; el("u").focus(); return; }
+  if (!el("p").value) { el("loginMsg").textContent = "Enter your password."; el("p").focus(); return; }
   el("loginBtn").disabled = true;
-  el("loginBtn").innerHTML = '<span class="spinner"></span>Signing in…';
+  el("loginBtn").textContent = "Signing in";
   try {
     const r = await fetch("/panel2/api/login", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user: el("u").value.trim(), password: el("p").value }),
     });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { loginError(j.message || "Sign in failed."); el("p").select(); return; }
+    if (!r.ok) { el("loginMsg").textContent = j.message || "Sign in failed."; el("p").select(); return; }
     TOKEN = j.token;
     USER = j.user || el("u").value.trim();
-    sessionStorage.setItem("panel2", TOKEN);
-    sessionStorage.setItem("panel2-user", USER);
+    session.set("panel2", TOKEN);
+    session.set("panel2-user", USER);
     el("p").value = "";
     show();
   } catch {
-    loginError("Could not reach the server. Check your connection and try again.");
+    el("loginMsg").textContent = "Could not reach the server. Check your connection and try again.";
   } finally {
     el("loginBtn").disabled = false;
     el("loginBtn").textContent = "Sign in";
@@ -709,10 +493,11 @@ function toggleReveal() {
 el("p").addEventListener("blur", () => { el("caps").hidden = true; });
 
 function signOut() {
-  TOKEN = ""; sessionStorage.removeItem("panel2"); sessionStorage.removeItem("panel2-user");
+  TOKEN = "";
+  session.del("panel2"); session.del("panel2-user");
   clearInterval(timer); clearInterval(ticker);
-  lastData = null; selectedId = null;
-  document.body.classList.remove("nav-open", "detail-open");
+  lastData = null; selectedId = null; lastRowsHtml = ""; lastDetailHtml = "";
+  document.body.classList.remove("detail-open");
   el("boardView").hidden = true;
   el("loginView").hidden = false;
   el("u").focus();
@@ -721,87 +506,35 @@ function signOut() {
 function show() {
   el("loginView").hidden = true;
   el("boardView").hidden = false;
-  if (store.get("panel2-nav") === "collapsed") document.body.classList.add("nav-collapsed");
   el("userName").textContent = USER;
-  el("userInitial").textContent = initials(USER);
+  el("since").value = prefs.since;
   el("scope").value = prefs.scope;
   el("every").value = prefs.every;
-  syncRange();
-  syncNavButton();
-  syncTheme();
-  renderNav([]);
-  renderSkeleton();
-  load(); restart();
+  el("themeBtn").hidden = !window.PANEL_DARK_MODE_ENABLED;
+  renderLoading();
+  load();
+  restart();
   clearInterval(ticker);
-  ticker = setInterval(tickLive, 1000);
+  ticker = setInterval(tickUpdated, 1000);
 }
 
-/* ---------------- Layout ---------------- */
-
-const isMobileNav = () => window.matchMedia("(max-width: 1023px)").matches;
-const isSheet = () => window.matchMedia("(max-width: 1199px)").matches;
-
-function toggleNav() {
-  if (isMobileNav()) {
-    document.body.classList.toggle("nav-open");
-  } else {
-    const collapsed = document.body.classList.toggle("nav-collapsed");
-    store.set("panel2-nav", collapsed ? "collapsed" : "open");
-  }
-  syncNavButton();
-}
-function closeNav() { document.body.classList.remove("nav-open"); syncNavButton(); }
-function syncNavButton() {
-  const open = isMobileNav() ? document.body.classList.contains("nav-open") : !document.body.classList.contains("nav-collapsed");
-  el("hamburger").setAttribute("aria-expanded", String(open));
-}
-window.matchMedia("(max-width: 1023px)").addEventListener("change", closeNav);
-window.matchMedia("(max-width: 1199px)").addEventListener("change", () => {
-  document.body.classList.remove("detail-open");
-  render();
-});
-
-function closeDetail() { document.body.classList.remove("detail-open"); }
-
-function setFilter(key) {
-  stageFilter = key;
-  if (isMobileNav()) closeNav();
-  closeDetail();
-  render();
-  el("listBody").scrollTop = 0;
-}
-
-function currentTheme() {
-  return document.documentElement.dataset.theme ||
-    (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-}
 function toggleTheme() {
-  const next = currentTheme() === "dark" ? "light" : "dark";
+  if (!window.PANEL_DARK_MODE_ENABLED) return;
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = next;
   store.set("panel2-theme", next);
-  syncTheme();
 }
-function syncTheme() {
-  const dark = currentTheme() === "dark";
-  el("themeLabel").textContent = dark ? "Light mode" : "Dark mode";
-  el("themeIcon").innerHTML = dark ? ICON.sun : ICON.moon;
-}
-
-function syncRange() {
-  el("rangeSeg").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.since === prefs.since)));
-}
-const rangeText = () => ({ "hours:24": "the last 24 hours", "hours:72": "the last 3 days", "hours:168": "the last 7 days", all: "all time" }[prefs.since] || "this window");
 
 /* ---------------- Data ---------------- */
+
+const isSheet = () => window.matchMedia("(max-width: 1099px)").matches;
 
 function restart() {
   clearInterval(timer);
   const s = Number(prefs.every);
   if (s > 0) timer = setInterval(() => { if (!document.hidden) load(); }, s * 1000);
-  tickLive();
 }
 
-// Coming back to the tab after a while: catch up straight away.
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && TOKEN && !el("boardView").hidden && Date.now() - lastLoadedAt > 10000) load();
 });
@@ -809,9 +542,9 @@ document.addEventListener("visibilitychange", () => {
 async function load() {
   if (loading) return;
   loading = true;
-  el("refreshBtn").classList.add("spin");
+  el("refreshBtn").disabled = true;
   try {
-    const r = await fetch("/panel2/api/board?limit=60&since=" + encodeURIComponent(prefs.since) + "&scope=" + encodeURIComponent(prefs.scope), {
+    const r = await fetch("/panel2/api/board?limit=100&since=" + encodeURIComponent(prefs.since) + "&scope=" + encodeURIComponent(prefs.scope), {
       headers: { Authorization: "Bearer " + TOKEN },
     });
     if (r.status === 401) { signOut(); return; }
@@ -822,312 +555,515 @@ async function load() {
     lastLoadedAt = Date.now();
     render();
   } catch {
-    showError("Could not reach the server. Retrying on the next refresh.");
+    showError("Could not reach the server. It will try again on the next refresh.");
   } finally {
     loading = false;
-    el("refreshBtn").classList.remove("spin");
-    tickLive();
+    el("refreshBtn").disabled = false;
+    tickUpdated();
   }
 }
 
 function showError(message) {
-  el("error").innerHTML = message ? '<div class="banner err" role="alert">' + ICON.info + "<span>" + esc(message) + "</span></div>" : "";
+  el("error").innerHTML = message ? '<div class="notice err" role="alert">' + esc(message) + "</div>" : "";
 }
 
-function tickLive() {
-  const every = Number(prefs.every);
-  el("live").classList.toggle("paused", !every);
-  if (!lastLoadedAt) { el("liveText").textContent = every ? "Live" : "Manual"; return; }
+function tickUpdated() {
+  if (!lastLoadedAt) { el("updated").textContent = ""; return; }
   const s = Math.round((Date.now() - lastLoadedAt) / 1000);
-  const t = s < 5 ? "just now" : s < 60 ? s + "s ago" : Math.floor(s / 60) + "m ago";
-  el("liveText").textContent = (every ? "Live · " : "Updated ") + t;
+  el("updated").textContent = "Updated " + (s < 5 ? "just now" : s < 60 ? s + " sec ago" : Math.floor(s / 60) + " min ago");
 }
 
-/* ---------------- Render ---------------- */
+/* ---------------- Page ---------------- */
 
 function matchesQuery(b) {
   if (!query) return true;
   const hay = [b.parentName, b.phone, b.requirementId, b.area, b.subjects, b.grade].join(" ").toLowerCase();
   return query.split(/\s+/).every((word) => hay.includes(word));
 }
+const visibleRows = () => (lastData?.board || []).filter(matchesQuery).filter((b) => inQueue(b, queue));
 
-function visibleRows() {
-  return (lastData?.board || []).filter(matchesQuery).filter((b) => inFilter(b, stageFilter));
+function renderLoading() {
+  lastRowsHtml = ""; lastDetailHtml = "";
+  el("rows").innerHTML = '<tr><td colspan="7" class="loading">Loading enquiries</td></tr>';
+  el("detail").innerHTML = "";
+  el("totals").innerHTML = "";
+  el("shown").textContent = "";
 }
 
 function render() {
   if (!lastData) return;
   const all = lastData.board || [];
   const searched = all.filter(matchesQuery);
-  const shown = searched.filter((b) => inFilter(b, stageFilter));
+  const shown = searched.filter((b) => inQueue(b, queue));
 
-  renderNav(searched);
-  renderFunnel(all);
-  renderBanners();
+  renderQueues(searched);
+  renderModes();
+  renderNotices();
+  renderTotals(all);
 
-  el("pageTitle").textContent = filterLabel(stageFilter);
-  el("listTitle").textContent = query ? 'Results for "' + query + '"' : filterLabel(stageFilter);
-  el("listCount").textContent = shown.length + (shown.length === 1 ? " enquiry" : " enquiries") + " · " + rangeText() +
-    (lastData.hidden ? " · " + lastData.hidden + " not yet invited, hidden" : "");
+  el("shown").textContent = plural(shown.length, "enquiry").replace("enquirys", "enquiries") +
+    (queue === "all" ? "" : " in " + queueLabel(queue)) +
+    (query ? ' matching "' + query + '"' : "") +
+    (lastData.capped ? " (newest " + lastData.limit + " only)" : "");
 
-  // Keep the reader on the enquiry they were looking at; otherwise open the first one.
   if (!shown.some((b) => idOf(b) === selectedId)) {
     selectedId = !isSheet() && shown[0] ? idOf(shown[0]) : null;
-    if (!selectedId) closeDetail();
+    if (!selectedId) document.body.classList.remove("detail-open");
   }
 
-  const listTop = el("listBody").scrollTop;
-  el("rows").innerHTML = shown.length ? shown.map(row).join("") : listEmpty(all.length, searched.length);
-  el("listBody").scrollTop = listTop;
-  renderDetail(true);
+  const rowsHtml = shown.length ? shown.map(row).join("") : listEmpty(all.length, searched.length);
+  if (rowsHtml !== lastRowsHtml) {
+    el("rows").innerHTML = rowsHtml;
+    lastRowsHtml = rowsHtml;
+  }
+  renderDetail();
 }
 
-function renderNav(rows) {
-  const count = (key) => rows.filter((b) => inFilter(b, key)).length;
-  el("sideNav").innerHTML = NAV.map((g) =>
-    '<div class="side-label">' + g.group + '</div><ul class="nav">' + g.items.map((it) => {
-      const n = count(it.key);
-      const cls = n === 0 ? " zero" : it.hot ? " hot" : "";
-      return '<li><button data-filter="' + it.key + '" aria-current="' + (stageFilter === it.key) + '">' + ICON[it.icon] +
-        "<span>" + esc(it.label) + '</span><span class="count' + cls + '">' + n + "</span></button></li>";
-    }).join("") + "</ul>").join("");
+function renderQueues(rows) {
+  el("queues").innerHTML = QUEUES.map((q) => {
+    if (q.sep) return '<span class="sep" aria-hidden="true"></span>';
+    const n = rows.filter((b) => inQueue(b, q.key)).length;
+    return '<button data-queue="' + q.key + '" aria-current="' + (queue === q.key) + '"' +
+      (q.problem && n ? ' class="has-problem"' : "") + ">" + esc(q.label) + '<span class="n">' + n + "</span></button>";
+  }).join("");
 }
 
-function renderFunnel(rows) {
-  const sum = (f) => rows.reduce((n, b) => n + (f(b) || 0), 0);
-  const invited = sum((b) => b.counts.invited);
-  const delivered = sum((b) => b.counts.delivered);
-  const undelivered = sum((b) => b.counts.undelivered);
-  const interested = sum((b) => b.counts.interested);
-  const pct = (a, b) => (b ? Math.round((a / b) * 100) + "%" : "—");
-  const items = [
-    ["Enquiries", rows.length, "var(--accent)", "in " + rangeText()],
-    ["Tutors invited", invited, "var(--ink-2)", "across " + rows.filter((b) => b.counts.invited).length + " enquiries"],
-    ["Delivered", delivered, "var(--ok)", undelivered ? "<b>" + undelivered + " not delivered</b>" : pct(delivered, invited) + " of invited"],
-    ["Interested", interested, "var(--info)", pct(interested, delivered) + " of delivered"],
-    ["Top 3 sent", rows.filter((b) => b.top3 && b.top3.sent).length, "var(--warn)", "to parents"],
-    ["Parent chose", rows.filter((b) => b.chosen).length, "var(--ok)", "tutor confirmed"],
-  ];
-  el("funnel").innerHTML = items.map(([label, value, color, sub]) =>
-    '<div class="f-item"><div class="f-label"><i style="background:' + color + '"></i>' + label + "</div>" +
-    '<div class="f-value">' + value + '</div><div class="f-sub">' + sub + "</div></div>").join("");
+// The two triggers, as this server reports them.
+function renderModes() {
+  const a = lastData.automatic || {};
+  const anyAuto = a.invites || a.topThree;
+  const state = (on) => (on ? '<span class="alarm">ON</span>' : '<span class="off">Off</span>');
+  el("modes").innerHTML = '<div class="modes" aria-label="Trigger settings">' +
+    "<span><b>Manual trigger:</b> <span class=\"on\">On</span></span>" +
+    "<span><b>Automatic invites:</b> " + state(a.invites) + "</span>" +
+    "<span><b>Automatic top 3:</b> " + state(a.topThree) + "</span>" +
+    "<span><b>Real sending from this panel:</b> " +
+      (lastData.sendingEnabled ? '<span class="on">Allowed</span>' : '<span class="off">Off, preview only</span>') + "</span>" +
+    (anyAuto ? '<span class="alarm">An automatic trigger is on, so messages can go out without anyone pressing a button.</span>' : "") +
+    "</div>";
 }
 
-function renderBanners() {
-  // A refusal by WhatsApp itself explains every "Not delivered" on the board,
-  // so it is named once at the top rather than left scattered across rows.
+function renderNotices() {
   const p = lastData.deliveryProblem;
-  el("deliveryBanner").innerHTML = p
-    ? '<div class="banner err" role="alert">' + ICON.info + "<span><b>WhatsApp refused " + p.count +
-      " message" + (p.count === 1 ? "" : "s") + " on this board.</b> Most common reason: " + esc(p.reason) +
-      ". Refused messages are not resent automatically — retry them in Odoo only if they should still go out.</span></div>"
+  el("notices").innerHTML = p
+    ? '<div class="notice err" role="alert"><b>WhatsApp refused ' + plural(p.count, "message") + " on this board.</b> Most common reason: " +
+      esc(p.reason) + ". Refused messages are not sent again on their own.</div>"
     : lastData.deliveryUnavailable
-      ? '<div class="banner err" role="alert">' + ICON.info + "<span><b>Delivery status unavailable.</b> " +
-        "Odoo could not be reached, so this board cannot tell which messages WhatsApp actually delivered.</span></div>"
+      ? '<div class="notice warn" role="alert"><b>Delivery status unavailable.</b> Odoo could not be reached, so this board cannot show which messages WhatsApp delivered.</div>'
       : "";
 }
 
-function renderSkeleton() {
-  el("funnel").innerHTML = Array.from({ length: 6 }, () =>
-    '<div class="f-item"><div class="skeleton" style="height:12px;width:60%"></div><div class="skeleton" style="height:26px;width:40%;margin-top:10px"></div></div>').join("");
-  el("rows").innerHTML = Array.from({ length: 6 }, () =>
-    '<li style="padding:14px 16px;border-bottom:1px solid var(--line-soft)"><div class="skeleton" style="height:14px;width:55%"></div>' +
-    '<div class="skeleton" style="height:11px;width:80%;margin-top:9px"></div><div class="skeleton" style="height:6px;margin-top:12px"></div></li>').join("");
-  el("detail").innerHTML = '<div class="d-body"><div class="skeleton" style="height:46px;width:50%"></div><div class="skeleton" style="height:120px"></div><div class="skeleton" style="height:220px"></div></div>';
+function renderTotals(rows) {
+  const sum = (f) => rows.reduce((n, b) => n + (f(b) || 0), 0);
+  const undelivered = sum((b) => b.counts.undelivered);
+  const items = [
+    ["Enquiries", rows.length],
+    ["Tutors invited", sum((b) => b.counts.invited)],
+    ["Delivered", sum((b) => b.counts.delivered)],
+    ["Not delivered", undelivered, undelivered > 0],
+    ["Said yes", sum((b) => b.counts.interested)],
+    ["Top 3 sent", rows.filter((b) => b.top3 && b.top3.sent).length],
+    ["Tutor confirmed", rows.filter((b) => b.assignedTutor).length],
+  ];
+  el("totals").innerHTML = items.map(([label, value, bad]) =>
+    "<div><dt>" + label + '</dt><dd' + (bad ? ' class="bad"' : "") + ">" + value + "</dd></div>").join("");
 }
 
 function listEmpty(total, searched) {
   const [title, text] = !total
-    ? ["No enquiries in " + rangeText(), "Choose a longer time window above, or wait — new enquiries appear here on their own."]
+    ? ["No enquiries in this period", "Choose a longer period above. New enquiries appear here on their own."]
     : !searched
       ? ["Nothing matches your search", "Try a parent name, phone number, requirement ID or area."]
-      : ["Nothing here", "No enquiry in " + rangeText() + " is under “" + filterLabel(stageFilter) + "”."];
-  return '<li class="list-empty"><b>' + esc(title) + "</b>" + esc(text) + "</li>";
+      : ["Nothing in this queue", "No enquiry in this period is under " + queueLabel(queue) + "."];
+  return '<tr><td colspan="7" class="empty-row"><b>' + esc(title) + "</b>" + esc(text) + "</td></tr>";
 }
 
 function row(b) {
   const id = idOf(b);
-  const c = b.counts;
-  const inv = c.invited || 0;
-  const pending = Math.max(0, inv - (c.delivered || 0) - (c.undelivered || 0));
-  const w = (n) => (inv ? (n / inv) * 100 : 0) + "%";
-  const sub = [b.requirementId, b.grade, b.subjects].filter(Boolean).join(" · ");
-  return '<li><button class="row" role="option" data-id="' + esc(id) + '" aria-selected="' + (id === selectedId) + '">' +
-    '<span class="avatar" aria-hidden="true">' + esc(initials(b.parentName)) + "</span>" +
-    '<span class="r-name">' + esc(b.parentName || "(no name)") + (b.isDemo ? ' <span class="tag t-warn" style="font-size:10px;padding:0 6px">Test</span>' : "") + "</span>" +
-    '<span class="r-time">' + esc(ago(b.createdAt)) + "</span>" +
-    '<span class="r-sub">' + esc(sub) + "</span>" +
-    '<span class="r-stage">' + stageTag(b.stage) + "</span>" +
-    '<span class="r-meter" title="' + (c.delivered || 0) + " delivered · " + pending + " no status yet · " + (c.undelivered || 0) + ' not delivered">' +
-      '<span class="meter"><span style="width:' + w(c.delivered || 0) + ';background:var(--ok)"></span>' +
-      '<span style="width:' + w(pending) + ';background:var(--faint);opacity:.45"></span>' +
-      '<span style="width:' + w(c.undelivered || 0) + ';background:var(--bad)"></span></span>' +
-      (inv ? inv + " invited · " + c.interested + " yes" : "Not invited") + "</span>" +
-  "</button></li>";
+  return '<tr data-id="' + esc(id) + '" tabindex="0" aria-selected="' + (id === selectedId) + '">' +
+    '<td><div class="who">' + esc(b.parentName || "(no name)") + (b.isDemo ? '<span class="test-mark">Test</span>' : "") + "</div>" +
+      '<div class="sub">' + esc(b.requirementId || "No ID") + "</div></td>" +
+    '<td class="col-class">' + esc(b.grade || "—") + '<div class="sub">' + esc(b.subjects || "") + "</div></td>" +
+    '<td class="col-area">' + esc(b.area || "—") + "</td>" +
+    "<td>" + stageMark(b.stage) + "</td>" +
+    '<td class="r col-count">' + (b.counts.invited || 0) + "</td>" +
+    '<td class="r col-count">' + (b.counts.interested || 0) + "</td>" +
+    '<td class="col-time" style="white-space:nowrap">' + esc(ago(b.createdAt)) + "</td>" +
+  "</tr>";
 }
 
 /* ---------------- Detail ---------------- */
 
-function renderDetail(keepScroll) {
-  const b = visibleRows().find((x) => idOf(x) === selectedId);
-  const top = el("detail").scrollTop;
-  el("detail").innerHTML = b ? detail(b)
-    : '<div class="d-empty"><div><div class="ico">' + ICON.inbox + "</div><h3>Select an enquiry</h3>" +
-      "<p>Pick an enquiry on the left to see who was invited, who replied, and what went to the parent.</p></div></div>";
-  if (keepScroll) el("detail").scrollTop = top;
+function deliveryWord(state, sendStatus) {
+  const map = { read: "Read", replied: "Replied", delivered: "Delivered", sent: "Sent", outgoing: "Queued", error: "Not delivered", bounced: "Bounced", cancel: "Cancelled" };
+  if (map[state]) return map[state];
+  if (sendStatus === "Failed") return "Not delivered";
+  return lastData && lastData.deliveryUnavailable ? "Unknown" : "No status";
 }
-
-// One plain sentence saying where this enquiry has got to and what happens next.
-function statusLine(b) {
-  switch (b.stage) {
-    case "chosen":
-      return null; // the "Parent chose" banner says it, with more detail
-    case "top3_sent":
-      if (b.top3 && (b.top3.delivery === "error" || b.top3.delivery === "bounced")) {
-        return ["alert", ICON.info, "The top 3 were sent at " + hhmm(b.top3.at) + " but WhatsApp refused them (" +
-          esc(b.top3.deliveryError || b.top3.delivery) + "). The parent has <b>not</b> received them."];
-      }
-      return ["done", ICON.send, "Top 3 sent to the parent" + (b.top3 && b.top3.at ? " at " + hhmm(b.top3.at) : "") + ". Waiting for the parent to pick."];
-    case "undelivered":
-      return ["alert", ICON.x, "Invited " + b.counts.invited + " tutors at " + hhmm(b.firstInviteAt) +
-        ", but WhatsApp refused every message — no tutor has received this requirement, so nobody can reply."];
-    case "waiting":
-      return ["wait", ICON.clock, "Invited " + b.counts.invited + " tutors at " + hhmm(b.firstInviteAt) + ". " +
-        b.counts.interested + " interested so far. Tutors have <b>" + leftFor(b.minutesLeft) +
-        "</b> left to answer — the top 3 go to the parent at " + hhmm(b.windowClosesAt) + "."];
-    case "due":
-      return ["due", ICON.send, "The " + b.waitHours + "-hour window closed at " + hhmm(b.windowClosesAt) + ". " +
-        b.counts.interested + " tutors said yes — the best " + Math.min(3, b.counts.interested) + " go to the parent on the next sweep."];
-    case "manual":
-      return ["wait", ICON.hand, b.counts.interested + " tutor" + (b.counts.interested === 1 ? "" : "s") +
-        " said yes, but the scheduler will <b>not</b> send the top 3 for this one on its own — the interested tutors are not on its shortlist, " +
-        "or sending already failed 3 times. Send it by hand from the admin dashboard if the parent should get it."];
-    case "no_replies":
-      return ["alert", ICON.msg, "The " + b.waitHours + "-hour window closed at " + hhmm(b.windowClosesAt) + " and no tutor said yes. Nothing was sent to the parent."];
-    case "shortlisted":
-      return ["none", ICON.info, b.shortlisted.count + " tutors shortlisted. None invited yet."];
-    default:
-      return ["none", ICON.info, "No tutors shortlisted or invited yet."];
-  }
-}
-
-function steps(b) {
-  const top3Count = b.top3 ? b.top3.tutors.length : 0;
-  const top3Failed = b.top3 && (b.top3.delivery === "error" || b.top3.delivery === "bounced");
-  const list = [
-    ["Shortlisted", b.shortlisted ? b.shortlisted.count : "—", !!b.shortlisted || b.counts.invited > 0, false],
-    ["Delivered", (b.counts.delivered || 0) + "/" + b.counts.invited, (b.counts.delivered || 0) > 0, b.stage === "undelivered"],
-    ["Interested", b.counts.interested, b.counts.interested > 0, b.stage === "no_replies"],
-    ["Top 3 sent", top3Count, !!(b.top3 && b.top3.sent) && !top3Failed, top3Failed],
-    ["Chosen", b.chosen ? ICON.check : "—", !!b.chosen, false],
-  ];
-  const firstOpen = list.findIndex((s) => !s[2]);
-  const stalled = list.some((s) => s[3]);
-  return '<ol class="steps" aria-label="Progress">' + list.map(([label, value, done, fail], i) =>
-    '<li class="step' + (done ? " done" : "") + (fail ? " fail" : !stalled && i === firstOpen ? " current" : "") + '">' +
-    '<span class="bub">' + value + '</span><span class="lbl">' + label + "</span></li>").join("") + "</ol>";
-}
-
-// What WhatsApp did with a message, as reported back by Odoo.
 function deliveryCell(state, reason, sendStatus, failureReason) {
-  const map = {
-    read: ["t-ok", "Read"], replied: ["t-ok", "Replied"], delivered: ["t-ok", "Delivered"],
-    sent: ["t-info", "Sent"], outgoing: ["t-grey", "Queued"], error: ["t-bad", "Not delivered"],
-    bounced: ["t-bad", "Bounced"], cancel: ["t-grey", "Cancelled"],
-  };
-  let m = map[state];
-  if (!m) {
-    m = sendStatus === "Failed" ? ["t-bad", "Not delivered"]
-      : lastData && lastData.deliveryUnavailable ? ["t-grey", "Unknown"] : ["t-grey", "No status"];
-  }
+  const word = deliveryWord(state, sendStatus);
+  const tone = ["Read", "Replied", "Delivered"].includes(word) ? "s-ok"
+    : ["Not delivered", "Bounced"].includes(word) ? "s-bad" : "s-none";
   const why = reason || (sendStatus === "Failed" ? failureReason : "");
-  const title = m[1] === "No status" ? ' title="Odoo has no record of this message"' : "";
-  return '<span class="tag ' + m[0] + '"' + title + "><i></i>" + m[1] + "</span>" + (why ? '<div class="why">' + esc(why) + "</div>" : "");
+  return '<span class="status ' + tone + '">' + word + "</span>" + (why ? '<div class="err">' + esc(why) + "</div>" : "");
 }
-
-function replyTag(reply) {
-  if (reply === "Interested") return '<span class="tag t-ok"><i></i>Interested</span>';
-  if (reply === "Assigned") return '<span class="tag t-ok"><i></i>Assigned</span>';
-  if (reply === "Not Interested") return '<span class="tag t-bad"><i></i>Not interested</span>';
-  return '<span class="tag t-grey"><i></i>No reply</span>';
+function replyCell(reply, at) {
+  const tone = reply === "Interested" || reply === "Assigned" ? "s-ok" : reply === "Not Interested" ? "s-bad" : "s-none";
+  const word = reply === "Not Interested" ? "Not interested" : reply === "Interested" || reply === "Assigned" ? reply : "No reply";
+  return '<span class="status ' + tone + '">' + word + "</span>" + (at ? '<div class="sub">' + esc(when(at)) + "</div>" : "");
 }
 
 function table(headers, rows) {
-  return '<table class="tbl"><thead><tr>' + headers.map((h) => "<th>" + h + "</th>").join("") + "</tr></thead><tbody>" +
-    rows.map((cells) => "<tr>" + cells.map((c, i) => {
-      const cls = [i === 0 ? "lead-cell" : "", c && c.cls ? c.cls : ""].filter(Boolean).join(" ");
-      // One wrapper per cell, so a stacked row keeps a two-line value together.
-      return "<td" + (cls ? ' class="' + cls + '"' : "") + (i ? ' data-label="' + esc(headers[i]) + '"' : "") + '><div class="cv">' +
-        (c && c.html != null ? c.html : c) + "</div></td>";
-    }).join("") + "</tr>").join("") + "</tbody></table>";
+  return '<div class="t-wrap"><table class="tbl"><thead><tr>' + headers.map((h) => "<th>" + h + "</th>").join("") + "</tr></thead><tbody>" +
+    rows.map((cells) => "<tr>" + cells.map((c, i) => "<td" + (i ? ' data-label="' + esc(headers[i]) + '"' : "") + "><div>" + c + "</div></td>").join("") + "</tr>").join("") +
+    "</tbody></table></div>";
 }
-
 const tutorCell = (t, subline) => '<div class="name">' + esc(t.name || "(no name)") + '</div><div class="sub">' + esc(subline || t.code || "") + "</div>";
 
 function invitedPanel(b) {
-  if (!b.invited.length) return '<div class="empty">No invitations sent yet.</div>';
+  if (!b.invited.length) return '<div class="none">No tutors invited yet.</div>';
   const c = b.counts;
-  return '<div class="panel-meta">' +
+  return '<div class="meta">' +
     (c.undelivered ? '<span class="bad">' + c.undelivered + " not delivered</span>" : "") +
-    "<span>" + (c.delivered || 0) + " delivered</span><span>" + c.interested + " interested</span><span>" +
-    c.notInterested + " declined</span><span>" + c.waiting + " no reply</span>" +
-    (b.firstInviteAt ? "<span>first sent " + hhmm(b.firstInviteAt) + "</span>" : "") + "</div>" +
+    "<span>" + c.delivered + " delivered</span><span>" + c.interested + " said yes</span><span>" + c.notInterested + " declined</span><span>" + c.waiting + " no reply</span>" +
+    (b.firstInviteAt ? "<span>First sent " + esc(when(b.firstInviteAt)) + "</span>" : "") + "</div>" +
     table(["Tutor", "Delivery", "Reply", "Distance", "Experience", "Invited"],
       b.invited.map((t) => [
         tutorCell(t, [t.code, t.occupation].filter(Boolean).join(" · ")),
         deliveryCell(t.delivery, t.deliveryError, t.sendStatus, t.failureReason),
-        replyTag(t.reply) + (t.repliedAt ? '<div class="sub">' + esc(when(t.repliedAt)) + "</div>" : ""),
-        { html: km(t.distanceKm), cls: "num" },
+        replyCell(t.reply, t.repliedAt),
+        km(t.distanceKm),
         esc(t.experience || "—"),
-        { html: t.sentAt ? esc(when(t.sentAt)) : "—", cls: "num" },
+        t.sentAt ? esc(when(t.sentAt)) : "—",
       ]));
 }
 
 function shortlistPanel(b) {
   if (!b.shortlisted) {
-    return '<div class="empty">' + (b.counts.invited
-      ? "No shortlist was recorded — these tutors were invited from the admin dashboard rather than by the matching workflow."
+    return '<div class="none">' + (b.counts.invited
+      ? "No shortlist on record. These tutors were invited from the admin dashboard."
       : "Not shortlisted yet.") + "</div>";
   }
   const s = b.shortlisted;
-  return '<div class="panel-meta">' +
-    (s.consideredCount != null ? "<span>from " + s.consideredCount + " considered</span>" : "") +
-    (s.radiusKm ? "<span>within " + s.radiusKm + " km</span>" : "") +
-    (s.at ? "<span>made " + esc(when(s.at)) + "</span>" : "") + "</div>" +
+  return '<div class="meta">' +
+    (s.consideredCount != null ? "<span>From " + esc(s.consideredCount) + " considered</span>" : "") +
+    (s.radiusKm ? "<span>Within " + esc(s.radiusKm) + " km</span>" : "") +
+    (s.at ? "<span>Made " + esc(when(s.at)) + "</span>" : "") + "</div>" +
     (b.shortlistAfterInvites
-      ? '<div class="note">This shortlist was made at ' + hhmm(s.at) + ", after the invitations went out at " + hhmm(b.firstInviteAt) +
-        ". It comes from a later run, so it will not all match the invited list.</div>"
+      ? '<div class="note">This shortlist was made at ' + esc(hhmm(s.at)) + ", after the invitations went out at " + esc(hhmm(b.firstInviteAt)) +
+        ", so it will not fully match the invited list.</div>"
       : "") +
     (s.tutors.length
       ? table(["Tutor", "Rank", "Score", "Distance", "Experience"],
           s.tutors.map((t, i) => [
             tutorCell(t, [t.code, t.occupation].filter(Boolean).join(" · ")),
-            '<span class="rank">' + (t.rank || i + 1) + "</span>",
-            { html: esc(t.score ?? "—"), cls: "num" },
-            { html: km(t.distanceKm), cls: "num" },
-            esc(t.experience || "—"),
+            esc(t.rank || i + 1), esc(t.score ?? "—"), km(t.distanceKm), esc(t.experience || "—"),
           ]))
-      : '<div class="empty">The shortlist has no tutors.</div>');
+      : '<div class="none">The shortlist has no tutors.</div>');
 }
 
 function top3Panel(b) {
-  if (!b.top3 || !b.top3.tutors.length) return '<div class="empty">Top 3 not sent to the parent yet.</div>';
-  return '<div class="panel-meta"><span>' + (b.top3.sent ? "Sent to parent " : "Prepared, not sent · ") + esc(when(b.top3.at)) + "</span>" +
-    (b.top3.sent ? "<span>" + deliveryCell(b.top3.delivery, b.top3.deliveryError) + "</span>" : "") +
-    (b.top3.templateName ? "<span>template " + esc(b.top3.templateName) + "</span>" : "") + "</div>" +
+  if (!b.top3 || !b.top3.tutors.length) return '<div class="none">Top 3 not sent to the parent yet.</div>';
+  return '<div class="meta"><span>' + (b.top3.sent ? "Sent to parent " : "Attempted, not sent ") + esc(when(b.top3.at)) + "</span>" +
+    (b.top3.templateName ? "<span>Template " + esc(b.top3.templateName) + "</span>" : "") + "</div>" +
+    (b.top3.sent ? '<div style="margin-bottom:6px">' + deliveryCell(b.top3.delivery, b.top3.deliveryError) + "</div>" : "") +
     table(["Tutor", "Option", "Score", "Distance", "Experience"],
       b.top3.tutors.map((t, i) => [
-        tutorCell(t, t.area || t.code),
-        '<span class="rank">' + (t.choice || i + 1) + "</span>",
-        { html: esc(t.score ?? "—"), cls: "num" },
-        { html: km(t.distanceKm), cls: "num" },
-        esc(t.experience || "—"),
+        tutorCell(t, t.area || t.code), esc(t.choice || i + 1), esc(t.score ?? "—"), km(t.distanceKm), esc(t.experience || "—"),
       ]));
+}
+
+// The five steps, each saying what has happened and what can be pressed.
+function stepList(b) {
+  const c = b.counts;
+  const r = b.reconfirm;
+  const t3 = b.top3;
+  const t3Refused = t3 && t3.sent && (t3.delivery === "error" || t3.delivery === "bounced");
+  const offered = t3 && t3.sent ? t3.tutors : [];
+
+  const nextStep = b.stage === "chosen" ? 0
+    : b.stage === "top3_sent" ? (t3Refused ? 4 : 5)
+    : b.stage === "due" ? 4
+    : b.stage === "waiting" ? (b.canSendTop3 ? 4 : 0)
+    : b.stage === "manual" ? 2
+    : b.stage === "shortlisted" || b.stage === "undelivered" || b.stage === "no_replies" ? 3
+    : (r && r.sent) ? 2 : 1;
+
+  const steps = [
+    {
+      n: 1, title: "Re-confirm with the parent",
+      result: !r ? "Not sent."
+        : r.sent ? "Sent " + esc(when(r.at)) + ". " + esc(deliveryWord(r.delivery)) + ". The parent's reply is not recorded on this board."
+        : "Last attempt failed: " + esc(r.failureReason || "unknown reason") + ".",
+      state: r && r.sent ? (r.delivery === "error" || r.delivery === "bounced" ? "failed" : "done") : r ? "failed" : "",
+      actions: [{ stage: "reconfirm", label: r && r.sent ? "Send again" : "Preview", resend: !!(r && r.sent),
+        enabled: !!b.hasOdooLead && !!b.phone }],
+      why: !b.hasOdooLead ? "Not synced to Odoo yet, so this cannot be sent." : !b.phone ? "No phone number." : "",
+    },
+    {
+      n: 2, title: "Shortlist tutors",
+      result: b.shortlisted
+        ? plural(b.shortlisted.count, "tutor") + " saved" +
+          (b.shortlisted.consideredCount != null ? " from " + b.shortlisted.consideredCount + " considered" : "") +
+          (b.shortlisted.at ? ", " + esc(when(b.shortlisted.at)) : "") + "."
+        : "Not shortlisted.",
+      state: b.shortlisted ? "done" : "",
+      actions: [{ stage: "shortlist", label: b.shortlisted ? "Redo" : "Preview", enabled: !b.assignedTutor }],
+      why: b.stage === "manual" ? c.interested + " said yes but not on this shortlist, so they cannot be offered." : "",
+    },
+    {
+      n: 3, title: "Invite tutors",
+      result: c.invited
+        ? plural(c.invited, "tutor") + " invited, " + c.delivered + " delivered" + (c.undelivered ? ", " + c.undelivered + " not delivered" : "") +
+          ". " + c.interested + " said yes, " + c.notInterested + " declined, " + c.waiting + " no reply."
+        : "Nobody invited.",
+      state: b.stage === "undelivered" || b.stage === "no_replies" ? "failed" : c.invited ? "done" : "",
+      actions: [{ stage: "invite", label: c.invited ? "Invite more" : "Preview", enabled: !!b.shortlisted && !b.assignedTutor }],
+      why: b.assignedTutor ? "A tutor is confirmed. To start again, unassign them in the admin panel."
+        : !b.shortlisted ? "Shortlist tutors first."
+        : b.stage === "undelivered" ? "WhatsApp refused every invitation, so no tutor has this requirement."
+        : b.stage === "no_replies" ? "The " + esc(b.waitHours) + "-hour reply window closed at " + esc(hhmm(b.windowClosesAt)) + " with no yes."
+        : b.stage === "waiting" && b.minutesLeft > 0 ? "Reply window has " + esc(leftFor(b.minutesLeft)) + " left, until " + esc(hhmm(b.windowClosesAt)) + "."
+        : "",
+    },
+    {
+      n: 4, title: "Send top 3 to the parent",
+      result: t3 && t3.sent
+        ? "Sent " + esc(when(t3.at)) + ": " + t3.tutors.map((t) => esc(t.name)).join(", ") + ". " + esc(deliveryWord(t3.delivery)) + "."
+        : t3 ? "Last attempt failed: " + esc(t3.failureReason || "unknown reason") + "."
+        : b.canSendTop3 ? plural(c.interested, "tutor") + " said yes." : "Not sent.",
+      state: t3Refused || (t3 && !t3.sent) ? "failed" : t3 && t3.sent ? "done" : "",
+      actions: [{ stage: "top3", label: t3 && t3.sent ? "Send again" : "Preview", force: !!(t3 && t3.sent), enabled: b.canSendTop3 && !b.assignedTutor }],
+      why: b.assignedTutor ? "" : !b.canSendTop3 ? (c.interested ? "Those who said yes are not on the current shortlist." : "No tutor has said yes yet.")
+        : t3Refused ? "WhatsApp refused it: " + esc(t3.deliveryError || t3.delivery) + ". The parent has not received it."
+        : b.stage === "waiting" ? "You can send now, or wait for more replies." : "",
+    },
+    {
+      n: 5, title: "Confirm to the chosen tutor",
+      result: b.assignedTutor ? esc(b.assignedTutor) + " is confirmed on this enquiry."
+        : b.chosen ? "Parent chose " + esc(b.chosen.name) + (b.chosen.choice ? " (option " + esc(b.chosen.choice) + ")" : "") + (b.chosen.at ? ", " + esc(when(b.chosen.at)) : "") + ". Tutor not told yet."
+        : "No tutor confirmed.",
+      state: b.assignedTutor ? "done" : "",
+      actions: offered.length && !b.assignedTutor
+        ? [...offered]
+            .sort((x, y) => (isParentsPick(b, y) ? 1 : 0) - (isParentsPick(b, x) ? 1 : 0))
+            .map((t) => ({ stage: "selected", label: "Preview: " + t.name, tutorId: t.code, enabled: !!t.code }))
+        : [{ stage: "selected", label: "Preview", enabled: false }],
+      why: b.assignedTutor ? "" : !offered.length ? "Send the parent their options first." : "",
+    },
+  ];
+  return steps.map((s) => ({ ...s, state: s.n === nextStep && s.state !== "failed" ? "next" : s.state }));
+}
+const isParentsPick = (b, t) => !!b.chosen && (b.chosen.code ? b.chosen.code === t.code : b.chosen.name === t.name);
+
+function stepSection(b) {
+  const busy = !!running[idOf(b)];
+  const items = stepList(b).map((s) =>
+    '<li class="' + (s.state ? "is-" + s.state : "") + '"><span class="no">' + s.n + "</span>" +
+      '<div><div class="t">' + s.title + (s.state === "next" ? " (next)" : "") + '</div><div class="res">' + s.result + "</div>" +
+        (s.why ? '<div class="why">' + s.why + "</div>" : "") + "</div>" +
+      '<div class="acts">' + s.actions.map((a) =>
+        '<button class="btn' + (s.state === "next" ? " btn-primary" : "") + '" data-step="' + a.stage + '"' +
+        (a.tutorId ? ' data-tutor="' + esc(a.tutorId) + '"' : "") +
+        (a.resend ? ' data-resend="1"' : "") + (a.force ? ' data-force="1"' : "") +
+        (a.enabled && !busy ? "" : " disabled") + ">" + esc(a.label) + "</button>").join("") + "</div>" +
+    "</li>").join("");
+  return '<section class="sec"><h3>Steps</h3><ol class="steps">' + items + "</ol>" + previewBlock(b) + resultBlock(b) + "</section>";
+}
+
+/* ---------------- Previewing and running a step ---------------- */
+
+const STEP_NAMES = {
+  reconfirm: "Re-confirm with the parent", shortlist: "Shortlist tutors", invite: "Invite tutors",
+  top3: "Send top 3 to the parent", selected: "Confirm to the tutor",
+};
+
+function kv(pairs) {
+  const rows = pairs.filter(([, v]) => v != null && v !== "");
+  return rows.length ? '<dl class="kv">' + rows.map(([k, v]) => "<dt>" + k + "</dt><dd>" + v + "</dd>").join("") + "</dl>" : "";
+}
+
+// Exactly what the server says would go out, for the person about to send it.
+function previewBody(stage, j) {
+  if (stage === "reconfirm") {
+    return kv([["To", esc(j.phoneNumber)], ["Template", esc(j.templateName)], ["Odoo lead", esc(j.odooLeadId)],
+        ["Reply buttons", (j.buttons || []).map(esc).join(", ")]]) +
+      '<div class="msg">' + esc(j.messageBody) + "</div>";
+  }
+  if (stage === "shortlist") {
+    return kv([["Matched", j.matchedCount + " of " + j.candidatesConsidered + " considered"], ["Will save", plural(j.tutorCount, "tutor")]]) +
+      (j.tutors && j.tutors.length
+        ? table(["Tutor", "Rank", "Match", "Distance", "Experience"], j.tutors.map((t) => [
+            tutorCell({ name: t.name, code: t.tutorCode }, [t.tutorCode, t.occupation].filter(Boolean).join(" · ")),
+            esc(t.rank), esc(t.matchPercentage != null ? t.matchPercentage + "%" : "—"), km(t.distanceKm), esc(t.experience || "—"),
+          ]))
+        : '<div class="none">No tutor matched this enquiry.</div>');
+  }
+  if (stage === "invite") {
+    const sample = (j.preview || [])[0];
+    return kv([["Template", esc(j.templateName)], ["Will invite", plural(j.willSend, "tutor")], ["Shortlist size", esc(j.shortlistSize)]]) +
+      (j.tutors && j.tutors.length
+        ? '<div class="sub-h">Who will get it</div>' + table(["Tutor", "Distance"], j.tutors.map((t) => [tutorCell({ name: t.name, code: t.tutorCode }), km(t.distanceKm)]))
+        : '<div class="none">Nobody left to invite on this shortlist.</div>') +
+      (j.skipped && j.skipped.length
+        ? '<div class="sub-h">Skipped</div><ul class="plain-list">' + j.skipped.map((s) => "<li>" + esc(s.name) + ": " + esc(s.skipReason) + "</li>").join("") + "</ul>"
+        : "") +
+      (sample && sample.templateVars
+        ? '<div class="sub-h">Values for ' + esc(sample.name) + "</div>" + kv(Object.entries(sample.templateVars).map(([k, v]) => [esc(k), esc(v)]))
+        : "");
+  }
+  if (stage === "top3") {
+    return kv([["Said yes", esc(j.interestedCount)], ["Will offer", plural(j.offeredCount, "tutor")]]) +
+      table(["Tutor", "Option", "Distance", "Experience"], (j.tutors || []).map((t) => [
+        tutorCell({ name: t.name, code: t.tutorCode }), esc(t.choice), km(t.distanceKm), esc(t.experience || "—"),
+      ]));
+  }
+  if (stage === "selected") {
+    return kv([["Tutor", esc(j.tutorName)], ["To", esc(j.phoneNumber)], ["Template", esc(j.templateName)]]) +
+      '<div class="msg">' + esc(j.messageBody) + "</div>";
+  }
+  return "";
+}
+
+function sendLabel(stage, j) {
+  if (stage === "shortlist") return "Save shortlist";
+  if (stage === "invite") return "Send to " + plural(j.willSend || 0, "tutor");
+  if (stage === "selected") return "Send to tutor";
+  return "Send to parent";
+}
+const canSend = (stage, j) => stage === "shortlist" ? (j.tutorCount || 0) > 0 : stage === "invite" ? (j.willSend || 0) > 0 : true;
+
+function previewBlock(b) {
+  const p = previews[idOf(b)];
+  if (!p) return "";
+  const name = esc(STEP_NAMES[p.stage] || p.stage);
+  if (p.loading) {
+    return '<div class="preview"><div class="preview-head">Preview: ' + name + '</div><div class="preview-body mut">Working it out. Nothing is being sent.</div></div>';
+  }
+  const j = p.data;
+  if (!p.ok) {
+    return '<div class="preview"><div class="preview-head">Preview: ' + name + '<button class="btn" data-preview-close>Close</button></div>' +
+      '<div class="preview-body"><div class="alert">' + esc(j.reason || j.message || "That step could not run.") + "</div></div></div>";
+  }
+  const messaging = p.stage !== "shortlist";
+  const blockedOff = messaging && !lastData.sendingEnabled;
+  const busy = !!running[idOf(b)];
+  return '<div class="preview"><div class="preview-head">Preview: ' + name + '<button class="btn" data-preview-close>Close</button></div>' +
+    '<div class="preview-body">' + previewBody(p.stage, j) +
+      (p.stage === "shortlist" && b.shortlisted ? '<div class="note" style="margin-top:8px">Saving replaces the current shortlist. A tutor who already said yes can only be offered if they are on the new one.</div>' : "") +
+    "</div>" +
+    '<div class="preview-foot">' +
+      '<button class="btn ' + (messaging ? "btn-send" : "btn-primary") + '" data-send' + (blockedOff || busy || !canSend(p.stage, j) ? " disabled" : "") + ">" +
+        esc(busy ? "Working" : sendLabel(p.stage, j)) + "</button>" +
+      '<span class="mut small">' + (blockedOff
+        ? "Real sending is off on this server. Nothing can go out from this panel."
+        : messaging ? "This sends real WhatsApp messages. Nothing has been sent yet."
+        : "This saves the shortlist. Nobody is messaged.") + "</span>" +
+    "</div></div>";
+}
+
+function resultBlock(b) {
+  const r = results[idOf(b)];
+  return r ? '<div class="alert ' + r.tone + '" role="status">' + r.html + "</div>" : "";
+}
+
+function describeResult(stage, j, httpOk) {
+  if (!httpOk || j.ok === false) return { tone: "", html: esc(j.reason || j.message || "That step could not run.") };
+  if (stage === "shortlist") {
+    return j.saved ? { tone: "fine", html: "Shortlist saved: " + plural(j.tutorCount, "tutor") + "." }
+      : { tone: "wait", html: esc(j.note || "Nothing was saved.") };
+  }
+  if (stage === "invite") {
+    const failed = (j.results || []).filter((x) => !x.sent);
+    return {
+      tone: failed.length ? (j.sent ? "wait" : "") : "fine",
+      html: "Invited " + j.sent + " of " + plural(j.willSend, "tutor") + "." +
+        (failed.length ? " Failed: " + failed.map((f) => esc(f.name) + " (" + esc(f.failureReason) + ")").join(", ") + ". Press Invite more to retry them." : ""),
+    };
+  }
+  if (j.sent) {
+    return { tone: "fine", html: stage === "top3" ? "Sent to the parent: " + plural(j.offeredCount, "tutor") + "." + (j.photoCards ? " Option cards sent: " + j.cardsSent + "." : "")
+      : stage === "selected" ? esc(j.tutorName) + " has been told." : "Sent to the parent." };
+  }
+  return { tone: "", html: "Not sent: " + esc(j.failureReason || "unknown reason") + "." };
+}
+
+async function callStage(payload) {
+  const r = await fetch("/panel2/api/stage/" + encodeURIComponent(payload.stage), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + TOKEN },
+    body: JSON.stringify(payload),
+  });
+  if (r.status === 401) { signOut(); throw new Error("Please sign in again."); }
+  return { ok: r.ok, data: await r.json().catch(() => ({})) };
+}
+
+async function openPreview(button) {
+  const b = visibleRows().find((x) => idOf(x) === selectedId);
+  if (!b) return;
+  const id = idOf(b);
+  const payload = {
+    stage: button.dataset.step, requirementId: b.requirementId, dryRun: true,
+    tutorId: button.dataset.tutor || undefined,
+    resend: button.dataset.resend === "1", force: button.dataset.force === "1",
+  };
+  delete results[id];
+  previews[id] = { stage: payload.stage, payload, loading: true };
+  renderDetail();
+  bringPreviewIntoView();
+  try {
+    const { ok, data } = await callStage(payload);
+    previews[id] = { stage: payload.stage, payload, ok: ok && data.ok !== false, data };
+  } catch (err) {
+    previews[id] = { stage: payload.stage, payload, ok: false, data: { message: err.message } };
+  }
+  renderDetail();
+  bringPreviewIntoView();
+}
+
+// The preview opens under the steps, often below the fold of the panel.
+function bringPreviewIntoView() {
+  const box = el("detail").querySelector(".preview");
+  if (box) box.scrollIntoView({ block: "start" });
+}
+
+async function runForReal() {
+  const b = visibleRows().find((x) => idOf(x) === selectedId);
+  if (!b) return;
+  const id = idOf(b);
+  const p = previews[id];
+  if (!p || !p.ok || running[id]) return;
+
+  if (p.stage !== "shortlist" && !window.confirm(
+    sendLabel(p.stage, p.data) + " for " + b.requirementId + "?\n\nThis sends real WhatsApp messages and cannot be undone.")) return;
+
+  running[id] = true;
+  renderDetail();
+  try {
+    const { ok, data } = await callStage({ ...p.payload, dryRun: false });
+    results[id] = describeResult(p.stage, data, ok);
+    delete previews[id];
+  } catch (err) {
+    results[id] = { tone: "", html: esc(err.message) };
+  }
+  delete running[id];
+  renderDetail();
+  load();
+}
+
+function renderDetail() {
+  const b = visibleRows().find((x) => idOf(x) === selectedId);
+  const html = b ? detail(b)
+    : '<div class="d-empty"><b>No enquiry selected</b>Choose one from the list to see its steps and tutors.</div>';
+  if (html === lastDetailHtml) return;
+  const top = el("detail").scrollTop;
+  el("detail").innerHTML = html;
+  el("detail").scrollTop = top;
+  lastDetailHtml = html;
 }
 
 function detail(b) {
   const id = idOf(b);
-  const status = statusLine(b);
   const defaultTab = b.top3 && b.top3.tutors.length ? "top3" : b.invited.length ? "invited" : "shortlist";
   const tab = openTab[id] || defaultTab;
   const tabs = [
@@ -1138,94 +1074,88 @@ function detail(b) {
   const panels = { invited: invitedPanel, shortlist: shortlistPanel, top3: top3Panel };
   const facts = [
     ["Phone", b.phone ? '<a href="tel:' + esc(b.phone) + '">' + esc(b.phone) + "</a>" : "—"],
-    ["Grade", esc(b.grade || "—")],
+    ["Class", esc(b.grade || "—")],
     ["Subjects", esc(b.subjects || "—")],
     ["Area", esc(b.area || "—")],
     ["Received", esc(when(b.createdAt) || "—")],
     ["Lead status", esc(b.status || "—")],
   ];
-
   return '<div class="d-head">' +
-      '<button class="icon-btn d-back" data-action="back" aria-label="Back to list">' + ICON.back + "</button>" +
-      '<span class="avatar" aria-hidden="true">' + esc(initials(b.parentName)) + "</span>" +
-      '<div class="d-title"><h2>' + esc(b.parentName || "(no name)") + ' <span class="tag tag-id">' + esc(b.requirementId) + "</span>" +
-        (b.isDemo ? ' <span class="tag t-warn">Test</span>' : "") + "</h2>" +
-        '<div class="sub">Received ' + esc(ago(b.createdAt)) + "</div></div>" +
-      stageTag(b.stage) +
+      '<button class="btn d-back" data-action="back">Back</button>' +
+      '<div class="d-title"><h2>' + esc(b.parentName || "(no name)") + (b.isDemo ? '<span class="test-mark">Test</span>' : "") + "</h2>" +
+        '<div class="id">' + esc(b.requirementId || "No ID") + "</div></div>" +
+      stageMark(b.stage) +
     "</div>" +
-    '<div class="d-body">' +
-      '<section class="section"><h3>Enquiry</h3><dl class="facts-grid">' +
-        facts.map(([k, v]) => "<div><dt>" + k + "</dt><dd>" + v + "</dd></div>").join("") + "</dl></section>" +
-
-      '<section class="section"><h3>Progress</h3>' + steps(b) +
-        (status ? '<div class="callout c-' + status[0] + '">' + status[1] + "<span>" + status[2] + "</span></div>" : "") +
-        (b.parentLocation && !b.parentLocation.hasCoordinates && !b.parentLocation.hasArea
-          ? '<div class="callout c-alert">' + ICON.pin + "<span>This enquiry has no location — no coordinates, no area, no pincode. " +
-            "That is why every distance is blank and why matching had nothing to measure from.</span></div>"
-          : "") +
-        (b.chosen
-          ? '<div class="chosen">' + ICON.star + "<div>Parent chose <b>" + esc(b.chosen.name) + "</b>" +
-            (b.chosen.choice ? " (option " + esc(b.chosen.choice) + ")" : "") +
-            (b.chosen.at ? '<div class="mut">' + esc(when(b.chosen.at)) + "</div>" : "") + "</div></div>"
-          : "") +
-      "</section>" +
-
-      '<section class="section"><h3>Tutors</h3>' +
-        '<div class="tabs" role="tablist">' + tabs.map(([key, label, n]) =>
-          '<button class="tab" role="tab" data-tab="' + key + '" aria-selected="' + (tab === key) + '">' + label + '<span class="n">' + n + "</span></button>").join("") + "</div>" +
-        tabs.map(([key]) => '<div class="panel" role="tabpanel" data-panel="' + key + '"' + (tab === key ? "" : " hidden") + ">" + panels[key](b) + "</div>").join("") +
-      "</section>" +
-    "</div>";
+    '<section class="sec"><dl class="facts">' + facts.map(([k, v]) => "<div><dt>" + k + "</dt><dd>" + v + "</dd></div>").join("") + "</dl>" +
+      (b.parentLocation && !b.parentLocation.hasCoordinates && !b.parentLocation.hasArea
+        ? '<div class="alert">This enquiry has no location, so distances are blank and matching has nothing to measure from.</div>'
+        : "") +
+    "</section>" +
+    stepSection(b) +
+    '<section class="sec"><h3>Tutors</h3>' +
+      '<div class="tabs" role="tablist">' + tabs.map(([key, label, n]) =>
+        '<button role="tab" data-tab="' + key + '" aria-selected="' + (tab === key) + '">' + label + " (" + n + ")</button>").join("") + "</div>" +
+      tabs.map(([key]) => '<div role="tabpanel" data-panel="' + key + '"' + (tab === key ? "" : " hidden") + ">" + panels[key](b) + "</div>").join("") +
+    "</section>";
 }
 
 /* ---------------- Events ---------------- */
 
 function select(id) {
   selectedId = id;
-  document.querySelectorAll(".row").forEach((r) => r.setAttribute("aria-selected", String(r.dataset.id === id)));
-  renderDetail(false);
+  document.querySelectorAll("#rows tr[data-id]").forEach((r) => r.setAttribute("aria-selected", String(r.dataset.id === id)));
+  lastRowsHtml = el("rows").innerHTML;
+  renderDetail();
   el("detail").scrollTop = 0;
   if (isSheet()) document.body.classList.add("detail-open");
 }
 
-el("sideNav").addEventListener("click", (e) => {
-  const btn = e.target.closest("[data-filter]");
-  if (btn) setFilter(btn.dataset.filter);
+el("queues").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-queue]");
+  if (!btn) return;
+  queue = btn.dataset.queue;
+  document.body.classList.remove("detail-open");
+  render();
 });
 
 el("rows").addEventListener("click", (e) => {
-  const btn = e.target.closest(".row");
-  if (btn) select(btn.dataset.id);
+  const tr = e.target.closest("tr[data-id]");
+  if (tr) select(tr.dataset.id);
+});
+el("rows").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const tr = e.target.closest("tr[data-id]");
+  if (tr) { e.preventDefault(); select(tr.dataset.id); }
 });
 
 el("detail").addEventListener("click", (e) => {
-  if (e.target.closest('[data-action="back"]')) { closeDetail(); return; }
-  const tab = e.target.closest(".tab");
+  if (e.target.closest('[data-action="back"]')) { document.body.classList.remove("detail-open"); return; }
+  const step = e.target.closest("[data-step]");
+  if (step && !step.disabled) { openPreview(step); return; }
+  if (e.target.closest("[data-preview-close]")) { delete previews[selectedId]; renderDetail(); return; }
+  const send = e.target.closest("[data-send]");
+  if (send && !send.disabled) { runForReal(); return; }
+  const tab = e.target.closest("[data-tab]");
   if (!tab) return;
   openTab[selectedId] = tab.dataset.tab;
-  el("detail").querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
-  el("detail").querySelectorAll(".panel").forEach((p) => { p.hidden = p.dataset.panel !== tab.dataset.tab; });
+  el("detail").querySelectorAll("[data-tab]").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
+  el("detail").querySelectorAll("[data-panel]").forEach((p) => { p.hidden = p.dataset.panel !== tab.dataset.tab; });
+  lastDetailHtml = el("detail").innerHTML;
 });
 
-el("rangeSeg").addEventListener("click", (e) => {
-  const btn = e.target.closest("[data-since]");
-  if (!btn || btn.dataset.since === prefs.since) return;
-  prefs.since = btn.dataset.since;
-  store.set("panel2-since", prefs.since);
-  syncRange();
-  renderSkeleton();
-  load();
-});
-el("scope").addEventListener("change", () => { prefs.scope = el("scope").value; store.set("panel2-scope", prefs.scope); renderSkeleton(); load(); });
+el("since").addEventListener("change", () => { prefs.since = el("since").value; store.set("panel2-since", prefs.since); renderLoading(); load(); });
+el("scope").addEventListener("change", () => { prefs.scope = el("scope").value; store.set("panel2-scope", prefs.scope); renderLoading(); load(); });
 el("every").addEventListener("change", () => { prefs.every = el("every").value; store.set("panel2-every", prefs.every); restart(); });
 
 let searchTimer = null;
-document.querySelectorAll(".js-search").forEach((input) => {
-  input.addEventListener("input", () => {
-    document.querySelectorAll(".js-search").forEach((other) => { if (other !== input) other.value = input.value; });
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => { query = input.value.trim().toLowerCase(); render(); }, 150);
-  });
+el("search").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { query = el("search").value.trim().toLowerCase(); render(); }, 150);
+});
+
+window.matchMedia("(max-width: 1099px)").addEventListener("change", () => {
+  document.body.classList.remove("detail-open");
+  render();
 });
 
 document.addEventListener("keydown", (e) => {
@@ -1233,24 +1163,18 @@ document.addEventListener("keydown", (e) => {
   const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
   if (e.key === "/" && !typing) {
     e.preventDefault();
-    const visible = [...document.querySelectorAll(".js-search")].find((i) => i.offsetParent !== null);
-    if (visible) visible.focus();
+    el("search").focus();
   } else if (e.key === "Escape") {
-    if (document.body.classList.contains("detail-open")) closeDetail();
-    else if (document.body.classList.contains("nav-open")) closeNav();
-    else if (typing && document.activeElement.classList.contains("js-search")) {
-      document.querySelectorAll(".js-search").forEach((i) => { i.value = ""; });
-      query = ""; render(); document.activeElement.blur();
-    }
-  } else if (!typing && (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "j" || e.key === "k")) {
+    if (document.body.classList.contains("detail-open")) document.body.classList.remove("detail-open");
+    else if (document.activeElement === el("search")) { el("search").value = ""; query = ""; render(); el("search").blur(); }
+  } else if (!typing && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
     const ids = visibleRows().map(idOf);
     if (!ids.length) return;
     e.preventDefault();
     const at = ids.indexOf(selectedId);
-    const next = e.key === "ArrowDown" || e.key === "j" ? Math.min(ids.length - 1, at + 1) : Math.max(0, at - 1);
-    select(ids[next]);
-    const rowEl = [...document.querySelectorAll(".row")].find((r) => r.dataset.id === ids[next]);
-    if (rowEl) rowEl.scrollIntoView({ block: "nearest" });
+    select(ids[e.key === "ArrowDown" ? Math.min(ids.length - 1, at + 1) : Math.max(0, at - 1)]);
+    const tr = document.querySelector('#rows tr[aria-selected="true"]');
+    if (tr) { tr.scrollIntoView({ block: "nearest" }); tr.focus(); }
   }
 });
 
