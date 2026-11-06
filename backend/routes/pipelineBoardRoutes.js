@@ -218,7 +218,8 @@ router.get("/api/board", requireLogin, async (req, res) => {
       // load time. The newest per requirement is picked in the database
       // instead, which the requirementId + matchedAt index already serves.
       db.collection("tutor_shortlists").aggregate([
-        { $match: { requirementId: { $in: ids } } },
+        // A run that found nobody must not hide the real list it came after.
+        { $match: { requirementId: { $in: ids }, "tutors.0": { $exists: true } } },
         { $sort: { requirementId: 1, matchedAt: 1 } },
         { $group: { _id: "$requirementId", doc: { $last: "$$ROOT" } } },
       ], { allowDiskUse: true }).toArray().then((rows) => rows.map((r) => r.doc)),
