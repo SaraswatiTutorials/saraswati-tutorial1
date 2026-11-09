@@ -11,6 +11,8 @@
  *   - every query is a read; the one exception is the MongoDB health check's
  *     write test, which writes one record to its own collection
  *     (panel2_health_checks), reads it back and removes it
+ *   - the Odoo health check only reads from Odoo too (odooHealth.js refuses
+ *     any call that is not a read)
  *   - its own login, so it does not depend on the admin JWT
  *
  * Credentials come from PANEL2_USER / PANEL2_PASSWORD when set, otherwise the
@@ -28,6 +30,7 @@ import { panelSendingEnabled } from "../utils/pipelineStages.js";
 import { LOCAL_SAFE_MODE } from "../utils/localSafeMode.js";
 import { buildDataHealth, MAX_HOURS } from "../utils/dataHealth.js";
 import { buildMongoHealth } from "../utils/mongoHealth.js";
+import { buildOdooHealth } from "../utils/odooHealth.js";
 
 // What WhatsApp actually did with each message, read from Odoo. Our own logs
 // only record that a message was handed to Odoo; Meta can still refuse it,
@@ -569,6 +572,31 @@ router.post("/api/health/mongodb/write-test", requireLogin, async (req, res) => 
     res.json(await mongoHealth(req, { forceWriteTest: true }));
   } catch (error) {
     console.error("Panel 2 MongoDB write test error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
+ * Odoo: can it be reached, does the login work, are the WhatsApp templates
+ * approved, are messages going out, and did each send to Odoo work. Only
+ * reads from Odoo. Asking Odoo again is limited inside odooHealth.js.
+ */
+const odooHealthCache = new Map();
+
+router.get("/api/health/odoo", requireLogin, async (req, res) => {
+  try {
+    const hours = Math.min(Math.max(Math.round(Number(req.query.hours) || 24), 1), MAX_HOURS);
+    const fresh = req.query.fresh === "1";
+    const held = odooHealthCache.get(hours);
+    if (held && Date.now() - held.at < HEALTH_TTL_MS && !fresh) return res.json(held.value);
+    const conn = mongoose.connection;
+    const db = conn.db && conn.readyState === 1 ? conn.db : null;
+    const value = await buildOdooHealth(db, { hours, force: fresh });
+    if (odooHealthCache.size > 10) odooHealthCache.clear();
+    odooHealthCache.set(hours, { at: Date.now(), value });
+    res.json(value);
+  } catch (error) {
+    console.error("Panel 2 Odoo health error:", error);
     res.status(500).json({ message: error.message });
   }
 });

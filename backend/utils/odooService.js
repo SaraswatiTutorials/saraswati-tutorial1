@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import fetch from "node-fetch";
+import { watchOdooCall } from "./odooCallLog.js";
 
 dotenv.config();
 
@@ -49,7 +50,13 @@ console.log(
    GENERIC ODOO JSON-RPC CALL
 ============================================================================ */
 
+// Each call is noted (kind, time taken, worked or not) for the Panel 2 Odoo
+// health check; the result or error is passed back unchanged.
 export async function callOdoo(service, method, args) {
+  return watchOdooCall("server", service, method, args, () => callOdooUnwatched(service, method, args));
+}
+
+async function callOdooUnwatched(service, method, args) {
 
   const payload = {
     jsonrpc: "2.0",

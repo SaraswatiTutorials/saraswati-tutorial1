@@ -18,6 +18,7 @@
 
 import dotenv from "dotenv";
 import fetch from "node-fetch";
+import { watchOdooCall } from "./odooCallLog.js";
 
 dotenv.config();
 
@@ -110,9 +111,18 @@ function getSanitizedOdooEnv() {
 }
 
 /**
- * Execute a JSON-RPC request to Odoo with full diagnostic logging on non-JSON / HTML / redirect responses.
+ * Execute a JSON-RPC request to Odoo. Each call is noted (kind, time taken,
+ * worked or not) for the Panel 2 Odoo health check; the result or error is
+ * passed back unchanged.
  */
 async function executeOdooJsonRpc(service, method, args) {
+  return watchOdooCall("whatsapp", service, method, args, () => executeOdooJsonRpcUnwatched(service, method, args));
+}
+
+/**
+ * Execute a JSON-RPC request to Odoo with full diagnostic logging on non-JSON / HTML / redirect responses.
+ */
+async function executeOdooJsonRpcUnwatched(service, method, args) {
   const { jsonrpcUrl } = getSanitizedOdooEnv();
 
   const payload = {

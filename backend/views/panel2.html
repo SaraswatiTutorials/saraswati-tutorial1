@@ -463,6 +463,9 @@
   .htable .c-coll code { white-space: nowrap; }
   .htable .code-name { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13.5px; overflow-wrap: anywhere; }
   .htable .cell { min-width: 0; }
+  .bad-text, .htable td.bad-text { color: var(--bad); font-weight: 600; }
+  .sub-head { padding: 14px 18px 4px; font-size: 14px; font-weight: 700; border-top: 1px solid var(--line); }
+  .htable.flows .sub, .htable.flows .err-text { overflow-wrap: anywhere; }
   @container (max-width: 980px) { .htable .c-owner, .htable .c-size { display: none; } }
   @container (max-width: 640px) {
     .htable thead { display: none; }
@@ -713,6 +716,7 @@ const ICON = {
   thumb: '<path d="M7 11v9H4v-9Z"/><path d="M7 11l4-8a2.5 2.5 0 0 1 2.5 2.5V9h5.3a2 2 0 0 1 2 2.4l-1.4 7a2 2 0 0 1-2 1.6H7"/>',
   db: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  plug: '<path d="M9 2v5M15 2v5"/><path d="M6 7h12v4a6 6 0 0 1-12 0Z"/><path d="M12 17v5"/>',
 };
 
 /* ---------------- What each stage means ---------------- */
@@ -742,6 +746,7 @@ const QUEUES = [
   { key: "problems", label: "Problems", icon: "alert", problem: true },
   { group: "Health checks" },
   { module: "mongodb" },
+  { module: "odoo" },
   { module: "data" },
 ];
 const inQueue = (b, key) => key === "all" ? true : key === "problems" ? PROBLEMS.includes(b.stage) : b.stage === key;
@@ -1549,6 +1554,13 @@ const MODULES = {
     render: (d) => renderMongo(d),
     problems: (d) => (d?.problems || []).length,
   },
+  odoo: {
+    label: "Odoo", icon: "plug", url: "/panel2/api/health/odoo",
+    title: "Odoo",
+    lede: "Whether Odoo answers and accepts the server’s login, whether WhatsApp messages are going out, and whether everything sent to Odoo got there.",
+    render: (d) => renderOdoo(d),
+    problems: (d) => (d?.problems || []).length,
+  },
   data: {
     label: "Pipeline data", icon: "list", url: "/panel2/api/data-health",
     title: "Pipeline data",
@@ -1557,7 +1569,7 @@ const MODULES = {
     problems: (d) => (d?.summary ? d.summary.bad + d.summary.unknown + (d.database?.connected === false ? 1 : 0) : 0),
   },
 };
-const MODULE_ORDER = ["mongodb", "data"];
+const MODULE_ORDER = ["mongodb", "odoo", "data"];
 for (const key of MODULE_ORDER) Object.assign(MODULES[key], { data: null, error: "", loading: false, loadedAt: 0 });
 const isModule = (key) => Object.prototype.hasOwnProperty.call(MODULES, key);
 let shownHtml = "";
@@ -1827,6 +1839,232 @@ async function runWriteTestNow() {
   renderHealth();
 }
 
+/* ---- Odoo module ---- */
+
+const FLOW_STATUS = {
+  ok:      { label: "Working",         tone: "s-ok" },
+  warn:    { label: "Check",           tone: "s-wait" },
+  bad:     { label: "Failing",         tone: "s-bad" },
+  quiet:   { label: "Nothing sent",    tone: "s-none" },
+  unknown: { label: "Could not check", tone: "s-bad" },
+};
+const TEMPLATE_LABEL = {
+  approved: "Approved", pending: "Waiting for Meta", draft: "Draft", rejected: "Rejected",
+  paused: "Paused by Meta", disabled: "Disabled by Meta", in_appeal: "In appeal", missing: "Not in Odoo",
+};
+const MESSAGE_ROWS = [
+  ["sent", "Sent"], ["delivered", "Delivered"], ["read", "Read"], ["replied", "Replied"],
+  ["outgoing", "Waiting to send"], ["error", "Failed"], ["bounced", "Bounced"], ["cancel", "Cancelled"],
+];
+
+function verdictSection(d, title, sub, meta) {
+  const tone = d.status === "bad" ? "v-bad" : d.status === "warn" ? "v-warn" : "v-ok";
+  const items = [
+    ...(d.problems || []).map((t) => '<li class="is-bad">' + svg(ICON.alert, 16) + "<span>" + esc(t) + "</span></li>"),
+    ...(d.warnings || []).map((t) => '<li class="is-warn">' + svg(ICON.alert, 16) + "<span>" + esc(t) + "</span></li>"),
+  ].join("");
+  return '<section class="card health-top" aria-label="Summary">' +
+    '<div class="verdict ' + tone + '"><span class="tile">' + svg(ICON[d.status === "ok" ? "check" : "alert"], 21) + "</span>" +
+      "<div><b>" + esc(title) + "</b><span>" + esc(sub) + "</span></div></div>" +
+    '<div class="health-meta">' + meta.filter(Boolean).map(([k, v]) => "<span>" + esc(k) + ": <b>" + esc(v) + "</b></span>").join("") + "</div>" +
+    (items ? '<ul class="verdict-list">' + items + "</ul>" : "") +
+    "</section>";
+}
+
+function renderOdoo(d) {
+  const conns = d.connections || [];
+  const period = healthPeriod(d.hours);
+  const unreachable = conns.length && conns.every((c) => !c.reachable);
+  const title = d.status === "bad" ? (unreachable ? "Odoo cannot be reached" : "Odoo has a problem")
+    : d.status === "warn" ? "Odoo is working, with something to check"
+    : "Odoo is working";
+  const sub = d.status === "ok"
+    ? "Odoo answers, the login works, the templates are approved, and what was sent in the " + period + " got there."
+    : d.status === "bad" ? "Some things may not be reaching Odoo or going out on WhatsApp. The reasons are listed here."
+    : "Things are reaching Odoo. Details below.";
+  const summary = verdictSection(d, title, sub, [
+    conns[0]?.host && ["Odoo", conns.map((c) => c.host).filter((h, i, a) => a.indexOf(h) === i).join(", ")],
+    ["Period", period],
+    ["Odoo asked", hhmm(d.liveCheckedAt)],
+  ]);
+  return summary +
+    '<div class="mongo-grid">' + conns.map((c) => odooConnectionCard(c, d)).join("") + whatsappCard(d) + messagesCard(d) + "</div>" +
+    flowsPane(d) + failuresPane(d) + templatesPane(d) + callsPane(d);
+}
+
+function odooConnectionCard(c, d) {
+  const t = c.setupError ? tag("Not set up", "s-bad")
+    : !c.reachable ? tag("Cannot reach", "s-bad")
+    : !c.loginOk ? tag("Login refused", "s-bad")
+    : tag("Connected", "s-ok");
+  const showAttendance = !c.whatsapp || (d.connections || []).length === 1;
+  const a = d.attendance || {};
+  return '<section class="pane mod-card odoo-conn" id="odoo-conn-' + esc(c.key) + '">' + cardHead("Connection", t) +
+    '<p class="mod-text">Used for: ' + esc(c.usedFor) + ".</p>" +
+    (c.error ? '<p class="alert">' + esc(c.error) + "</p>" : "") +
+    kvRows([
+      ["Answered in", esc(ms(c.versionMs))],
+      ["Login", c.loginOk ? "Works" + (c.loginMs != null ? ' <span class="mut">(' + esc(ms(c.loginMs)) + ")</span>" : "") : c.reachable ? "Refused" : "—"],
+      c.host && ["Server", esc(c.host)],
+      c.database && ["Database", esc(c.database)],
+      c.username && ["User", esc(c.username)],
+      c.version && ["Odoo version", esc(c.version)],
+      showAttendance && ["Attendance API", a.tokenSet ? "Token set" : '<span class="bad-text">No token</span>', a.host || ""],
+    ]) +
+    '<div class="mod-foot"><button class="btn" data-action="odoo-recheck"' + (MODULES.odoo.loading ? " disabled" : "") + ">" +
+      (MODULES.odoo.loading ? "Checking…" : "Check again") + '</button><span class="mut small">Asked ' + esc(ago(d.liveCheckedAt)) +
+      ". Odoo is asked at most once a minute.</span></div>" +
+    "</section>";
+}
+
+function whatsappCard(d) {
+  const w = d.whatsapp;
+  if (!w) {
+    return '<section class="pane mod-card" id="odoo-whatsapp">' + cardHead("WhatsApp in Odoo", tag("Not checked", "s-none")) +
+      '<p class="mod-text">' + esc(d.whatsappSkipped || "Not checked.") + "</p></section>";
+  }
+  const q = w.queue;
+  const accountsOk = w.accounts && w.accounts.length;
+  const queueOk = q && q.found && q.active;
+  const t = !accountsOk && !w.accountsError ? tag("No account", "s-bad")
+    : q && q.found && !q.active ? tag("Send job off", "s-bad")
+    : tag("Set up", "s-ok");
+  return '<section class="pane mod-card" id="odoo-whatsapp">' + cardHead("WhatsApp in Odoo", t) +
+    kvRows([
+      ["Accounts", w.accountsError ? '<span class="bad-text">Could not read</span>' : accountsOk ? esc(w.accounts.join(", ")) : '<span class="bad-text">None</span>', w.accountsError],
+      ["Send job", w.queueError ? '<span class="bad-text">Could not read</span>'
+        : !q ? "—" : !q.found ? '<span class="bad-text">Not found</span>'
+        : queueOk ? "On" + (q.every ? ' <span class="mut">(every ' + esc(q.every) + ")</span>" : "") : '<span class="bad-text">Switched off</span>',
+        w.queueError || (q && q.name) || ""],
+      q && q.nextCall && ["Next run", esc(when(q.nextCall))],
+      ["Last message sent", w.messages?.lastSentAt ? esc(ago(w.messages.lastSentAt)) : "—", w.messages?.lastSentAt ? when(w.messages.lastSentAt) : ""],
+      ["Last reply received", w.messages?.lastReplyAt ? esc(ago(w.messages.lastReplyAt)) : "—", w.messages?.lastReplyAt ? when(w.messages.lastReplyAt) : ""],
+    ]) + "</section>";
+}
+
+function messagesCard(d) {
+  const w = d.whatsapp;
+  if (!w) return "";
+  const m = w.messages;
+  const period = healthPeriod(d.hours);
+  if (!m) {
+    return '<section class="pane mod-card" id="odoo-messages">' + cardHead("WhatsApp messages", tag("Could not read", "s-bad")) +
+      '<p class="alert">' + esc(w.messagesError || "Could not read the messages.") + "</p></section>";
+  }
+  const t = m.stuck ? tag(m.stuck + " stuck", "s-bad")
+    : m.failed ? tag(m.failed + " failed", m.failed >= 3 && m.total && m.failed / m.total >= 0.25 ? "s-bad" : "s-wait")
+    : m.total ? tag("Going out", "s-ok") : tag("None sent", "s-none");
+  const rows = MESSAGE_ROWS.filter(([k]) => m.byState?.[k] || ["sent", "delivered", "error"].includes(k)).map(([k, label]) => {
+    const n = m.byState?.[k] || 0;
+    const bad = (k === "error" || k === "bounced") && n;
+    return [label, bad ? '<span class="bad-text">' + esc(num(n)) + "</span>" : esc(num(n))];
+  });
+  return '<section class="pane mod-card" id="odoo-messages">' + cardHead("WhatsApp messages", t) +
+    '<p class="mod-text">' + esc(plural(m.total, "message")) + " sent through Odoo in the " + esc(period) + ", " + esc(m.replies + (m.replies === 1 ? " reply" : " replies")) + " received. As Odoo reports them.</p>" +
+    kvRows(rows) + "</section>";
+}
+
+function flowsPane(d) {
+  const flows = d.flows || [];
+  const period = healthPeriod(d.hours);
+  const body = flows.length
+    ? '<table class="htable flows"><thead><tr><th>What</th><th class="r">New</th><th class="r">Worked</th><th class="r">Failed</th>' +
+      '<th class="r c-owner">Waiting</th><th class="c-last">Last worked</th><th>Status</th></tr></thead><tbody>' +
+      flows.map((f) => {
+        const st = FLOW_STATUS[f.status] || FLOW_STATUS.unknown;
+        const from = f.direction === "from";
+        const note = f.error || (from ? f.note : f.stuck ? f.stuck + " waiting for over 10 minutes" : "");
+        const noteBad = f.error || (from ? f.status !== "ok" : !!f.stuck);
+        const cnt = (n) => (from || n == null ? '<span class="mut">—</span>' : esc(num(n)));
+        return '<tr data-flow="' + esc(f.key) + '">' +
+          '<td data-label="What" class="nm"><b>' + esc(f.label) + '</b><span class="sub">' + (from ? "From Odoo to this database" : "To " + esc(f.to)) + "</span>" +
+            (note ? '<span class="' + (noteBad ? "err-text" : "sub") + '">' + esc(note) + "</span>" : "") + "</td>" +
+          '<td class="r" data-label="New, ' + esc(period) + '">' + cnt(f.total) + "</td>" +
+          '<td class="r" data-label="Worked">' + cnt(f.ok) + "</td>" +
+          '<td class="r' + (f.failed ? " bad-text" : "") + '" data-label="Failed">' + cnt(f.failed) + "</td>" +
+          '<td class="r c-owner" data-label="Waiting">' + cnt(f.waiting) + "</td>" +
+          '<td class="c-last" data-label="Last worked">' + (f.lastOkAt ? '<span title="' + esc(when(f.lastOkAt)) + '">' + esc(ago(f.lastOkAt)) + "</span>" : '<span class="mut">—</span>') + "</td>" +
+          '<td data-label="Status">' + tag(st.label, st.tone) + "</td></tr>";
+      }).join("") + "</tbody></table>"
+    : '<p class="empty-row">The database is not connected, so the sends could not be checked.</p>';
+  return '<section class="pane wide-pane" id="odoo-flows">' +
+    '<header class="pane-head"><div><h2>Sending to Odoo</h2><p>Each kind of record the server sends to Odoo, or sends on WhatsApp through Odoo, and what it saved about the result. ' +
+    "New ones in the " + esc(period) + ".</p></div></header>" + body + "</section>";
+}
+
+function failuresPane(d) {
+  const fromFlows = (d.flows || []).flatMap((f) => (f.failures || []).map((x) => ({ ...x, where: f.label })));
+  const fromOdoo = (d.whatsapp?.messages?.failures || []).map((x) => ({
+    at: x.at, where: "WhatsApp message in Odoo", ref: x.to ? "To " + x.to : "", name: x.template, reason: x.reason,
+  }));
+  const list = [...fromFlows, ...fromOdoo].sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0)).slice(0, 40);
+  const period = healthPeriod(d.hours);
+  const t = list.length ? tag(plural(list.length, "failure") + (list.length === 40 ? "+" : ""), "s-bad") : tag("None", "s-ok");
+  const body = list.length
+    ? '<table class="htable"><thead><tr><th class="c-when">When</th><th>What</th><th class="c-coll">Who</th><th>Reason</th></tr></thead><tbody>' +
+      list.map((x) => '<tr class="ev-bad">' +
+        '<td class="c-when" data-label="When">' + esc(when(x.at) || "—") + "</td>" +
+        '<td data-label="What"><span class="cell"><b>' + esc(x.where) + "</b></span></td>" +
+        '<td class="c-coll" data-label="Who"><span class="cell">' + (x.name ? esc(x.name) : "") + (x.ref ? '<span class="sub">' + esc(x.ref) + "</span>" : "") + (!x.name && !x.ref ? '<span class="mut">—</span>' : "") + "</span></td>" +
+        '<td data-label="Reason" class="msg-cell"><span class="cell">' + esc(x.reason) + "</span></td></tr>").join("") + "</tbody></table>"
+    : '<p class="empty-row">Nothing failed in the ' + esc(period) + ".</p>";
+  return '<section class="pane wide-pane" id="odoo-failures">' +
+    '<header class="pane-head"><div><h2>What failed</h2><p>Records here that did not reach Odoo, and WhatsApp messages Odoo or Meta refused, newest first. Phone numbers show their last four digits.</p></div>' + t + "</header>" +
+    body + "</section>";
+}
+
+function templatesPane(d) {
+  const w = d.whatsapp;
+  if (!w) return "";
+  const list = w.templates || [];
+  const bad = list.filter((t) => t.state === "bad").length;
+  const t = w.templatesError ? tag("Could not read", "s-bad") : bad ? tag(plural(bad, "problem"), "s-bad")
+    : list.some((x) => x.state === "warn") ? tag("Check", "s-wait") : tag("All approved", "s-ok");
+  const body = w.templatesError
+    ? '<p class="alert" style="margin:14px 18px">' + esc(w.templatesError) + "</p>"
+    : '<table class="htable"><thead><tr><th>Used for</th><th>Template</th><th>Status in Odoo</th></tr></thead><tbody>' +
+      list.map((x) => {
+        const shown = x.using || x.tried[0]?.name || "";
+        const st = (x.tried.find((y) => y.name === shown) || x.tried[0] || {}).status || "missing";
+        const tone = st === "approved" ? "s-ok" : x.state === "warn" ? "s-wait" : "s-bad";
+        return '<tr data-template="' + esc(x.key) + '"><td data-label="Used for" class="nm"><b>' + esc(x.use) + "</b>" + (x.core ? "" : '<span class="sub">Outside the pipeline</span>') + "</td>" +
+          '<td data-label="Template"><span class="cell"><code>' + esc(shown) + "</code>" + (x.note ? '<span class="sub">' + esc(x.note) + "</span>" : "") + "</span></td>" +
+          '<td data-label="Status in Odoo">' + tag(TEMPLATE_LABEL[st] || st, tone) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  return '<section class="pane wide-pane" id="odoo-templates">' +
+    '<header class="pane-head"><div><h2>WhatsApp templates</h2><p>Each message the app sends outside WhatsApp’s 24-hour reply window needs an approved template in Odoo. Where the app tries several, any one approved is enough.</p></div>' + t + "</header>" +
+    body + "</section>";
+}
+
+function callsPane(d) {
+  const c = d.calls;
+  if (!c) return "";
+  const period = healthPeriod(d.hours);
+  const failing = (c.areas || []).filter((a) => a.failingNow).length;
+  const t = failing ? tag(plural(failing, "kind") + " failing", "s-bad") : c.failed ? tag(plural(c.failed, "failed call"), "s-wait")
+    : c.ok ? tag("All worked", "s-ok") : tag("No calls yet", "s-none");
+  const areas = (c.areas || []).length
+    ? '<table class="htable"><thead><tr><th>Kind</th><th class="r">Worked</th><th class="r">Failed</th><th class="r c-size">Average time</th><th class="c-last">Last worked</th><th>Status</th></tr></thead><tbody>' +
+      c.areas.map((a) => '<tr data-area="' + esc(a.key) + '"><td data-label="Kind" class="nm"><b>' + esc(a.label) + "</b>" + (a.lastError ? '<span class="err-text">' + esc(a.lastError) + "</span>" : "") + "</td>" +
+        '<td class="r" data-label="Worked">' + esc(num(a.ok)) + "</td>" +
+        '<td class="r' + (a.failed ? " bad-text" : "") + '" data-label="Failed">' + esc(num(a.failed)) + "</td>" +
+        '<td class="r c-size" data-label="Average time">' + esc(ms(a.avgMs)) + "</td>" +
+        '<td class="c-last" data-label="Last worked">' + (a.lastOkAt ? '<span title="' + esc(when(a.lastOkAt)) + '">' + esc(ago(a.lastOkAt)) + "</span>" : '<span class="mut">—</span>') + "</td>" +
+        '<td data-label="Status">' + (a.failingNow ? tag("Failing", "s-bad") : a.ok || a.lastOkAt ? tag("Working", "s-ok") : tag("—", "s-none")) + "</td></tr>").join("") +
+      "</tbody></table>"
+    : '<p class="empty-row">The server has not called Odoo since it started.</p>';
+  const errs = c.errors || [];
+  const errTable = errs.length
+    ? '<h3 class="sub-head">Errors, newest first</h3><table class="htable"><thead><tr><th class="c-when">When</th><th>What</th><th>Message</th></tr></thead><tbody>' +
+      errs.map((x) => '<tr class="ev-bad"><td class="c-when" data-label="When">' + esc(when(x.at)) + "</td>" +
+        '<td data-label="What"><span class="cell"><b>' + esc(x.areaLabel) + "</b>" + '<span class="sub">' + esc(x.model ? x.model + " · " + x.op : x.op) + "</span></span></td>" +
+        '<td data-label="Message" class="msg-cell"><span class="cell">' + esc(x.message) + "</span></td></tr>").join("") + "</tbody></table>"
+    : "";
+  return '<section class="pane wide-pane" id="odoo-calls">' +
+    '<header class="pane-head"><div><h2>Calls from this server</h2><p>Every call the server made to Odoo in the ' + esc(period) + ", recorded since it started " + esc(when(c.since)) +
+    ". Kept in memory, so a restart clears it.</p></div>" + t + "</header>" + areas + errTable + "</section>";
+}
+
 function healthSummary(h) {
   const s = h.summary || { bad: 0, warn: 0, ok: 0, quiet: 0, unknown: 0 };
   const db = h.database || {};
@@ -1956,6 +2194,8 @@ el("healthBody").addEventListener("toggle", (e) => {
 el("healthBody").addEventListener("click", (e) => {
   const b = e.target.closest('[data-action="write-test"]');
   if (b && !b.disabled) runWriteTestNow();
+  const o = e.target.closest('[data-action="odoo-recheck"]');
+  if (o && !o.disabled) { o.disabled = true; o.textContent = "Checking…"; loadModule("odoo", true); }
 });
 
 el("hours").addEventListener("change", () => {
