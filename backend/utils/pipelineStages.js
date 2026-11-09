@@ -800,6 +800,9 @@ export async function sendTopThree(lead, { dryRun = false, force = false } = {})
     experience: t.experience,
     occupation: t.occupation,
     distanceKm: t.distanceKm,
+    // Carried through so the board can still say where this person came from
+    // after the options have gone to the parent.
+    isPartial: t.isPartial === true,
     photo: t.photo || photos.get(t.tutorCode) || "",
   }));
 

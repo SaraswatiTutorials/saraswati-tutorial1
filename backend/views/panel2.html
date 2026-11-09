@@ -947,6 +947,13 @@ function table(headers, rows) {
 }
 const tutorCell = (t, subline) => '<div class="name">' + esc(t.name || "(no name)") + '</div><div class="sub">' + esc(subline || t.code || "") + "</div>";
 
+// A partial tutor has no tutor code, so the line under their name says where
+// they came from instead. Used everywhere a tutor is listed, the previews
+// included — those are what gets read before anything is sent, so leaving it
+// out of them would be the one place it actually mattered.
+const originLabel = (t) =>
+  (t.isPartial || t.source === "partial") ? "Partial tutor form" : (t.code || t.tutorCode || "");
+
 function invitedPanel(b) {
   if (!b.invited.length) return '<div class="none">No tutors invited yet.</div>';
   const c = b.counts;
@@ -956,8 +963,7 @@ function invitedPanel(b) {
     (b.firstInviteAt ? "<span>First sent " + esc(when(b.firstInviteAt)) + "</span>" : "") + "</div>" +
     table(["Tutor", "Delivery", "Reply", "Distance", "Experience", "Invited"],
       b.invited.map((t) => [
-        tutorCell(t, [t.source === "partial" ? "Partial tutor form" : t.code, t.occupation]
-          .filter(Boolean).join(" · ")),
+        tutorCell(t, [originLabel(t), t.occupation].filter(Boolean).join(" · ")),
         deliveryCell(t.delivery, t.deliveryError, t.sendStatus, t.failureReason),
         replyCell(t.reply, t.repliedAt),
         km(t.distanceKm),
@@ -985,8 +991,7 @@ function shortlistPanel(b) {
     (s.tutors.length
       ? table(["Tutor", "Rank", "Score", "Distance", "Experience"],
           s.tutors.map((t, i) => [
-            tutorCell(t, [t.isPartial ? "Partial tutor form" : t.code, t.occupation]
-              .filter(Boolean).join(" · ")),
+            tutorCell(t, [originLabel(t), t.occupation].filter(Boolean).join(" · ")),
             esc(t.rank || i + 1), esc(t.score ?? "—"), km(t.distanceKm), esc(t.experience || "—"),
           ]))
       : '<div class="none">The shortlist has no tutors.</div>');
@@ -999,7 +1004,8 @@ function top3Panel(b) {
     (b.top3.sent ? '<div style="margin-bottom:6px">' + deliveryCell(b.top3.delivery, b.top3.deliveryError) + "</div>" : "") +
     table(["Tutor", "Option", "Score", "Distance", "Experience"],
       b.top3.tutors.map((t, i) => [
-        tutorCell(t, t.area || t.code), esc(t.choice || i + 1), esc(t.score ?? "—"), km(t.distanceKm), esc(t.experience || "—"),
+        tutorCell(t, t.isPartial ? "Partial tutor form" : (t.area || t.code)),
+        esc(t.choice || i + 1), esc(t.score ?? "—"), km(t.distanceKm), esc(t.experience || "—"),
       ]));
 }
 
@@ -1126,7 +1132,7 @@ function previewBody(stage, j) {
     return kv([["Matched", j.matchedCount + " of " + j.candidatesConsidered + " considered"], ["Will save", plural(j.tutorCount, "tutor")]]) +
       (j.tutors && j.tutors.length
         ? table(["Tutor", "Rank", "Match", "Distance", "Experience"], j.tutors.map((t) => [
-            tutorCell({ name: t.name, code: t.tutorCode }, [t.tutorCode, t.occupation].filter(Boolean).join(" · ")),
+            tutorCell({ name: t.name }, [originLabel(t), t.occupation].filter(Boolean).join(" · ")),
             esc(t.rank), esc(t.matchPercentage != null ? t.matchPercentage + "%" : "—"), km(t.distanceKm), esc(t.experience || "—"),
           ]))
         : '<div class="none">No tutor matched this enquiry.</div>');
@@ -1135,7 +1141,7 @@ function previewBody(stage, j) {
     const sample = (j.preview || [])[0];
     return kv([["Template", esc(j.templateName)], ["Will invite", plural(j.willSend, "tutor")], ["Shortlist size", esc(j.shortlistSize)]]) +
       (j.tutors && j.tutors.length
-        ? '<div class="sub-h">Who will get it</div>' + table(["Tutor", "Distance"], j.tutors.map((t) => [tutorCell({ name: t.name, code: t.tutorCode }), km(t.distanceKm)]))
+        ? '<div class="sub-h">Who will get it</div>' + table(["Tutor", "Distance"], j.tutors.map((t) => [tutorCell({ name: t.name }, originLabel(t)), km(t.distanceKm)]))
         : '<div class="none">Nobody left to invite on this shortlist.</div>') +
       (j.skipped && j.skipped.length
         ? '<div class="sub-h">Skipped</div><ul class="plain-list">' + j.skipped.map((s) => "<li>" + esc(s.name) + ": " + esc(s.skipReason) + "</li>").join("") + "</ul>"
@@ -1147,7 +1153,7 @@ function previewBody(stage, j) {
   if (stage === "top3") {
     return kv([["Said yes", esc(j.interestedCount)], ["Will offer", plural(j.offeredCount, "tutor")]]) +
       table(["Tutor", "Option", "Distance", "Experience"], (j.tutors || []).map((t) => [
-        tutorCell({ name: t.name, code: t.tutorCode }), esc(t.choice), km(t.distanceKm), esc(t.experience || "—"),
+        tutorCell({ name: t.name }, originLabel(t)), esc(t.choice), km(t.distanceKm), esc(t.experience || "—"),
       ]));
   }
   if (stage === "selected") {
