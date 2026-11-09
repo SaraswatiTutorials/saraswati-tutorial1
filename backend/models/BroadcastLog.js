@@ -25,6 +25,15 @@ const broadcastLogSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // Which list this person came from. A partial tutor is invited and
+    // counted like any other, but has no tutor code, so without this the
+    // board could not tell them apart from a registered tutor whose code is
+    // simply missing.
+    tutorSource: {
+      type: String,
+      enum: ["tutor", "partial"],
+      default: "tutor",
+    },
 
     // Requirement reference
     requirementId: {
