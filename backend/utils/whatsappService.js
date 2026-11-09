@@ -683,8 +683,16 @@ export function buildBroadcastMessage(tutorName, lead, ward, distanceTier) {
   const subjects = Array.isArray(ward?.subjectsNeeded)
     ? ward.subjectsNeeded.join(", ")
     : (ward?.subjectsNeeded || "N/A");
-  const timing = lead.preferredTime || "N/A";
-  const sessionsPerWeek = lead.sessionsPerWeek || lead.frequency || "N/A";
+  // "Preferred Time" means the hour of the class, which is classTimingSlot
+  // ("6:00 PM – 7:00 PM") or "Flexible". preferredTime is a plan summary —
+  // enquiryDetails builds it as "3 Days • 1 Hr (ELITE)" whenever a plan is
+  // set — so it reads oddly in that slot and is only a fallback for the older
+  // enquiries that have no slot recorded.
+  const timing = lead.classTimingSlot || lead.preferredTime || "N/A";
+  // Classes per week is daysPerWeek. Nothing has ever written sessionsPerWeek
+  // or frequency: of 378 enquiries, 0 have either, so this value went out as
+  // "N/A" on every invite ever sent. daysPerWeek is set on 247 of them.
+  const sessionsPerWeek = lead.daysPerWeek || lead.sessionsPerWeek || lead.frequency || "N/A";
   const area = lead.area || "N/A";
   const city = lead.city || lead.geoInfo?.city || "N/A";
   const pincode = lead.pincode || "";
@@ -742,8 +750,16 @@ export function buildRequirementTemplateVars(tutorName, lead, ward) {
   const subjects = Array.isArray(ward?.subjectsNeeded)
     ? ward.subjectsNeeded.join(", ")
     : (ward?.subjectsNeeded || "N/A");
-  const timing = lead.preferredTime || "N/A";
-  const sessionsPerWeek = lead.sessionsPerWeek || lead.frequency || "N/A";
+  // "Preferred Time" means the hour of the class, which is classTimingSlot
+  // ("6:00 PM – 7:00 PM") or "Flexible". preferredTime is a plan summary —
+  // enquiryDetails builds it as "3 Days • 1 Hr (ELITE)" whenever a plan is
+  // set — so it reads oddly in that slot and is only a fallback for the older
+  // enquiries that have no slot recorded.
+  const timing = lead.classTimingSlot || lead.preferredTime || "N/A";
+  // Classes per week is daysPerWeek. Nothing has ever written sessionsPerWeek
+  // or frequency: of 378 enquiries, 0 have either, so this value went out as
+  // "N/A" on every invite ever sent. daysPerWeek is set on 247 of them.
+  const sessionsPerWeek = lead.daysPerWeek || lead.sessionsPerWeek || lead.frequency || "N/A";
   const area = lead.area || "";
   const city = lead.city || lead.geoInfo?.city || "";
   const pincode = lead.pincode || "";
@@ -776,8 +792,16 @@ export function buildRequirementTemplateVarsV3(tutorName, lead, ward) {
   const subjects = Array.isArray(ward?.subjectsNeeded)
     ? ward.subjectsNeeded.join(", ")
     : (ward?.subjectsNeeded || "N/A");
-  const timing = lead.preferredTime || "N/A";
-  const sessionsPerWeek = lead.sessionsPerWeek || lead.frequency || "N/A";
+  // "Preferred Time" means the hour of the class, which is classTimingSlot
+  // ("6:00 PM – 7:00 PM") or "Flexible". preferredTime is a plan summary —
+  // enquiryDetails builds it as "3 Days • 1 Hr (ELITE)" whenever a plan is
+  // set — so it reads oddly in that slot and is only a fallback for the older
+  // enquiries that have no slot recorded.
+  const timing = lead.classTimingSlot || lead.preferredTime || "N/A";
+  // Classes per week is daysPerWeek. Nothing has ever written sessionsPerWeek
+  // or frequency: of 378 enquiries, 0 have either, so this value went out as
+  // "N/A" on every invite ever sent. daysPerWeek is set on 247 of them.
+  const sessionsPerWeek = lead.daysPerWeek || lead.sessionsPerWeek || lead.frequency || "N/A";
   const area = lead.area || "";
   const city = lead.city || lead.geoInfo?.city || "";
   const pincode = lead.pincode || "";
