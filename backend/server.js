@@ -3,6 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { LOCAL_SAFE_MODE, safeModeRequestGuard } from "./utils/localSafeMode.js";
+// Records MongoDB errors for the Panel 2 health check. Must load before any model is compiled.
+import "./utils/mongoErrorLog.js";
 import dns from "dns";
 
 try {
@@ -164,6 +166,8 @@ if (
   mongoose
     .connect(process.env.MONGO_URI, {
       bufferCommands: false,
+      // Lets utils/mongoErrorLog.js see commands the database refuses, for the Panel 2 health check.
+      monitorCommands: true,
     })
     .then(async () => {
       console.log("MongoDB connected");
