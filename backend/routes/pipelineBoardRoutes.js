@@ -8,7 +8,9 @@
  *
  * Deliberately self-contained:
  *   - mounted at /panel2, nothing under /api is touched
- *   - every query is a read; this file never writes to the database
+ *   - every query is a read; the one exception is the MongoDB health check's
+ *     write test, which writes one record to its own collection
+ *     (panel2_health_checks), reads it back and removes it
  *   - its own login, so it does not depend on the admin JWT
  *
  * Credentials come from PANEL2_USER / PANEL2_PASSWORD when set, otherwise the
@@ -24,6 +26,8 @@ import { WAIT_HOURS, rankInterested } from "../utils/topThreeScheduler.js";
 import { getOdooUid, callOdooMethod } from "../utils/whatsappService.js";
 import { panelSendingEnabled } from "../utils/pipelineStages.js";
 import { LOCAL_SAFE_MODE } from "../utils/localSafeMode.js";
+import { buildDataHealth, MAX_HOURS } from "../utils/dataHealth.js";
+import { buildMongoHealth } from "../utils/mongoHealth.js";
 
 // What WhatsApp actually did with each message, read from Odoo. Our own logs
 // only record that a message was handed to Odoo; Meta can still refuse it,
@@ -484,6 +488,87 @@ router.get("/api/board", requireLogin, async (req, res) => {
     });
   } catch (error) {
     console.error("Panel 2 board error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
+ * Data checks: is new data reaching the database, and is it complete?
+ * Read only, like the board. Kept for a few seconds per period because the
+ * page asks on every refresh and the answer does not change that quickly.
+ */
+const HEALTH_TTL_MS = 15 * 1000;
+const healthCache = new Map();
+
+router.get("/api/data-health", requireLogin, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    if (!db || mongoose.connection.readyState !== 1) {
+      return res.json({
+        generatedAt: new Date().toISOString(),
+        database: { connected: false, pingMs: null, name: "" },
+        summary: null,
+        sources: [],
+      });
+    }
+    // Clamped here too, so the cache can only ever hold one entry per real period.
+    const hours = Math.min(Math.max(Math.round(Number(req.query.hours) || 24), 1), MAX_HOURS);
+    const held = healthCache.get(hours);
+    if (held && Date.now() - held.at < HEALTH_TTL_MS && req.query.fresh !== "1") return res.json(held.value);
+
+    const value = await buildDataHealth(db, { hours });
+    healthCache.set(hours, { at: Date.now(), value });
+    res.json(value);
+  } catch (error) {
+    console.error("Panel 2 data checks error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
+ * Health check modules. Each answers whether one part of the system is
+ * working; MongoDB is the first. Same login as the board.
+ */
+const mongoHealthCache = new Map();
+
+async function mongoHealth(req, { forceWriteTest = false } = {}) {
+  const hours = Math.min(Math.max(Math.round(Number(req.query.hours) || 24), 1), MAX_HOURS);
+  const conn = mongoose.connection;
+  if (!conn.db) {
+    return {
+      generatedAt: new Date().toISOString(), hours, status: "bad",
+      problems: ["The server has no database connection."], warnings: [],
+      connection: { state: "disconnected", connected: false, pingMs: null, database: "", host: "", serverVersion: "", error: "" },
+      writeTest: null, storage: { error: "" }, errors: null, collections: [], listError: "",
+    };
+  }
+  let client = null;
+  try { client = conn.getClient(); } catch { /* not connected yet */ }
+  return buildMongoHealth(conn.db, { hours, safeMode: LOCAL_SAFE_MODE, forceWriteTest, client, readyState: conn.readyState });
+}
+
+router.get("/api/health/mongodb", requireLogin, async (req, res) => {
+  try {
+    const key = String(req.query.hours || 24);
+    const held = mongoHealthCache.get(key);
+    if (held && Date.now() - held.at < HEALTH_TTL_MS && req.query.fresh !== "1") return res.json(held.value);
+    const value = await mongoHealth(req);
+    if (mongoHealthCache.size > 10) mongoHealthCache.clear();
+    mongoHealthCache.set(key, { at: Date.now(), value });
+    res.json(value);
+  } catch (error) {
+    console.error("Panel 2 MongoDB health error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// "Test again": writes, reads back and removes one test record right now.
+router.post("/api/health/mongodb/write-test", requireLogin, async (req, res) => {
+  try {
+    mongoHealthCache.clear();
+    res.json(await mongoHealth(req, { forceWriteTest: true }));
+  } catch (error) {
+    console.error("Panel 2 MongoDB write test error:", error);
     res.status(500).json({ message: error.message });
   }
 });

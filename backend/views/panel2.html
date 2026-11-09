@@ -319,6 +319,8 @@
     .steps li { grid-template-columns: 26px minmax(0, 1fr); }
     .steps .acts { grid-column: 2; align-items: flex-start; margin-top: 6px; }
     .steps .acts .btn { white-space: normal; }
+    /* On a narrow phone "Sends WhatsApp to the tutor" is wider than the space beside the title. */
+    .steps .sends-tag, .steps .quiet-tag { white-space: normal; }
   }
 
   /* Preview */
@@ -362,6 +364,132 @@
   .d-empty b { display: block; color: var(--ink); font-size: 16px; }
   .skeleton { display: block; height: 12px; border-radius: 4px; background: var(--line-soft); animation: pulse 1.2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .5; } }
+
+  /* ---------- Data checks ---------- */
+  /* No enquiry search on this page. Kept in place on wide screens so the bar does not jump;
+     on phones it has a row of its own, so it goes altogether. */
+  .page-health .bar-search { visibility: hidden; }
+  @media (max-width: 860px) { .page-health .bar-search { display: none; } }
+  .lede { color: var(--mut); font-size: 14px; margin-top: 3px; }
+  .health-top { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 32px; padding: 16px 18px; margin-bottom: 16px; }
+  .verdict { display: flex; align-items: center; gap: 13px; flex: 1 1 340px; min-width: 0; }
+  .verdict .tile { width: 40px; height: 40px; display: grid; place-items: center; flex-shrink: 0; border-radius: 9px; background: var(--ok-soft); color: var(--ok); }
+  .verdict b { display: block; font-size: 16.5px; font-weight: 650; letter-spacing: -.01em; line-height: 1.35; }
+  .verdict span { color: var(--mut); font-size: 13.5px; }
+  .v-warn .tile { background: var(--warn-soft); color: var(--warn); }
+  .v-bad .tile { background: var(--bad-soft); color: var(--bad); }
+  .health-meta { display: flex; flex-wrap: wrap; gap: 4px 26px; color: var(--mut); font-size: 13.5px; }
+  .health-meta b { color: var(--ink); font-weight: 600; }
+  .health-meta .bad { color: var(--bad); }
+  .jump { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+  .jump a { text-decoration: none; }
+  .jump a:hover { text-decoration: underline; }
+  .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 500px), 1fr)); gap: 16px; align-items: start; }
+  .src { overflow: hidden; scroll-margin-top: calc(var(--bar-h) + 14px); }
+  .src-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 15px 18px 10px; }
+  .src-head h2 { font-size: 16px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; }
+  .src-head p { color: var(--mut); font-size: 13px; margin-top: 2px; }
+  .src-facts { display: flex; flex-wrap: wrap; gap: 8px 30px; padding: 2px 18px 14px; border-bottom: 1px solid var(--line); }
+  .src-facts dt { color: var(--mut); font-size: 12.5px; }
+  .src-facts dd { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .src .alert { margin: 12px 18px; }
+  .chk { border-bottom: 1px solid var(--line-soft); }
+  .chk:last-child { border-bottom: 0; }
+  .chk-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 11px; align-items: start; padding: 10px 18px; }
+  .chk-row svg { margin-top: 2px; color: var(--ok-mark); }
+  .is-bad .chk-row svg { color: var(--bad-mark); }
+  .is-warn .chk-row svg { color: var(--warn-mark); }
+  .is-info .chk-row svg { color: var(--faint); }
+  .chk-label { font-size: 14px; color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
+  .is-ok .chk-label { color: var(--mut); font-weight: 450; }
+  .chk-help { display: block; margin-top: 1px; color: var(--mut); font-size: 13px; font-weight: 450; }
+  .chk-n { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .is-ok .chk-n { color: var(--faint); font-weight: 500; }
+  .is-bad .chk-n { color: var(--bad); }
+  .is-warn .chk-n { color: var(--warn); }
+  .is-info .chk-n { color: var(--ink-2); }
+  details.ex { padding: 0 18px 11px 47px; }
+  details.ex summary { width: max-content; max-width: 100%; color: var(--accent); font-size: 13.5px; font-weight: 600; cursor: pointer; list-style: none; }
+  details.ex summary::-webkit-details-marker { display: none; }
+  details.ex summary::after { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 0 2px 7px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+  details.ex[open] summary::after { transform: rotate(-135deg); margin-bottom: -1px; }
+  details.ex ul { margin-top: 7px; border: 1px solid var(--line-soft); border-radius: 7px; }
+  details.ex li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 12px; padding: 7px 11px; border-bottom: 1px solid var(--line-soft); font-size: 13.5px; }
+  details.ex li:last-child { border-bottom: 0; }
+  details.ex .ref { font-weight: 600; overflow-wrap: anywhere; }
+  details.ex .ref span { color: var(--mut); font-weight: 450; }
+  details.ex .why { grid-column: 1; color: var(--mut); overflow-wrap: anywhere; }
+  details.ex time { grid-row: 1; grid-column: 2; color: var(--mut); font-size: 13px; white-space: nowrap; }
+  .src-foot { padding: 9px 18px; border-top: 1px solid var(--line-soft); background: var(--surface-2); color: var(--mut); font-size: 13px; }
+  /* MongoDB module */
+  .verdict-list { flex-basis: 100%; display: grid; gap: 5px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+  .verdict-list li { display: flex; gap: 9px; align-items: flex-start; font-size: 14px; color: var(--ink-2); }
+  .verdict-list svg { margin-top: 2px; }
+  .verdict-list .is-bad svg { color: var(--bad-mark); }
+  .verdict-list .is-warn svg { color: var(--warn-mark); }
+  .mongo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; margin-bottom: 16px; align-items: stretch; }
+  .mod-card { display: flex; flex-direction: column; overflow: hidden; }
+  .mod-card .src-head { padding-bottom: 6px; }
+  .mod-card .alert { margin: 4px 18px 8px; }
+  .rows { padding: 2px 18px 12px; }
+  .rows div { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 7px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+  .rows div:last-child { border-bottom: 0; }
+  .rows dt { color: var(--mut); flex-shrink: 0; }
+  .rows dd { min-width: 0; font-weight: 600; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+  .mod-text { padding: 0 18px 6px; color: var(--ink-2); font-size: 14px; }
+  .mod-foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 18px; border-top: 1px solid var(--line-soft); background: var(--surface-2); }
+  .meter-wrap { padding: 0 18px 14px; }
+  .meter { height: 6px; border-radius: 3px; background: var(--line-soft); overflow: hidden; margin-bottom: 5px; }
+  .meter i { display: block; height: 100%; background: var(--accent); }
+  .meter.m-warn i { background: var(--warn-mark); }
+  .meter.m-bad i { background: var(--bad-mark); }
+  .wide-pane { margin-bottom: 16px; overflow: hidden; container-type: inline-size; scroll-margin-top: calc(var(--bar-h) + 14px); }
+  .pane-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 6px 16px; padding: 15px 18px 13px; border-bottom: 1px solid var(--line); }
+  .pane-head h2 { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+  .pane-head p { color: var(--mut); font-size: 13px; margin-top: 2px; max-width: 760px; }
+  .htable th, .htable td { padding: 10px 12px; vertical-align: top; }
+  .htable th:first-child, .htable td:first-child { padding-left: 18px; }
+  .htable th:last-child, .htable td:last-child { padding-right: 18px; }
+  .htable .sub { display: block; color: var(--mut); font-size: 13px; }
+  .htable code { display: block; font: 12.5px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--mut); overflow-wrap: anywhere; }
+  .htable .nm b { display: block; font-weight: 600; }
+  .htable .err-text { display: block; color: var(--bad); font-size: 13px; }
+  .htable td.is-new { color: var(--ok); font-weight: 600; }
+  .htable .c-when { white-space: nowrap; color: var(--mut); width: 1%; }
+  .htable .msg-cell { overflow-wrap: anywhere; }
+  .htable tr.ev-bad td:nth-child(2) b { color: var(--bad); }
+  .htable tr.ev-ok td:nth-child(2) b { color: var(--ok); }
+  .htable .c-last { white-space: nowrap; }
+  .htable .c-coll code { white-space: nowrap; }
+  .htable .code-name { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13.5px; overflow-wrap: anywhere; }
+  .htable .cell { min-width: 0; }
+  @container (max-width: 980px) { .htable .c-owner, .htable .c-size { display: none; } }
+  @container (max-width: 640px) {
+    .htable thead { display: none; }
+    .htable, .htable tbody, .htable tr { display: block; }
+    .htable tr { padding: 10px 16px; border-bottom: 1px solid var(--line-soft); }
+    .htable tr:last-child { border-bottom: 0; }
+    .htable td, .htable th:first-child, .htable td:first-child, .htable td:last-child { display: flex; justify-content: space-between; gap: 14px; padding: 3px 0; border: 0; text-align: right; }
+    .htable td::before { content: attr(data-label); color: var(--mut); font-size: 13px; text-align: left; flex-shrink: 0; font-weight: 450; }
+    .htable td:first-child { display: block; text-align: left; padding-bottom: 6px; }
+    .htable td:first-child::before { display: none; }
+    .htable .c-owner, .htable .c-size { display: flex; }
+    .htable .c-when { width: auto; }
+    .htable .c-coll code { white-space: normal; }
+    /* A long message reads better under its label than squeezed beside it. */
+    .htable td.msg-cell { display: block; text-align: left; padding-top: 4px; }
+    .htable td.msg-cell::before { display: block; margin-bottom: 1px; }
+  }
+  @media (max-width: 480px) {
+    .src-head, .chk-row { padding-left: 14px; padding-right: 14px; }
+    .rows, .mod-text, .meter-wrap { padding-left: 14px; padding-right: 14px; }
+    .mod-foot, .pane-head { padding-left: 14px; padding-right: 14px; }
+    .mod-card .alert { margin-left: 14px; margin-right: 14px; }
+    .src-facts { padding-left: 14px; padding-right: 14px; gap: 8px 22px; }
+    details.ex { padding: 0 14px 11px 14px; }
+    details.ex li { grid-template-columns: minmax(0, 1fr); }
+    details.ex time { grid-row: auto; grid-column: 1; }
+  }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -409,13 +537,13 @@
       <button class="icon-btn" id="navBtn" onclick="toggleNav()" aria-label="Show or hide the menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
-      <label class="bar-search">
+      <label class="bar-search" id="searchWrap">
         <span class="sr">Search enquiries</span>
         <input class="input js-search" id="search" type="search" placeholder="Search parent, phone, ID, area" autocomplete="off">
       </label>
       <div class="bar-right">
         <span class="updated" id="updated"></span>
-        <button class="btn" id="refreshBtn" onclick="load()">Refresh</button>
+        <button class="btn" id="refreshBtn" onclick="refreshNow()">Refresh</button>
         <button class="btn" id="themeBtn" onclick="toggleTheme()" hidden>Theme</button>
         <span class="user"><span class="avatar" id="userAvatar" aria-hidden="true"></span><span class="user-name" id="userName"></span></span>
         <button class="btn" onclick="signOut()">Sign out</button>
@@ -423,6 +551,7 @@
     </header>
 
     <main class="content">
+      <div id="pipelineView">
       <div class="page-head">
         <h1>Tutor pipeline</h1>
         <div class="filters">
@@ -480,6 +609,28 @@
         <div class="detail-scrim" onclick="closeDetail()"></div>
         <section class="pane detail-pane" id="detail" aria-label="Enquiry details"></section>
       </div>
+      </div>
+
+      <div id="healthView" hidden>
+        <div class="page-head">
+          <div>
+            <h1 id="healthTitle">Health checks</h1>
+            <p class="lede" id="healthLede"></p>
+          </div>
+          <div class="filters">
+            <label>Period
+              <select id="hours" class="select">
+                <option value="24">Last 24 hours</option>
+                <option value="72">Last 3 days</option>
+                <option value="168">Last 7 days</option>
+                <option value="720">Last 30 days</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div id="healthError"></div>
+        <div id="healthBody"></div>
+      </div>
     </main>
   </div>
 </div>
@@ -512,10 +663,15 @@ const previews = {};   // requirementId -> the step being previewed and what the
 const results = {};    // requirementId -> how the last step went
 const running = {};    // requirementId -> true while a step is running; survives a refresh
 
+// Which page is open: the pipeline, or a health check module (see MODULES).
+// "health" was the old name of the pipeline data page.
+let view = ((v) => (v === "health" ? "data" : v || "pipeline"))(store.get("panel2-view"));
+
 const prefs = {
   since: store.get("panel2-since") || "hours:72",
   scope: store.get("panel2-scope") || "real",
   every: store.get("panel2-every") || "30",
+  hours: store.get("panel2-hours") || "24",
 };
 
 const el = (id) => document.getElementById(id);
@@ -555,6 +711,8 @@ const ICON = {
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
   doc: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
   thumb: '<path d="M7 11v9H4v-9Z"/><path d="M7 11l4-8a2.5 2.5 0 0 1 2.5 2.5V9h5.3a2 2 0 0 1 2 2.4l-1.4 7a2 2 0 0 1-2 1.6H7"/>',
+  db: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
 };
 
 /* ---------------- What each stage means ---------------- */
@@ -582,6 +740,9 @@ const QUEUES = [
   { key: "chosen", label: "Tutor confirmed", icon: "check" },
   { group: "Needs attention" },
   { key: "problems", label: "Problems", icon: "alert", problem: true },
+  { group: "Health checks" },
+  { module: "mongodb" },
+  { module: "data" },
 ];
 const inQueue = (b, key) => key === "all" ? true : key === "problems" ? PROBLEMS.includes(b.stage) : b.stage === key;
 const queueLabel = (key) => (QUEUES.find((q) => q.key === key) || {}).label || key;
@@ -637,6 +798,8 @@ function signOut() {
   session.del("panel2"); session.del("panel2-user");
   clearInterval(timer); clearInterval(ticker);
   lastData = null; selectedId = null; lastRowsHtml = ""; lastDetailHtml = "";
+  for (const key of MODULE_ORDER) Object.assign(MODULES[key], { data: null, error: "", loadedAt: 0 });
+  shownHtml = "";
   document.body.classList.remove("detail-open", "nav-open");
   el("boardView").hidden = true;
   el("loginView").hidden = false;
@@ -652,9 +815,12 @@ function show() {
   el("since").value = prefs.since;
   el("scope").value = prefs.scope;
   el("every").value = prefs.every;
+  el("hours").value = prefs.hours;
   el("themeBtn").hidden = !window.PANEL_DARK_MODE_ENABLED;
   renderLoading();
+  setView(view);
   load();
+  loadHealth();
   restart();
   clearInterval(ticker);
   ticker = setInterval(tickUpdated, 1000);
@@ -682,12 +848,20 @@ function closeDetail() { document.body.classList.remove("detail-open"); }
 function restart() {
   clearInterval(timer);
   const s = Number(prefs.every);
-  if (s > 0) timer = setInterval(() => { if (!document.hidden) load(); }, s * 1000);
+  if (s > 0) timer = setInterval(() => { if (!document.hidden) { load(); loadHealth(); } }, s * 1000);
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && TOKEN && !el("boardView").hidden && Date.now() - lastLoadedAt > 10000) load();
+  if (document.hidden || !TOKEN || el("boardView").hidden) return;
+  if (Date.now() - lastLoadedAt > 10000) load();
+  for (const key of MODULE_ORDER) if (Date.now() - MODULES[key].loadedAt > 10000) loadModule(key);
 });
+
+/** The Refresh button: asks the server to run the data checks again rather than reuse its last answer. */
+function refreshNow() {
+  load();
+  loadHealth(true);
+}
 
 async function load() {
   if (loading) return;
@@ -773,11 +947,19 @@ function render() {
   renderDetail();
 }
 
-function renderQueues(rows) {
+function renderQueues(rows = (lastData?.board || []).filter(matchesQuery)) {
   el("queues").innerHTML = QUEUES.map((q) => {
     if (q.group) return '<div class="group">' + esc(q.group) + "</div>";
-    const n = rows.filter((b) => inQueue(b, q.key)).length;
-    return '<button data-queue="' + q.key + '" aria-current="' + (queue === q.key) + '"' +
+    if (q.module) {
+      // How many problems the module found, once it has run.
+      const m = MODULES[q.module];
+      const n = m.problems(m.data);
+      return '<button data-queue="' + q.module + '" aria-current="' + (view === q.module) + '"' +
+        (n ? ' class="has-problem"' : "") + ">" + svg(ICON[m.icon]) +
+        '<span class="label">' + esc(m.label) + '</span><span class="n">' + (n || "") + "</span></button>";
+    }
+    const n = lastData ? rows.filter((b) => inQueue(b, q.key)).length : "";
+    return '<button data-queue="' + q.key + '" aria-current="' + (view === "pipeline" && queue === q.key) + '"' +
       (q.problem && n ? ' class="has-problem"' : "") + ">" + svg(ICON[q.icon]) +
       '<span class="label">' + esc(q.label) + '</span><span class="n">' + n + "</span></button>";
   }).join("");
@@ -1338,6 +1520,411 @@ function detail(b) {
     "</section>";
 }
 
+/* ---------------- Data checks ---------------- */
+
+const HEALTH_STATUS = {
+  ok:      { label: "Working",         tone: "s-ok" },
+  warn:    { label: "Check",           tone: "s-wait" },
+  bad:     { label: "Problem",         tone: "s-bad" },
+  quiet:   { label: "No new data",     tone: "s-none" },
+  unknown: { label: "Could not check", tone: "s-bad" },
+};
+const PERIOD_TEXT = { 24: "last 24 hours", 72: "last 3 days", 168: "last 7 days", 720: "last 30 days" };
+const healthPeriod = (h) => PERIOD_TEXT[h] || "last " + plural(Number(h), "hour");
+const LEVEL_ORDER = { bad: 0, warn: 1, info: 2 };
+// Remembers which example lists are open, so a refresh does not fold them away.
+const openChecks = new Set();
+
+/*
+ * Health check modules. Each is a page under "Health checks" in the menu,
+ * with its own server endpoint. To add one (Odoo, WhatsApp, n8n…): add an
+ * entry here with a render function and a count of its problems, and a
+ * GET route on the server that answers for that module.
+ */
+const MODULES = {
+  mongodb: {
+    label: "MongoDB", icon: "db", url: "/panel2/api/health/mongodb",
+    title: "MongoDB",
+    lede: "Whether the database is connected, takes new data, and has had any errors.",
+    render: (d) => renderMongo(d),
+    problems: (d) => (d?.problems || []).length,
+  },
+  data: {
+    label: "Pipeline data", icon: "list", url: "/panel2/api/data-health",
+    title: "Pipeline data",
+    lede: "Whether new data is reaching the database, and whether what arrives is complete.",
+    render: (d) => healthSummary(d) + '<div class="health-grid">' + (d.sources || []).map(sourceCard).join("") + "</div>",
+    problems: (d) => (d?.summary ? d.summary.bad + d.summary.unknown + (d.database?.connected === false ? 1 : 0) : 0),
+  },
+};
+const MODULE_ORDER = ["mongodb", "data"];
+for (const key of MODULE_ORDER) Object.assign(MODULES[key], { data: null, error: "", loading: false, loadedAt: 0 });
+const isModule = (key) => Object.prototype.hasOwnProperty.call(MODULES, key);
+let shownHtml = "";
+
+function setView(next) {
+  view = isModule(next) ? next : "pipeline";
+  store.set("panel2-view", view);
+  const onModule = view !== "pipeline";
+  el("pipelineView").hidden = onModule;
+  el("healthView").hidden = !onModule;
+  // The search box looks through enquiries, so it has nothing to do on these pages.
+  document.body.classList.toggle("page-health", onModule);
+  document.body.classList.remove("detail-open");
+  renderQueues();
+  if (onModule) {
+    const m = MODULES[view];
+    el("healthTitle").textContent = m.title;
+    el("healthLede").textContent = m.lede;
+    shownHtml = "";
+    renderHealth();
+    if (!m.loading && Date.now() - m.loadedAt > 10000) loadModule(view);
+  } else {
+    render();
+  }
+}
+
+/** Every module, so the menu can show each one's problem count wherever you are. */
+function loadHealth(fresh = false) {
+  for (const key of MODULE_ORDER) loadModule(key, fresh);
+}
+
+async function loadModule(key, fresh = false, { method = "GET", path = "" } = {}) {
+  const m = MODULES[key];
+  if (m.loading || !TOKEN) return;
+  m.loading = true;
+  const asked = prefs.hours;
+  let again = false;
+  try {
+    const r = await fetch(m.url + path + "?hours=" + encodeURIComponent(asked) + (fresh ? "&fresh=1" : ""), {
+      method, headers: { Authorization: "Bearer " + TOKEN },
+    });
+    if (r.status === 401) { signOut(); return; }
+    const j = await r.json().catch(() => ({}));
+    if (asked !== prefs.hours) {
+      // The period changed while this was on its way: drop it and ask for the new one.
+      again = true;
+    } else if (!r.ok) {
+      m.error = j.message || "This health check could not run.";
+    } else {
+      m.error = "";
+      m.data = j;
+      m.loadedAt = Date.now();
+    }
+  } catch {
+    if (asked !== prefs.hours) again = true;
+    else m.error = "Could not reach the server. It will try again on the next refresh.";
+  } finally {
+    m.loading = false;
+  }
+  if (again) { loadModule(key, true); return; }
+  if (TOKEN) { renderHealth(); renderQueues(); }
+}
+
+function renderHealth() {
+  if (!isModule(view)) return;
+  const m = MODULES[view];
+  el("healthError").innerHTML = m.error ? '<div class="notice err" role="alert">' + esc(m.error) + "</div>" : "";
+  if (!m.data) {
+    if (shownHtml === "loading") return;
+    el("healthBody").innerHTML = '<div class="card health-top" aria-hidden="true"><span class="skeleton" style="width:40%"></span></div>' +
+      '<div class="health-grid">' + Array.from({ length: 4 }, () =>
+        '<div class="pane src" aria-hidden="true"><div class="src-head"><span class="skeleton" style="width:45%"></span></div>' +
+        '<div class="chk-row"><span></span><span class="skeleton" style="width:70%"></span><span></span></div>' +
+        '<div class="chk-row"><span></span><span class="skeleton" style="width:55%"></span><span></span></div></div>').join("") + "</div>";
+    shownHtml = "loading";
+    return;
+  }
+  const html = m.render(m.data);
+  if (html !== shownHtml) {
+    el("healthBody").innerHTML = html;
+    shownHtml = html;
+  }
+}
+
+/* ---- MongoDB module ---- */
+
+const num = (n) => (n == null ? "—" : Number(n).toLocaleString("en-IN"));
+const bytes = (b) => {
+  if (b == null || !Number.isFinite(Number(b))) return "—";
+  let v = Number(b);
+  if (v < 1024) return v + " B";
+  const units = ["KB", "MB", "GB", "TB"];
+  let i = -1;
+  do { v /= 1024; i += 1; } while (v >= 1024 && i < units.length - 1);
+  return (v >= 100 ? Math.round(v) : v.toFixed(1)) + " " + units[i];
+};
+const ms = (v) => (v == null ? "—" : v + " ms");
+const COLL_STATUS = {
+  active:  { label: "Receiving data", tone: "s-ok" },
+  quiet:   { label: "No new data",    tone: "s-none" },
+  empty:   { label: "Empty",          tone: "s-none" },
+  fixed:   { label: "No timestamps",  tone: "s-none", title: "Its IDs are set by the code, so they carry no time to tell new records by." },
+  missing: { label: "Missing",        tone: "s-wait" },
+  error:   { label: "Error",          tone: "s-bad" },
+};
+const EVENT_KIND = {
+  connection: "Connection",
+  validation: "Not saved: failed the rules",
+  database: "Refused by the database",
+  "health check": "Health check",
+};
+let writeTestRunning = false;
+
+function renderMongo(d) {
+  const c = d.connection || {};
+  const period = healthPeriod(d.hours);
+  const tone = d.status === "bad" ? "v-bad" : d.status === "warn" ? "v-warn" : "v-ok";
+  const title = d.status === "bad" ? (c.connected ? "MongoDB has a problem" : "MongoDB is not connected")
+    : d.status === "warn" ? "MongoDB is working, with something to check"
+    : "MongoDB is working";
+  const sub = d.status === "ok"
+    ? "Connected, a test record went in and read back, and no errors in the " + period + "."
+    : d.status === "bad" ? "Data may not be getting saved. The reasons are listed here." : "Data is being saved. Details below.";
+  const items = [
+    ...(d.problems || []).map((t) => '<li class="is-bad">' + svg(ICON.alert, 16) + "<span>" + esc(t) + "</span></li>"),
+    ...(d.warnings || []).map((t) => '<li class="is-warn">' + svg(ICON.alert, 16) + "<span>" + esc(t) + "</span></li>"),
+  ].join("");
+
+  const summary = '<section class="card health-top" aria-label="Summary">' +
+    '<div class="verdict ' + tone + '"><span class="tile">' + svg(ICON[d.status === "ok" ? "check" : "alert"], 21) + "</span>" +
+      "<div><b>" + esc(title) + "</b><span>" + esc(sub) + "</span></div></div>" +
+    '<div class="health-meta">' +
+      (c.database ? "<span>Database: <b>" + esc(c.database) + "</b></span>" : "") +
+      "<span>Period: <b>" + esc(period) + "</b></span>" +
+      "<span>Checked: <b>" + esc(hhmm(d.generatedAt)) + "</b></span>" +
+    "</div>" +
+    (items ? '<ul class="verdict-list">' + items + "</ul>" : "") +
+    "</section>";
+
+  return summary +
+    '<div class="mongo-grid">' + connectionCard(d) + writeTestCard(d) + storageCard(d) + "</div>" +
+    errorsPane(d) + collectionsPane(d);
+}
+
+const kvRows = (pairs) => '<dl class="rows">' + pairs.filter(Boolean).map(([k, v, title]) =>
+  "<div><dt>" + esc(k) + "</dt><dd" + (title ? ' title="' + esc(title) + '"' : "") + ">" + v + "</dd></div>").join("") + "</dl>";
+const cardHead = (h, tag) => '<header class="src-head"><div><h2>' + esc(h) + "</h2></div>" + tag + "</header>";
+const tag = (label, tone, title) => '<span class="status ' + tone + '"' + (title ? ' title="' + esc(title) + '"' : "") + ">" + esc(label) + "</span>";
+
+function connectionCard(d) {
+  const c = d.connection || {};
+  const t = c.connected ? tag("Connected", "s-ok") : c.state === "connecting" ? tag("Connecting", "s-wait") : tag("Not connected", "s-bad");
+  return '<section class="pane mod-card" id="mongo-connection">' + cardHead("Connection", t) +
+    (c.error ? '<p class="alert">' + esc(c.error) + "</p>" : "") +
+    kvRows([
+      ["Answered in", esc(ms(c.pingMs))],
+      c.database && ["Database", esc(c.database)],
+      c.host && ["Server", esc(c.host)],
+      c.serverVersion && ["MongoDB version", esc(c.serverVersion)],
+      c.connectedSince && ["Connected since", esc(when(c.connectedSince)), ago(c.connectedSince)],
+    ]) + "</section>";
+}
+
+function writeTestCard(d) {
+  const w = d.writeTest;
+  const t = !w ? tag("Not run", "s-none") : w.skipped ? tag("Skipped", "s-none") : w.ok ? tag("Passed", "s-ok") : tag("Failed", "s-bad");
+  const text = !w ? "Runs once the database is connected."
+    : w.skipped ? esc(w.reason)
+    : w.ok ? "A test record was written, read back and removed in " + esc(ms(w.totalMs)) + ". New data is going in."
+    : "";
+  return '<section class="pane mod-card" id="mongo-write">' + cardHead("Write test", t) +
+    (w && w.ok === false ? '<p class="alert">' + esc(w.error) + "</p>" : '<p class="mod-text">' + text + "</p>") +
+    (w && !w.skipped ? kvRows([
+      ["Write", esc(ms(w.writeMs))],
+      ["Read back", esc(ms(w.readMs))],
+      ["Remove", esc(ms(w.removeMs))],
+      ["Tested", esc(ago(w.at)), when(w.at)],
+    ]) : "") +
+    '<div class="mod-foot"><button class="btn" data-action="write-test"' + (writeTestRunning || !d.connection?.connected ? " disabled" : "") + ">" +
+      (writeTestRunning ? "Testing…" : "Test again") + '</button><span class="mut small">Runs by itself at most once a minute.</span></div>' +
+    "</section>";
+}
+
+function storageCard(d) {
+  const s = d.storage || {};
+  const meter = s.diskPercent != null
+    ? '<div class="meter-wrap"><div class="meter ' + (s.diskPercent >= 90 ? "m-bad" : s.diskPercent >= 80 ? "m-warn" : "") +
+      '"><i style="width:' + Math.min(100, s.diskPercent) + '%"></i></div><span class="mut small">Disk ' + esc(s.diskPercent) + "% full</span></div>"
+    : "";
+  return '<section class="pane mod-card" id="mongo-storage">' + cardHead("Storage", "") +
+    (s.error ? '<p class="alert">' + esc(s.error) + "</p>" :
+      kvRows([
+        ["Records", esc(num(s.records))],
+        ["Collections", esc(num(s.collections))],
+        ["Data", esc(bytes(s.dataSize))],
+        ["Indexes", esc(bytes(s.indexSize))],
+        ["On disk", esc(bytes(s.storageSize != null || s.indexSize != null ? (s.storageSize || 0) + (s.indexSize || 0) : null))],
+      ]) + meter) +
+    "</section>";
+}
+
+function errorsPane(d) {
+  const e = d.errors;
+  if (!e) return "";
+  const period = healthPeriod(d.hours);
+  const list = e.list || [];
+  const t = e.lastHour ? tag(plural(e.lastHour, "error") + " in the last hour", "s-bad")
+    : e.inPeriod ? tag(plural(e.inPeriod, "error"), "s-wait")
+    : tag("No errors", "s-ok");
+  const notes = [
+    "Recorded since the server started, " + when(e.since) + ". Kept in memory, so a restart clears the list.",
+    e.watching && !e.watching.commands ? "Writes the database refuses are not being recorded: this server was started without command monitoring." : "",
+  ].filter(Boolean);
+  const body = list.length
+    ? '<table class="htable"><thead><tr><th class="c-when">When</th><th>What</th><th class="c-coll">Collection</th><th>Message</th></tr></thead><tbody>' +
+      list.map((x) => {
+        const ok = x.type === "connection" && x.level === "ok";
+        const kind = EVENT_KIND[x.type === "connection" ? "connection" : x.source] || x.source || "Error";
+        return '<tr class="' + (ok ? "ev-ok" : "ev-bad") + '">' +
+          '<td class="c-when" data-label="When"><span title="' + esc(when(x.at)) + '">' + esc(when(x.at)) + "</span></td>" +
+          '<td data-label="What"><span class="cell"><b>' + esc(kind) + "</b>" + (x.operation ? '<span class="sub">' + esc(x.operation) + "</span>" : "") + "</span></td>" +
+          '<td class="c-coll" data-label="Collection">' + (x.collection ? "<code>" + esc(x.collection) + "</code>" : '<span class="mut">—</span>') + "</td>" +
+          '<td data-label="Message" class="msg-cell"><span class="cell">' + esc(x.message) + (x.code != null ? ' <span class="mut">(code ' + esc(x.code) + ")</span>" : "") + "</span></td></tr>";
+      }).join("") + "</tbody></table>"
+    : '<p class="empty-row">No errors in the ' + esc(period) + ".</p>";
+  return '<section class="pane wide-pane" id="mongo-errors">' +
+    '<header class="pane-head"><div><h2>Database errors</h2><p>' + notes.map(esc).join(" ") + "</p></div>" + t + "</header>" +
+    body + "</section>";
+}
+
+function collectionsPane(d) {
+  const list = d.collections || [];
+  const receiving = list.filter((c) => c.status === "active").length;
+  const period = healthPeriod(d.hours);
+  const body = list.length
+    ? '<table class="htable coll"><thead><tr><th>Collection</th><th class="c-owner">Written by</th><th class="r">Records</th>' +
+      '<th class="r">New</th><th class="c-last">Last new record</th><th class="r c-size">Size</th><th>Status</th></tr></thead><tbody>' +
+      list.map((c) => {
+        const st = COLL_STATUS[c.status] || COLL_STATUS.error;
+        return "<tr>" +
+          '<td data-label="Collection" class="nm">' + (c.label ? "<b>" + esc(c.label) + "</b><code>" + esc(c.name) + "</code>" : '<b class="code-name">' + esc(c.name) + "</b>") +
+            (c.error ? '<span class="err-text">' + esc(c.error) + "</span>" : "") + "</td>" +
+          '<td class="c-owner" data-label="Written by">' + esc(c.owner) + "</td>" +
+          '<td class="r" data-label="Records">' + esc(num(c.count)) + "</td>" +
+          '<td class="r' + (c.newInPeriod ? " is-new" : "") + '" data-label="New, ' + esc(period) + '">' + esc(c.newInPeriod == null ? "—" : num(c.newInPeriod)) + "</td>" +
+          '<td class="c-last" data-label="Last new record">' + (c.lastAt ? '<span title="' + esc(when(c.lastAt)) + '">' + esc(ago(c.lastAt)) + "</span>" : '<span class="mut">—</span>') + "</td>" +
+          '<td class="r c-size" data-label="Size">' + esc(bytes(c.storage ?? c.size)) + "</td>" +
+          '<td data-label="Status">' + tag(st.label, st.tone, st.title) + "</td></tr>";
+      }).join("") + "</tbody></table>"
+    : '<p class="empty-row">' + esc(d.listError || "No collections to show.") + "</p>";
+  return '<section class="pane wide-pane" id="mongo-collections">' +
+    '<header class="pane-head"><div><h2>Collections</h2><p>' + esc(plural(list.filter((c) => c.exists).length, "collection")) +
+    ", " + esc(receiving) + " receiving new data in the " + esc(period) + ". New records are counted by the time saved inside each record’s ID.</p></div></header>" +
+    body + "</section>";
+}
+
+async function runWriteTestNow() {
+  if (writeTestRunning) return;
+  writeTestRunning = true;
+  shownHtml = "";
+  renderHealth();
+  // Let a refresh already on its way finish first, so the test is not skipped.
+  while (MODULES.mongodb.loading) await new Promise((r) => setTimeout(r, 100));
+  await loadModule("mongodb", true, { method: "POST", path: "/write-test" });
+  writeTestRunning = false;
+  shownHtml = "";
+  renderHealth();
+}
+
+function healthSummary(h) {
+  const s = h.summary || { bad: 0, warn: 0, ok: 0, quiet: 0, unknown: 0 };
+  const db = h.database || {};
+  const flagged = (h.sources || []).filter((x) => ["bad", "unknown", "warn"].includes(x.status));
+  const problems = s.bad + s.unknown;
+
+  let tone = "v-ok", icon = "check", title, sub;
+  if (!db.connected) {
+    tone = "v-bad"; icon = "alert";
+    title = "The database is not connected";
+    sub = "Nothing can be saved or checked until the server reconnects to it.";
+  } else if (problems) {
+    tone = "v-bad"; icon = "alert";
+    title = "Problems found in " + plural(problems, "place");
+    sub = "Some data is not going in properly. Each one is explained below.";
+  } else if (s.warn) {
+    tone = "v-warn"; icon = "alert";
+    title = "Data is going in, with " + plural(s.warn, "thing") + " to check";
+    sub = "Nothing is broken, but some records arrived incomplete.";
+  } else {
+    title = "Data is going in properly";
+    sub = "Every check passed for the " + healthPeriod(h.hours) + ".";
+  }
+
+  return '<section class="card health-top" aria-label="Summary">' +
+    '<div class="verdict ' + tone + '"><span class="tile">' + svg(ICON[icon], 21) + "</span>" +
+      "<div><b>" + esc(title) + "</b><span>" + esc(sub) + "</span></div></div>" +
+    '<div class="health-meta">' +
+      "<span>Database: " + (db.connected
+        ? "<b>Connected</b>" + (db.pingMs != null ? ", answered in " + esc(db.pingMs) + " ms" : "")
+        : '<b class="bad">Not connected</b>') + "</span>" +
+      "<span>Period: <b>" + esc(healthPeriod(h.hours)) + "</b></span>" +
+      "<span>Checked: <b>" + esc(hhmm(h.generatedAt)) + "</b></span>" +
+    "</div>" +
+    (flagged.length
+      ? '<nav class="jump" aria-label="Go to a problem">' + flagged.map((x) => {
+          const st = HEALTH_STATUS[x.status];
+          return '<a class="status ' + st.tone + '" href="#src-' + esc(x.key) + '">' + esc(x.label) + "</a>";
+        }).join("") + "</nav>"
+      : "") +
+    "</section>";
+}
+
+function sourceCard(src) {
+  const st = HEALTH_STATUS[src.status] || HEALTH_STATUS.unknown;
+  const lastLabel = src.key === "sync" ? "Last good run" : "Last data in";
+  const facts = [
+    '<div><dt>' + esc(lastLabel) + '</dt><dd' + (src.lastAt ? ' title="' + esc(when(src.lastAt)) + '"' : "") + ">" +
+      esc(src.lastAt ? ago(src.lastAt) : "Never") + "</dd></div>",
+    ...(src.facts || []).map((f) => "<div><dt>" + esc(f.label) + "</dt><dd>" + esc(f.value) + "</dd></div>"),
+  ].join("");
+
+  // Failing checks first, worst first; passing ones keep their order below.
+  const checks = [...(src.checks || [])]
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => {
+      const ra = a.c.count > 0 ? LEVEL_ORDER[a.c.level] ?? 3 : 4;
+      const rb = b.c.count > 0 ? LEVEL_ORDER[b.c.level] ?? 3 : 4;
+      return ra - rb || a.i - b.i;
+    })
+    .map(({ c }) => checkRow(src.key, c))
+    .join("");
+
+  return '<section class="pane src" id="src-' + esc(src.key) + '" aria-labelledby="src-h-' + esc(src.key) + '">' +
+    '<header class="src-head"><div><h2 id="src-h-' + esc(src.key) + '">' + esc(src.label) + "</h2>" +
+      "<p>" + esc(src.from) + "</p></div>" +
+      '<span class="status ' + st.tone + '">' + esc(st.label) + "</span></header>" +
+    (src.error ? "" : '<dl class="src-facts">' + facts + "</dl>") +
+    (src.error ? '<p class="alert">' + esc(src.error) + "</p>" : "") +
+    (checks ? '<ul class="checks">' + checks + "</ul>" : "") +
+    (src.sampled ? '<p class="src-foot">Checks cover the newest ' + esc(src.sampled) + " of " + esc(src.count) + " saved in this period.</p>" : "") +
+    (src.status === "quiet" ? '<p class="src-foot">Nothing new was saved in the ' + esc(healthPeriod(MODULES.data.data?.hours)) + ".</p>" : "") +
+    "</section>";
+}
+
+function checkRow(sourceKey, c) {
+  const failing = c.count > 0;
+  const level = failing ? c.level : "ok";
+  const icon = level === "ok" ? "check" : level === "info" ? "info" : "alert";
+  const id = sourceKey + ":" + c.key;
+  const ex = c.examples || [];
+  const showText = c.count > ex.length ? "Show first " + ex.length + " of " + c.count : ex.length === 1 ? "Show it" : "Show all " + ex.length;
+
+  return '<li class="chk is-' + level + '">' +
+    '<div class="chk-row">' + svg(ICON[icon], 17) +
+      '<span class="chk-label">' + esc(c.label) + (failing && c.help ? '<span class="chk-help">' + esc(c.help) + "</span>" : "") + "</span>" +
+      '<span class="chk-n" aria-label="' + esc(c.count) + ' found">' + esc(c.count) + "</span></div>" +
+    (failing && ex.length
+      ? '<details class="ex" data-check="' + esc(id) + '"' + (openChecks.has(id) ? " open" : "") + "><summary>" + esc(showText) + "</summary><ul>" +
+        ex.map((x) =>
+          '<li><span class="ref">' + esc(x.ref) + (x.name ? " <span>· " + esc(x.name) + "</span>" : "") + "</span>" +
+          (x.at ? "<time>" + esc(when(x.at)) + "</time>" : "") +
+          (x.note ? '<span class="why">' + esc(x.note) + "</span>" : "") + "</li>").join("") +
+        "</ul></details>"
+      : "") +
+    "</li>";
+}
+
 /* ---------------- Events ---------------- */
 
 function select(id) {
@@ -1352,10 +1939,33 @@ function select(id) {
 el("queues").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-queue]");
   if (!btn) return;
-  queue = btn.dataset.queue;
   closeNav();
+  if (isModule(btn.dataset.queue)) { setView(btn.dataset.queue); window.scrollTo(0, 0); return; }
+  queue = btn.dataset.queue;
+  if (view !== "pipeline") { setView("pipeline"); window.scrollTo(0, 0); return; }
   document.body.classList.remove("detail-open");
   render();
+});
+
+el("healthBody").addEventListener("toggle", (e) => {
+  const d = e.target;
+  if (!d.matches || !d.matches("details[data-check]")) return;
+  if (d.open) openChecks.add(d.dataset.check); else openChecks.delete(d.dataset.check);
+}, true);
+
+el("healthBody").addEventListener("click", (e) => {
+  const b = e.target.closest('[data-action="write-test"]');
+  if (b && !b.disabled) runWriteTestNow();
+});
+
+el("hours").addEventListener("change", () => {
+  prefs.hours = el("hours").value;
+  store.set("panel2-hours", prefs.hours);
+  for (const key of MODULE_ORDER) MODULES[key].data = null;
+  shownHtml = "";
+  renderHealth();
+  renderQueues();
+  loadHealth();
 });
 
 el("rows").addEventListener("click", (e) => {
@@ -1401,6 +2011,8 @@ window.matchMedia("(min-width: 1800px)").addEventListener("change", () => {
 document.addEventListener("keydown", (e) => {
   if (el("boardView").hidden) return;
   const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
+  // The enquiry shortcuts belong to the pipeline page only.
+  if (view !== "pipeline" && e.key !== "Escape") return;
   if (e.key === "/" && !typing) {
     e.preventDefault();
     el("search").focus();
