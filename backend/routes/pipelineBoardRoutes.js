@@ -438,6 +438,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
                 choice: t.choice, name: t.name, code: t.tutorCode, score: t.score,
                 distanceKm: t.distanceKm, experience: t.experience || "",
                 occupation: t.occupation || "", area: [t.area, t.city].filter(Boolean).join(", "),
+                isPartial: t.isPartial === true,
               })),
             }
           : null,
