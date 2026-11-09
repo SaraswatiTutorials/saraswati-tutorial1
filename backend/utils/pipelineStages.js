@@ -22,6 +22,7 @@
 
 import mongoose from "mongoose";
 import Tutor from "../models/Tutor.js";
+import PartialTutor from "../models/PartialTutor.js";
 import BroadcastLog from "../models/BroadcastLog.js";
 import {
   buildCentralizedQuery,
@@ -59,6 +60,15 @@ const whenSent = (date) =>
   new Date(date).toLocaleString("en-IN", {
     timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
   });
+
+/**
+ * How far a tutor may be and still be shortlisted.
+ *
+ * Distance comes first: somebody who cannot reach the family is no use
+ * however well they score, so anyone beyond this is dropped outright rather
+ * than ranked low. Set SHORTLIST_RADIUS_KM to change it.
+ */
+export const SHORTLIST_RADIUS_KM = Number(process.env.SHORTLIST_RADIUS_KM || 10);
 
 /** How many tutors each stage works with. Both are overridable per call. */
 export const SHORTLIST_SIZE = Number(process.env.PIPELINE_SHORTLIST_SIZE || 20);
@@ -214,17 +224,226 @@ export async function reconfirmRequirement(lead, { dryRun = false, resend = fals
   };
 }
 
+/** Last ten digits, so 09876543210 and +91 98765 43210 are one person. */
+const last10 = (phone) => {
+  const digits = String(phone || "").replace(/\D/g, "");
+  return digits.length >= 10 ? digits.slice(-10) : "";
+};
+
+/**
+ * A short sign-up form record, shaped so the matching engine can score it.
+ *
+ * The form asks for the three things the ranking is actually built on: where
+ * they are, what they do, and how long they have taught. Nothing is asked
+ * about subjects, grades, boards, timings or gender, so those factors score
+ * zero and the person ranks on distance and experience alone — which is
+ * honest, rather than flattering them with marks for things nobody knows.
+ *
+ * The flattening matters: the form stores `location` as an object, while the
+ * scorer reads `tutor.location` as an area name. Passing the object straight
+ * through would put "[object Object]" into the area comparison.
+ */
+/**
+ * One row per person, newest first in, duplicates dropped.
+ *
+ * Nothing stops somebody filling the form in twice, and plenty have: 17
+ * numbers appear more than once and one appears four times. Without this a
+ * single person takes four of the twenty places on a shortlist. The most
+ * recent submission wins, since it is the one most likely to be current. A
+ * record with no usable number is kept, because there is nothing to match it
+ * against and dropping it would lose a real person.
+ */
+function dedupePartials(rowsNewestFirst) {
+  const seen = new Set();
+  const kept = [];
+  for (const row of rowsNewestFirst) {
+    const key = last10(row.whatsapp);
+    if (key) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    kept.push(row);
+  }
+  return kept;
+}
+
+export function partialAsTutor(p) {
+  const loc = p.location || {};
+  return {
+    _id: p._id,
+    name: p.name || "",
+    whatsapp: p.whatsapp || "",
+    phone: p.whatsapp || "",
+    experience: p.experience || "",
+    occupation: p.occupation || "",
+    area: loc.area || "",
+    city: loc.city || "",
+    pincode: loc.pincode || "",
+    location: loc.placeLabel || loc.area || "",
+    latitude: loc.latitude ?? null,
+    longitude: loc.longitude ?? null,
+    isPartial: true,
+  };
+}
+
+// ---------------------------------------------------------------
+// Occupation
+// ---------------------------------------------------------------
+//
+// The third thing both forms ask about, alongside where somebody is and how
+// long they have taught. College Lecturer first, then School Teacher: the
+// order the office actually works to. The matching engine has no occupation
+// factor at all, so this is added here, to every candidate — registered and
+// sign-up form alike — rather than inside the shared engine, where it would
+// silently change the recommendation API and the old auto-broadcast too.
+//
+// Occupation is worth a quarter of the whole score. Edit this share and the
+// standings below to change the priority; nothing else needs touching.
+export const OCCUPATION_SHARE = 0.25;
+
+/** Relative standing, before it is scaled to the share above. */
+const OCCUPATION_FRACTION = {
+  "college lecturer": 1,
+  "school teacher": 0.8,
+  "working professional": 0.55,
+  freelancer: 0.55,
+  other: 0.4,
+  student: 0.25,
+};
+
+/**
+ * Anything not recognised — blank, or a one-off label like "Law Faculty" —
+ * lands mid-table rather than at the bottom. Nearly half the registered
+ * tutors have no occupation on file, and scoring them zero would drop those
+ * 163 people below a student who happened to tick a box on the short form. A
+ * missing answer is not a bad answer.
+ */
+const UNKNOWN_FRACTION = 0.55;
+
+export function occupationFraction(occupation) {
+  const key = String(occupation || "").trim().toLowerCase();
+  if (!key) return UNKNOWN_FRACTION;
+  return OCCUPATION_FRACTION[key] ?? UNKNOWN_FRACTION;
+}
+
+/**
+ * How many points occupation is worth for this requirement.
+ *
+ * The engine's own maximum moves with how much the parent specified — a lead
+ * with no board or timing is marked out of less — so a fixed number would be
+ * a different share on every enquiry. Solving w / (engineMax + w) = share
+ * keeps it at exactly a quarter whatever else was asked for.
+ */
+export function occupationWeight(engineMax) {
+  return Math.round(((engineMax || 100) * OCCUPATION_SHARE) / (1 - OCCUPATION_SHARE));
+}
+
+export function occupationScore(occupation, engineMax = 155) {
+  return Math.round(occupationWeight(engineMax) * occupationFraction(occupation));
+}
+
+/** Added to every candidate's score, and to the denominator, so percentages stay comparable. */
+function withOccupation(score, tutor) {
+  const weight = occupationWeight(score.maxPossibleScore);
+  const points = Math.round(weight * occupationFraction(tutor.occupation));
+  const total = score.score + points;
+  const max = score.maxPossibleScore + weight;
+  return {
+    ...score,
+    score: total,
+    maxPossibleScore: max,
+    percentage: Math.min(100, Math.round((total / (max || 100)) * 100)),
+    breakdown: { ...score.breakdown, occupation: points },
+  };
+}
+
+/** Named in the reason only when it actually lifted someone up the list. */
+function occupationNote(occupation) {
+  const key = String(occupation || "").trim().toLowerCase();
+  return key === "college lecturer" || key === "school teacher"
+    ? `Priority: ${String(occupation).trim()}`
+    : "";
+}
+
+/**
+ * The score a sign-up form entry has actually earned.
+ *
+ * The matching engine awards full marks when a field is missing — twenty for
+ * grade when `grades` is empty, ten for gender when `gender` is unset. That
+ * rule is deliberate and right for registered tutors, whose profiles are
+ * often thin, and it must stay as it is for them.
+ *
+ * Applied to a form entry it is nonsense: almost every field is missing, so
+ * the rule hands them thirty unearned points and floats them above tutors who
+ * genuinely teach the subject. So a form entry keeps only what the form
+ * actually asked about — where they are and how long they have taught — and
+ * scores zero on the rest. The denominator is left alone, so the percentages
+ * stay directly comparable with a registered tutor's.
+ */
+const PARTIAL_CAN_EARN = new Set(["pincode", "area", "city", "experience"]);
+
+function earnedByPartial(score) {
+  const kept = Object.fromEntries(
+    Object.entries(score.breakdown).map(([k, v]) => [k, PARTIAL_CAN_EARN.has(k) ? v : 0]),
+  );
+  const total = Object.values(kept).reduce((n, v) => n + v, 0);
+  return {
+    ...score,
+    score: total,
+    percentage: Math.min(100, Math.round((total / (score.maxPossibleScore || 100)) * 100)),
+    breakdown: kept,
+  };
+}
+
 // =============================================================
 // Stage 2 — shortlist the best tutors
 // =============================================================
 
-export async function shortlistTutors(lead, { limit = SHORTLIST_SIZE, dryRun = false } = {}) {
+export async function shortlistTutors(lead, {
+  limit = SHORTLIST_SIZE, dryRun = false, includePartial = true, radiusKm = SHORTLIST_RADIUS_KM,
+} = {}) {
   const stage = "shortlist";
   const requirementId = lead?.requirementId || "";
   if (!requirementId) return blocked(stage, "This enquiry has no requirement ID.");
 
   const params = matchParamsFor(lead);
-  const candidates = await Tutor.find(buildCentralizedQuery(params));
+  const registered = await Tutor.find(buildCentralizedQuery(params));
+
+  // Everyone who filled in the short sign-up form is a candidate too — see
+  // partialAsTutor for what is known about them and what is not. Nobody is
+  // dropped for being unverified; the only ones left out are the ones who are
+  // already in the running under their registered record, so that the same
+  // person cannot occupy two places on one shortlist.
+  //
+  // The check is against every *approved* tutor, and only those. Two
+  // different mistakes are being avoided at once:
+  //
+  //   - against only this requirement's matches, an approved tutor who failed
+  //     the grade or gender test would reappear through the sign-up form.
+  //     Being filtered out is an answer, not another door to try.
+  //   - against every tutor on file, the thirty-four people who are pending
+  //     here and also filled in the form would vanish from both pools: out of
+  //     the first for not being approved, out of the second as duplicates of
+  //     a record that is not in the running either.
+  //
+  // So an approved tutor is already represented and their form entry is
+  // dropped; anyone else is carried by their form entry.
+  const onFile = await Tutor.find({ status: "approved" }, { whatsapp: 1, phone: 1 }).lean();
+  const registeredPhones = new Set(
+    onFile.flatMap((t) => [last10(t.whatsapp), last10(t.phone)]).filter(Boolean),
+  );
+  const partials = includePartial
+    ? dedupePartials(
+        (await PartialTutor.find({ status: { $ne: "registered" } })
+          .sort({ createdAt: -1 }).lean())
+          .filter((p) => {
+            const key = last10(p.whatsapp);
+            return !key || !registeredPhones.has(key);
+          }),
+      ).map(partialAsTutor)
+    : [];
+
+  const candidates = [...registered, ...partials];
 
   const hasLocation = !!(
     params.pincode || params.area || params.locality ||
@@ -233,7 +452,10 @@ export async function shortlistTutors(lead, { limit = SHORTLIST_SIZE, dryRun = f
 
   const scored = candidates
     .map((tutor) => {
-      const score = calculateTutorScore(params, tutor);
+      const raw = calculateTutorScore(params, tutor);
+      // earnedByPartial strips the engine's unearned marks; occupation is
+      // added after, because a form entry did declare that one.
+      const score = withOccupation(tutor.isPartial ? earnedByPartial(raw) : raw, tutor);
       return {
         doc: tutor,
         name: tutor.name,
@@ -241,18 +463,39 @@ export async function shortlistTutors(lead, { limit = SHORTLIST_SIZE, dryRun = f
         tutorCode: tutor.tutorCode || "",
         experience: tutor.experience || "",
         occupation: tutor.occupation || "",
+        isPartial: tutor.isPartial === true,
+        phone: tutor.isPartial ? tutor.whatsapp : undefined,
         score: score.score,
         matchPercentage: score.percentage,
         locationScore: score.locationScore,
         distanceKm: score.distanceKm,
         distanceTier: score.distanceTier,
-        reason: computeMatchReason(params, tutor, score),
+        reason: [computeMatchReason(params, tutor, score), occupationNote(tutor.occupation)]
+          .filter(Boolean).join(" • "),
       };
     })
+    // Too far to teach this family, so out — before anything else is weighed.
+    // Somebody whose distance cannot be worked out, because one end has no
+    // coordinates, is kept and judged on the pincode, area and city match
+    // instead of being thrown away for missing data.
+    .filter((t) => t.distanceKm == null || t.distanceKm <= radiusKm)
     // A tutor who matches nothing about where the family is, is not a match at
     // all; without this they ride in on subject alone from another city.
     .filter((t) => !(hasLocation && t.locationScore === 0) && t.matchPercentage > 0)
-    .sort((a, b) => compareTutors(a, b));
+    .sort((a, b) => {
+      // Approved tutors first, always. Somebody who registered and was
+      // approved outranks somebody who only filled in the short form, however
+      // well that entry scores — the form entries take whatever places are
+      // left once the approved ones run out, which on a thinly covered area
+      // is most of the list and on a dense one is none of it.
+      if (a.isPartial !== b.isPartial) return a.isPartial ? 1 : -1;
+
+      // Then distance, which leads. compareTutors treats two people within a
+      // kilometre of each other as equally near and lets the score settle it,
+      // so occupation's quarter decides between neighbours rather than
+      // dragging somebody in from the far side of the city.
+      return compareTutors(a, b);
+    });
 
   const top = scored.slice(0, limit);
   const tutors = top.map((t, i) => ({
@@ -266,7 +509,13 @@ export async function shortlistTutors(lead, { limit = SHORTLIST_SIZE, dryRun = f
     experience: t.experience,
     occupation: t.occupation,
     reason: t.reason,
+    // Marked so the board, and the invite step, can tell at a glance that
+    // this person has not registered yet.
+    isPartial: t.isPartial,
+    ...(t.isPartial ? { phone: t.phone || "", source: "partial sign-up form" } : {}),
   }));
+
+  const partialCount = tutors.filter((t) => t.isPartial).length;
 
   const plan = {
     stage,
@@ -275,8 +524,12 @@ export async function shortlistTutors(lead, { limit = SHORTLIST_SIZE, dryRun = f
     requirementId,
     limit,
     candidatesConsidered: candidates.length,
+    registeredConsidered: registered.length,
+    partialConsidered: partials.length,
+    radiusKm,
     matchedCount: scored.length,
     tutorCount: tutors.length,
+    partialCount,
     tutors,
   };
   if (dryRun) return { ...plan, saved: false, note: "Dry run — no shortlist was saved." };
@@ -287,13 +540,52 @@ export async function shortlistTutors(lead, { limit = SHORTLIST_SIZE, dryRun = f
     leadId: String(lead._id),
     tutors,
     tutorCount: tutors.length,
+    partialCount,
     candidatesConsidered: candidates.length,
-    radiusKm: null,
+    radiusKm,
     source: "panel 2 shortlist button",
     matchedAt: new Date(),
   });
 
   return { ...plan, saved: true };
+}
+
+/**
+ * The person a shortlist row points at, from whichever list holds them.
+ *
+ * From here on a partial tutor is treated as a tutor: invited, counted,
+ * offered to the parent, chosen. The only differences are the ones that
+ * cannot apply — they have no tutor code, no approval status and no
+ * availability flag — so those checks are skipped rather than failed.
+ */
+async function findCandidate(row) {
+  if (row.isPartial) {
+    const p = row.tutorId ? await PartialTutor.findById(row.tutorId).catch(() => null) : null;
+    if (!p) return null;
+    return {
+      _id: p._id,
+      name: p.name || "",
+      phone: p.whatsapp || "",
+      tutorCode: "",
+      isPartial: true,
+      blocked: false,
+      notApproved: "",
+    };
+  }
+
+  const t = row.tutorId
+    ? await Tutor.findById(row.tutorId).catch(() => null)
+    : await Tutor.findOne({ tutorCode: row.tutorCode });
+  if (!t) return null;
+  return {
+    _id: t._id,
+    name: t.name || "",
+    phone: t.whatsapp || t.phone || "",
+    tutorCode: t.tutorCode || "",
+    isPartial: false,
+    blocked: t.availabilityStatus === "Blocked",
+    notApproved: t.status === "approved" ? "" : (t.status || "not approved"),
+  };
 }
 
 // =============================================================
@@ -330,23 +622,24 @@ export async function inviteTutors(lead, { limit = INVITE_SIZE, dryRun = false, 
   for (const row of shortlist.tutors) {
     if (planned.filter((p) => p.willSend).length >= limit) break;
 
-    const tutor = row.tutorId
-      ? await Tutor.findById(row.tutorId)
-      : await Tutor.findOne({ tutorCode: row.tutorCode });
+    const tutor = await findCandidate(row);
 
     if (!tutor) {
-      planned.push({ name: row.name, willSend: false, skipReason: "Tutor record not found" });
+      planned.push({
+        name: row.name, willSend: false,
+        skipReason: row.isPartial ? "Partial tutor form entry is no longer on file" : "Tutor record not found",
+      });
       continue;
     }
-    if (tutor.availabilityStatus === "Blocked") {
+    if (tutor.blocked) {
       planned.push({ name: tutor.name, willSend: false, skipReason: "Tutor is Blocked" });
       continue;
     }
-    if (tutor.status !== "approved") {
-      planned.push({ name: tutor.name, willSend: false, skipReason: `Tutor is ${tutor.status || "not approved"}` });
+    if (tutor.notApproved) {
+      planned.push({ name: tutor.name, willSend: false, skipReason: `Tutor is ${tutor.notApproved}` });
       continue;
     }
-    const phoneNumber = tutor.whatsapp || tutor.phone || "";
+    const phoneNumber = tutor.phone;
     if (!phoneNumber) {
       planned.push({ name: tutor.name, willSend: false, skipReason: "No WhatsApp number" });
       continue;
@@ -366,7 +659,8 @@ export async function inviteTutors(lead, { limit = INVITE_SIZE, dryRun = false, 
     planned.push({
       name: tutor.name,
       tutorId: String(tutor._id),
-      tutorCode: tutor.tutorCode || "",
+      tutorCode: tutor.tutorCode,
+      isPartial: tutor.isPartial,
       distanceKm: row.distanceKm,
       matchPercentage: row.matchPercentage,
       willSend: true,
@@ -398,21 +692,24 @@ export async function inviteTutors(lead, { limit = INVITE_SIZE, dryRun = false, 
         name: p.name,
         templateVars: chosen.buildVars(p.name, lead, ward),
       })),
-      tutors: toSend.map(({ name, tutorCode, distanceKm }) => ({ name, tutorCode, distanceKm })),
+      partialCount: toSend.filter((p) => p.isPartial).length,
+      tutors: toSend.map(({ name, tutorCode, distanceKm, isPartial }) =>
+        ({ name, tutorCode, distanceKm, isPartial })),
     };
   }
 
   const results = [];
   for (const p of toSend) {
     const tutor = p.doc;
-    const phoneNumber = tutor.whatsapp || tutor.phone || "";
+    const phoneNumber = tutor.phone;
     const messageBody = buildBroadcastMessage(tutor.name, lead, ward, null);
 
     const log = await new BroadcastLog({
       tutorId: tutor._id,
       tutorName: tutor.name,
       tutorPhone: phoneNumber,
-      tutorCode: tutor.tutorCode || "",
+      tutorCode: tutor.tutorCode,
+      tutorSource: tutor.isPartial ? "partial" : "tutor",
       requirementId,
       leadId: lead._id,
       type: "whatsapp",
@@ -572,10 +869,14 @@ export async function notifySelectedTutor(lead, tutorId, { dryRun = false, force
   const stage = "selected";
   if (!tutorId) return blocked(stage, "No tutor was chosen.");
 
-  // Panel 2 knows tutors by their code; the dashboard passes a Mongo id.
-  const tutor = mongoose.isValidObjectId(tutorId)
-    ? await Tutor.findById(tutorId)
-    : await Tutor.findOne({ tutorCode: String(tutorId) });
+  // Panel 2 knows tutors by their code; the dashboard passes a Mongo id. A
+  // partial tutor has no code, so they are looked for in their own list by
+  // id: the parent picked them, so they are told like anyone else.
+  const byId = mongoose.isValidObjectId(tutorId);
+  const tutor = (byId
+    ? await Tutor.findById(tutorId).catch(() => null)
+    : await Tutor.findOne({ tutorCode: String(tutorId) }))
+    || (byId ? await PartialTutor.findById(tutorId).catch(() => null) : null);
   if (!tutor) return blocked(stage, "That tutor was not found.");
 
   const already = lead.assignedTutorId ? String(lead.assignedTutorId) : "";

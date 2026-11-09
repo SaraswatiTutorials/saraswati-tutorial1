@@ -307,6 +307,11 @@
   .steps .is-failed .no { background: var(--bad-soft); border-color: #f3c3bf; color: var(--bad); }
   .steps .t { font-weight: 600; }
   .steps .next-tag { margin-left: 8px; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 600; }
+  /* Whether pressing this step through to the end puts a WhatsApp message on
+     somebody's phone. Shown on the step itself, not only once the preview is
+     open, so it can be read before anything is clicked. */
+  .steps .sends-tag { margin-left: 8px; padding: 1px 6px; border-radius: 4px; background: var(--bad-soft); color: var(--bad-mark); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .steps .quiet-tag { margin-left: 8px; padding: 1px 6px; border-radius: 4px; background: var(--grey-soft); color: var(--faint); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
   .steps .res { color: var(--ink-2); font-size: 14px; overflow-wrap: anywhere; }
   .steps .why { color: var(--mut); font-size: 13px; }
   .steps .acts { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
@@ -951,7 +956,8 @@ function invitedPanel(b) {
     (b.firstInviteAt ? "<span>First sent " + esc(when(b.firstInviteAt)) + "</span>" : "") + "</div>" +
     table(["Tutor", "Delivery", "Reply", "Distance", "Experience", "Invited"],
       b.invited.map((t) => [
-        tutorCell(t, [t.code, t.occupation].filter(Boolean).join(" · ")),
+        tutorCell(t, [t.source === "partial" ? "Partial tutor form" : t.code, t.occupation]
+          .filter(Boolean).join(" · ")),
         deliveryCell(t.delivery, t.deliveryError, t.sendStatus, t.failureReason),
         replyCell(t.reply, t.repliedAt),
         km(t.distanceKm),
@@ -969,6 +975,7 @@ function shortlistPanel(b) {
   const s = b.shortlisted;
   return '<div class="meta">' +
     (s.consideredCount != null ? "<span>From " + esc(s.consideredCount) + " considered</span>" : "") +
+    (s.partialCount ? "<span>" + esc(s.partialCount) + " from the partial tutor form</span>" : "") +
     (s.radiusKm ? "<span>Within " + esc(s.radiusKm) + " km</span>" : "") +
     (s.at ? "<span>Made " + esc(when(s.at)) + "</span>" : "") + "</div>" +
     (b.shortlistAfterInvites
@@ -978,7 +985,8 @@ function shortlistPanel(b) {
     (s.tutors.length
       ? table(["Tutor", "Rank", "Score", "Distance", "Experience"],
           s.tutors.map((t, i) => [
-            tutorCell(t, [t.code, t.occupation].filter(Boolean).join(" · ")),
+            tutorCell(t, [t.isPartial ? "Partial tutor form" : t.code, t.occupation]
+              .filter(Boolean).join(" · ")),
             esc(t.rank || i + 1), esc(t.score ?? "—"), km(t.distanceKm), esc(t.experience || "—"),
           ]))
       : '<div class="none">The shortlist has no tutors.</div>');
@@ -1013,7 +1021,7 @@ function stepList(b) {
 
   const steps = [
     {
-      n: 1, title: "Re-confirm with the parent",
+      n: 1, title: "Re-confirm with the parent", sends: "Sends WhatsApp to the parent",
       result: !r ? "Not sent."
         : r.sent ? "Sent " + esc(when(r.at)) + ". " + esc(deliveryWord(r.delivery)) + ". The parent's reply is not recorded on this board."
         : "Last attempt failed: " + esc(r.failureReason || "unknown reason") + ".",
@@ -1034,7 +1042,7 @@ function stepList(b) {
       why: b.stage === "manual" ? c.interested + " said yes but not on this shortlist, so they cannot be offered." : "",
     },
     {
-      n: 3, title: "Invite tutors",
+      n: 3, title: "Invite tutors", sends: "Sends WhatsApp to tutors",
       result: c.invited
         ? plural(c.invited, "tutor") + " invited, " + c.delivered + " delivered" + (c.undelivered ? ", " + c.undelivered + " not delivered" : "") +
           ". " + c.interested + " said yes, " + c.notInterested + " declined, " + c.waiting + " no reply."
@@ -1049,7 +1057,7 @@ function stepList(b) {
         : "",
     },
     {
-      n: 4, title: "Send top 3 to the parent",
+      n: 4, title: "Send top 3 to the parent", sends: "Sends WhatsApp to the parent",
       result: t3 && t3.sent
         ? "Sent " + esc(when(t3.at)) + ": " + t3.tutors.map((t) => esc(t.name)).join(", ") + ". " + esc(deliveryWord(t3.delivery)) + "."
         : t3 ? "Last attempt failed: " + esc(t3.failureReason || "unknown reason") + "."
@@ -1061,7 +1069,7 @@ function stepList(b) {
         : b.stage === "waiting" ? "You can send now, or wait for more replies." : "",
     },
     {
-      n: 5, title: "Confirm to the chosen tutor",
+      n: 5, title: "Confirm to the chosen tutor", sends: "Sends WhatsApp to the tutor",
       result: b.assignedTutor ? esc(b.assignedTutor) + " is confirmed on this enquiry."
         : b.chosen ? "Parent chose " + esc(b.chosen.name) + (b.chosen.choice ? " (option " + esc(b.chosen.choice) + ")" : "") + (b.chosen.at ? ", " + esc(when(b.chosen.at)) : "") + ". Tutor not told yet."
         : "No tutor confirmed.",
@@ -1082,7 +1090,9 @@ function stepSection(b) {
   const busy = !!running[idOf(b)];
   const items = stepList(b).map((s) =>
     '<li class="' + (s.state ? "is-" + s.state : "") + '"><span class="no">' + s.n + "</span>" +
-      '<div><div class="t">' + s.title + (s.state === "next" ? '<span class="next-tag">Next</span>' : "") + '</div><div class="res">' + s.result + "</div>" +
+      '<div><div class="t">' + s.title + (s.state === "next" ? '<span class="next-tag">Next</span>' : "") +
+        (s.sends ? '<span class="sends-tag">' + s.sends + "</span>" : '<span class="quiet-tag">No message sent</span>') +
+      '</div><div class="res">' + s.result + "</div>" +
         (s.why ? '<div class="why">' + s.why + "</div>" : "") + "</div>" +
       '<div class="acts">' + s.actions.map((a) =>
         '<button class="btn' + (s.state === "next" ? " btn-primary" : "") + '" data-step="' + a.stage + '"' +

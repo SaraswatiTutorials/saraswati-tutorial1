@@ -40,6 +40,7 @@ const BROADCAST_FIELDS = {
   requirementId: 1, tutorId: 1, tutorName: 1, tutorCode: 1, tutorPhone: 1,
   status: 1, responseStatus: 1, respondedAt: 1, time: 1, createdAt: 1,
   failureReason: 1, whatsappMessageId: 1, distanceKm: 1, broadcastType: 1,
+  tutorSource: 1,
 };
 
 // Set when Odoo could not be asked, so the page can say delivery is unknown
@@ -299,6 +300,9 @@ router.get("/api/board", requireLogin, async (req, res) => {
         return {
           name: l.tutorName || "",
           code: l.tutorCode || "",
+          // "partial" when this person came off the partial tutor form; they
+          // are invited like anyone else but have no tutor code to show.
+          source: l.tutorSource || "tutor",
           phone: l.tutorPhone || "",
           experience: t.experience || "",
           occupation: t.occupation || "",
@@ -397,12 +401,16 @@ router.get("/api/board", requireLogin, async (req, res) => {
           ? {
               count: shortlist.tutorCount ?? (shortlist.tutors || []).length,
               consideredCount: shortlist.candidatesConsidered ?? null,
+              partialCount: shortlist.partialCount ?? null,
               radiusKm: shortlist.radiusKm ?? null,
               at: shortlist.matchedAt || null,
               tutors: (shortlist.tutors || []).map((t) => ({
                 rank: t.rank, name: t.name, code: t.tutorCode, score: t.score,
                 distanceKm: t.distanceKm, experience: t.experience || "",
                 occupation: t.occupation || "", reason: t.reason || "",
+                // Came off the short sign-up form rather than a registration,
+                // so the board can say so instead of showing a blank code.
+                isPartial: t.isPartial === true, phone: t.phone || "",
               })),
             }
           : null,
