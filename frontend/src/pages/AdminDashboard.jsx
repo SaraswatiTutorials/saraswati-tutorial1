@@ -3141,9 +3141,7 @@ export default function AdminDashboard() {
                                 </span>
                               )}
                               {p.assignedTutor && <UnassignTutorButton onClick={() => handleUnassignTutor(p)} />}
-                              {p.assignedTutor && (
-                                <SendTermsButton lead={p} sending={sendingTermsId === p._id} onClick={() => handleSendTerms(p)} />
-                              )}
+                              <SendTermsButton lead={p} sending={sendingTermsId === p._id} onClick={() => handleSendTerms(p)} />
                             </div>
 
                             <button
@@ -5211,6 +5209,9 @@ function AdminAttendanceConsole({
                                 <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                                   <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Class Logs & Topics History</h4>
                                   <div className="flex items-center gap-2 flex-wrap">
+                                    {onSendTerms && (
+                                      <SendTermsButton lead={p} sending={sendingTermsId === p._id} onClick={() => onSendTerms(p)} />
+                                    )}
                                     <button
                                       type="button"
                                       onClick={() => handleSyncSingleLeadToOdoo(p._id)}
@@ -5325,9 +5326,6 @@ function AdminAttendanceConsole({
                                             <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                                               <span>Current Assigned: <strong className="text-slate-800 dark:text-slate-100">{p.assignedTutor || "Not Assigned"}</strong></span>
                                               {p.assignedTutor && <UnassignTutorButton onClick={() => onUnassignTutor(p)} />}
-                                              {p.assignedTutor && onSendTerms && (
-                                                <SendTermsButton lead={p} sending={sendingTermsId === p._id} onClick={() => onSendTerms(p)} />
-                                              )}
                                             </div>
                                           </div>
 

@@ -1401,7 +1401,7 @@ router.post("/:id/unassign-tutor", verifyToken(["admin"]), async (req, res) => {
 // POST send the parent the Terms & Conditions template (with its PDF)
 // POST /api/parent-enquiries/:id/send-terms
 //
-// Pressed by an admin on the main dashboard once a tutor is assigned. Goes
+// Pressed by an admin on the main dashboard, on any lead, whenever they choose. Goes
 // through Odoo as the approved WhatsApp template, so it reaches the parent
 // even outside WhatsApp's 24-hour window. Body: { dryRun? }
 // =============================================================
@@ -1411,9 +1411,6 @@ router.post("/:id/send-terms", verifyToken(["admin"]), async (req, res) => {
     const lead = await ParentEnquiry.findById(req.params.id);
     if (!lead) return res.status(404).json({ message: "Lead not found." });
 
-    if (!lead.assignedTutorId && !lead.assignedTutor) {
-      return res.status(400).json({ message: "Assign a tutor first. The terms are sent once a tutor is assigned." });
-    }
     const phoneNumber = String(lead.phone || "").trim();
     if (!phoneNumber) {
       return res.status(400).json({ message: "This parent has no phone number." });
