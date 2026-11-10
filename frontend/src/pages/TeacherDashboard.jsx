@@ -11,7 +11,8 @@ import {
   formatHours,
 } from "../utils/classTime";
 import TimeInput12 from "../components/TimeInput12";
-import PortalShell, { headerIconButton } from "../components/portal/PortalShell";
+import { headerIconButton } from "../components/portal/PortalShell";
+import TutorShell from "../components/portal/TutorShell";
 import {
   cardClass,
   formatDay,
@@ -28,7 +29,6 @@ import { TutorAssignments } from "../components/portal/Assignments";
 import CompleteProfile from "../components/portal/CompleteProfile";
 import { uploadPortalPhoto } from "../utils/photo";
 import {
-  LogOut,
   Check,
   X,
   Calendar,
@@ -50,6 +50,9 @@ import {
   Loader2,
   ClipboardList,
   Camera,
+  ShieldCheck,
+  BadgeCheck,
+  ArrowRight,
 } from "lucide-react";
 
 export default function TeacherDashboard() {
@@ -59,7 +62,9 @@ export default function TeacherDashboard() {
   const [error, setError] = useState("");
   // Server's confirmation after marking, e.g. which month a late class was counted in
   const [notice, setNotice] = useState("");
-  const [currentTab, setCurrentTab] = useState("active"); // "active", "history" or "assignments"
+  const [currentTab, setCurrentTab] = useState("active"); // "active", "history", "assignments" or "verification"
+  // Where the tutor is with full verification: partial, submitted, relogin or full
+  const [verification, setVerification] = useState(null);
   const [tutorPhoto, setTutorPhoto] = useState(() => localStorage.getItem("tutorPhoto") || "");
   const [photoBusy, setPhotoBusy] = useState(false);
   const [historyLogs, setHistoryLogs] = useState({}); // studentId -> array of logs
@@ -139,6 +144,7 @@ export default function TeacherDashboard() {
     }
     fetchStudents();
     fetchProfilePhoto();
+    fetchVerification();
     // Mount only: re-running after a logout clears the token would redirect again and drop the login message
   }, []);
 
@@ -150,6 +156,14 @@ export default function TeacherDashboard() {
       const data = await res.json();
       setTutorPhoto(data.tutor?.photo || "");
       localStorage.setItem("tutorPhoto", data.tutor?.photo || "");
+    } catch {}
+  }
+
+  async function fetchVerification() {
+    try {
+      const res = await fetch(`${API_BASE}/portal/tutor/full-profile`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      setVerification(await res.json());
     } catch {}
   }
 
@@ -420,24 +434,94 @@ export default function TeacherDashboard() {
   const fieldClass =
     "w-full rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-900 transition focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white";
 
+  // ── Menu ────────────────────────────────────────────────────────────
+  const stage = verification?.stage;
+  const nav = [
+    { id: "active", label: "Mark attendance", icon: ClipboardCheck, badge: students.length || null },
+    { id: "history", label: "Class history", icon: History },
+    { id: "assignments", label: "Tests", icon: ClipboardList },
+    ...(stage === "partial" || stage === "submitted"
+      ? [{ id: "verification", label: "Full verification", icon: ShieldCheck, badge: stage === "partial" ? "To do" : "In review", badgeTone: "amber" }]
+      : []),
+  ];
+  // Once verification is done its menu item goes; don't leave the page on it
+  const view = nav.some((n) => n.id === currentTab) ? currentTab : "active";
+  const studentView = view !== "verification";
+
+  const onConverted = (data) => {
+    localStorage.setItem("tutorToken", data.token);
+    localStorage.setItem("tutorId", data.tutor.id);
+    localStorage.setItem("tutorName", data.tutor.name);
+    localStorage.setItem("tutorCode", data.tutor.tutorCode || "");
+    if (data.tutor.photo) localStorage.setItem("tutorPhoto", data.tutor.photo);
+    window.location.reload();
+  };
+  const relogin = () => handleLogout("Please sign in again.");
+
+  const statusLine =
+    stage === "partial" ? { text: "Not verified yet", icon: ShieldCheck, cls: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" }
+    : stage === "submitted" ? { text: "Verification in review", icon: Clock, cls: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" }
+    : stage === "full" ? { text: "Verified tutor", icon: BadgeCheck, cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300" }
+    : null;
+  const StatusIcon = statusLine?.icon;
+
+  const profileCard = (
+    <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-white p-4 dark:border-slate-800 dark:from-indigo-500/10 dark:via-slate-900 dark:to-slate-900">
+      <div className="flex items-center gap-3">
+        <PhotoPicker
+          onPick={changeProfilePhoto}
+          disabled={photoBusy}
+          label={tutorPhoto ? "Change your profile photo" : "Add your profile photo"}
+          className="group relative shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+        >
+          <Avatar src={tutorPhoto} name={tutorName} size="h-12 w-12" textClass="text-lg" className="ring-2 ring-white dark:ring-slate-900" />
+          <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-slate-900 text-white transition group-hover:bg-indigo-600 dark:border-slate-900 dark:bg-white dark:text-slate-900">
+            {photoBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+          </span>
+        </PhotoPicker>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{tutorName}</p>
+          {tutorCode && <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{tutorCode}</p>}
+        </div>
+      </div>
+      {statusLine && (
+        <p className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${statusLine.cls}`}>
+          <StatusIcon className="h-3.5 w-3.5" />
+          {statusLine.text}
+        </p>
+      )}
+    </div>
+  );
+
+  const searchBox = (
+    <div className="relative w-full sm:w-72">
+      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <input
+        type="search"
+        placeholder="Search student or Req ID"
+        aria-label="Search student or Req ID"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className={`${fieldClass} h-11 pl-10 pr-4`}
+      />
+    </div>
+  );
+
+  const viewHeading = {
+    history: { title: "Class history", text: "Every class you have marked, month by month." },
+    assignments: { title: "Tests", text: "Set tests for your students and add their marks." },
+    verification: { title: "Full verification", text: "Add the remaining details to become a fully verified tutor." },
+  }[view];
+
   return (
-    <PortalShell
-      portal="Tutor Portal"
+    <TutorShell
+      nav={nav}
+      current={view}
+      onNavigate={setCurrentTab}
+      profileCard={profileCard}
+      onLogout={handleLogout}
       actions={
         <>
-          <PhotoPicker
-            onPick={changeProfilePhoto}
-            disabled={photoBusy}
-            label={tutorPhoto ? "Change your profile photo" : "Add your profile photo"}
-            className="relative shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
-          >
-            <Avatar src={tutorPhoto} name={tutorName} size="h-9 w-9 sm:h-10 sm:w-10" className="border border-slate-200 dark:border-slate-700" />
-            {photoBusy && (
-              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/50">
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
-              </span>
-            )}
-          </PhotoPicker>
           <div className="relative">
             <button
               type="button"
@@ -510,16 +594,6 @@ export default function TeacherDashboard() {
               </>
             )}
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className={`${headerIconButton} hover:!text-rose-600 sm:w-auto sm:gap-2 sm:px-4`}
-            title="Sign out"
-            aria-label="Sign out"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="hidden text-sm font-semibold sm:inline">Sign out</span>
-          </button>
         </>
       }
     >
@@ -575,94 +649,81 @@ export default function TeacherDashboard() {
           </div>
         )}
 
-        <section className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex items-center gap-4">
-            <PhotoPicker
-              onPick={changeProfilePhoto}
-              disabled={photoBusy}
-              label={tutorPhoto ? "Change your profile photo" : "Add your profile photo"}
-              className="group relative shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
-            >
-              <Avatar src={tutorPhoto} name={tutorName} size="h-16 w-16" textClass="text-2xl" className="ring-4 ring-white dark:ring-slate-900" />
-              <span className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-900 text-white transition group-hover:bg-indigo-600 dark:border-slate-950 dark:bg-white dark:text-slate-900">
-                {photoBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-              </span>
-            </PhotoPicker>
+        {view === "active" ? (
+          <>
+            <section className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{todayLabel}</p>
+                <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">Hello, {firstName}</h1>
+              </div>
+              {tutorCode && (
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                  Tutor ID · {tutorCode}
+                </span>
+              )}
+            </section>
+
+            {/* Short-form tutors: a nudge here, the form itself under Full verification */}
+            {stage === "partial" && (
+              <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 p-5 text-white shadow-lg shadow-indigo-600/20 sm:p-6">
+                <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" aria-hidden="true" />
+                <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                      <ShieldCheck className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h2 className="text-base font-bold">Complete your full verification</h2>
+                      <p className="mt-0.5 text-sm text-indigo-100">
+                        {verification.needed?.length || 0} details to add. Verified tutors get more tuition matches.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setCurrentTab("verification"); window.scrollTo({ top: 0 }); }}
+                    className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-50 cursor-pointer"
+                  >
+                    Start now
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </section>
+            )}
+            {(stage === "submitted" || stage === "relogin") && (
+              <CompleteProfile token={token} initialStatus={verification} onConverted={onConverted} onRelogin={relogin} />
+            )}
+
+            <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatTile label="Active students" value={students.length} icon={Users} tone="slate" />
+              <StatTile label="Classes done" value={totals.done} icon={CheckCircle2} tone="emerald" hint="this month" />
+              <StatTile label="Missed" value={totals.missed} icon={XCircle} tone="rose" hint="this month" />
+              <StatTile label="Classes left" value={totals.left} icon={Target} tone="indigo" hint="this month" />
+            </section>
+
+            <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Your students</h2>
+                <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Mark each class as done or missed.</p>
+              </div>
+              {searchBox}
+            </section>
+          </>
+        ) : (
+          <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{todayLabel}</p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">Hello, {firstName}</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">{viewHeading.title}</h1>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{viewHeading.text}</p>
             </div>
-          </div>
-          {tutorCode && (
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-              Tutor ID · {tutorCode}
-            </span>
-          )}
-        </section>
+            {studentView && searchBox}
+          </section>
+        )}
 
-        {/* A partial tutor completes the full registration here */}
-        <CompleteProfile
-          token={token}
-          onRelogin={() => handleLogout("Please sign in again.")}
-          onConverted={(data) => {
-            localStorage.setItem("tutorToken", data.token);
-            localStorage.setItem("tutorId", data.tutor.id);
-            localStorage.setItem("tutorName", data.tutor.name);
-            localStorage.setItem("tutorCode", data.tutor.tutorCode || "");
-            if (data.tutor.photo) localStorage.setItem("tutorPhoto", data.tutor.photo);
-            window.location.reload();
-          }}
-        />
+        {view === "verification" && (
+          <CompleteProfile token={token} initialStatus={verification} defaultOpen onConverted={onConverted} onRelogin={relogin} />
+        )}
 
-        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatTile label="Active students" value={students.length} icon={Users} tone="slate" />
-          <StatTile label="Classes done" value={totals.done} icon={CheckCircle2} tone="emerald" hint="this month" />
-          <StatTile label="Missed" value={totals.missed} icon={XCircle} tone="rose" hint="this month" />
-          <StatTile label="Classes left" value={totals.left} icon={Target} tone="indigo" hint="this month" />
-        </section>
-
-        <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900 sm:inline-flex" role="tablist">
-            {[
-              { id: "active", label: "Mark attendance", short: "Attendance", icon: ClipboardCheck },
-              { id: "history", label: "Class history", short: "History", icon: History },
-              { id: "assignments", label: "Tests", short: "Tests", icon: ClipboardList },
-            ].map((tab) => {
-              const TabIcon = tab.icon;
-              const active = currentTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setCurrentTab(tab.id)}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold transition sm:flex-none sm:gap-2 sm:px-4 sm:text-sm cursor-pointer ${
-                    active
-                      ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
-                      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                  }`}
-                >
-                  <TabIcon className="h-4 w-4 shrink-0" />
-                  <span className="sm:hidden">{tab.short}</span>
-                  <span className="hidden sm:inline">{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="relative sm:w-72">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="search"
-              placeholder="Search student or Req ID"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`${fieldClass} h-11 pl-10 pr-4`}
-            />
-          </div>
-        </section>
-
-        {error && (
+        {studentView && error && (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-center dark:border-rose-900 dark:bg-rose-950/20">
             <p className="text-sm font-medium text-rose-700 dark:text-rose-400">{error}</p>
             <button onClick={fetchStudents} className="mt-2 text-sm font-semibold text-indigo-600 underline dark:text-indigo-400 cursor-pointer">
@@ -671,7 +732,7 @@ export default function TeacherDashboard() {
           </div>
         )}
 
-        {loading && students.length === 0 ? (
+        {!studentView ? null : loading && students.length === 0 ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {[0, 1].map((i) => (
               <div key={i} className={`${cardClass} h-56 animate-pulse`} />
@@ -683,13 +744,13 @@ export default function TeacherDashboard() {
             title={searchQuery ? "No students match your search" : "No students assigned yet"}
             text={searchQuery ? "Try a different name or Req ID." : "When the team assigns you a student, they'll appear here."}
           />
-        ) : currentTab === "assignments" ? (
+        ) : view === "assignments" ? (
           <TutorAssignments
             students={filteredStudents}
             token={token}
             onSessionExpired={() => handleLogout("Your session has expired. Please sign in again.")}
           />
-        ) : currentTab === "active" ? (
+        ) : view === "active" ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {filteredStudents.map((student) => (
               <article key={student._id} className={`${cardClass} flex flex-col transition hover:shadow-md`}>
@@ -1052,6 +1113,6 @@ export default function TeacherDashboard() {
           </div>
         </div>
       )}
-    </PortalShell>
+    </TutorShell>
   );
 }
