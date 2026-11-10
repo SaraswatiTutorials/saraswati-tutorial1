@@ -308,7 +308,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
           name: l.tutorName || "",
           code: l.tutorCode || "",
           // "partial" when this person came off the partial tutor form; they
-          // are invited like anyone else but have no tutor code to show.
+          // are invited like anyone else.
           source: l.tutorSource || "tutor",
           phone: l.tutorPhone || "",
           experience: t.experience || "",

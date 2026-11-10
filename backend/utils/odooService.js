@@ -961,7 +961,42 @@ export async function updateLead(leadId, values) {
   }
 }
 
-export async function upsertMasterTutor(data) {
+/**
+ * Every TUT tutor ID in Odoo's master_tutors, so a partial tutor's ID (made in
+ * utils/tutorCodes.js) never repeats one. Only reads. Null when Odoo cannot be
+ * reached within `timeoutMs`, so a form never waits long on Odoo.
+ */
+export async function listOdooTutorCodes({ timeoutMs = 6000 } = {}) {
+  const read = (async () => {
+    const uid = await callOdoo("common", "authenticate", [_DB, _USERNAME, _PASSWORD, {}]);
+    if (!uid) throw new Error("Odoo login failed");
+    const rows = await callOdoo("object", "execute_kw", [
+      _DB, uid, _PASSWORD, "master_tutors", "search_read",
+      [[["tutor_id", "=like", "TUT%"]]], { fields: ["tutor_id"] },
+    ]);
+    return (rows || []).map((r) => r.tutor_id).filter(Boolean);
+  })();
+  let timer;
+  const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(null), timeoutMs); });
+  try {
+    return await Promise.race([read, timeout]);
+  } catch (err) {
+    console.warn("[Odoo] Could not read tutor IDs:", err.message);
+    return null;
+  } finally {
+    clearTimeout(timer);
+    read.catch(() => {}); // a late failure after the timeout is not an unhandled rejection
+  }
+}
+
+/**
+ * `options.reservedCodes`: IDs held by partial tutors, never given to a new Odoo tutor.
+ * `options.preferredCode`: the ID this person already has as a partial tutor;
+ * a new Odoo record takes it, unless Odoo already uses it.
+ */
+export async function upsertMasterTutor(data, options = {}) {
+  const reservedCodes = new Set((options.reservedCodes || []).map((c) => String(c).toUpperCase()));
+  const preferredCode = String(options.preferredCode || "").trim().toUpperCase();
 
   try {
 
@@ -1304,6 +1339,9 @@ export async function upsertMasterTutor(data) {
       let nextNumber =
         count + 1;
 
+      // Odoo IDs in use (upper-cased); stays empty if they cannot be read
+      let usedCodes = new Set();
+
       try {
 
         const existingCodes =
@@ -1327,16 +1365,12 @@ export async function upsertMasterTutor(data) {
             ]
           );
 
-        const usedCodes =
+        usedCodes =
           new Set(
             (existingCodes || []).map(
-              (record) => record.tutor_id
+              (record) => String(record.tutor_id || "").toUpperCase()
             )
           );
-
-        while (usedCodes.has(codeFor(nextNumber))) {
-          nextNumber += 1;
-        }
 
       } catch (codeErr) {
 
@@ -1346,9 +1380,17 @@ export async function upsertMasterTutor(data) {
         );
       }
 
+      // Partial tutors' IDs are skipped too, so no two people share an ID
+      while (usedCodes.has(codeFor(nextNumber)) || reservedCodes.has(codeFor(nextNumber))) {
+        nextNumber += 1;
+      }
 
+
+      // A partial tutor registering fully keeps the ID they already have
       const tutorCode =
-        codeFor(nextNumber);
+        /^TUT\d+$/.test(preferredCode) && !usedCodes.has(preferredCode)
+          ? preferredCode
+          : codeFor(nextNumber);
 
 
       payload.tutor_id =

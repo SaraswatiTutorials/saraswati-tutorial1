@@ -271,6 +271,7 @@ export function partialAsTutor(p) {
   return {
     _id: p._id,
     name: p.name || "",
+    tutorCode: p.tutorCode || "",
     whatsapp: p.whatsapp || "",
     phone: p.whatsapp || "",
     experience: p.experience || "",
@@ -459,7 +460,11 @@ export async function shortlistTutors(lead, {
   );
   const partials = includePartial
     ? dedupePartials(
-        (await PartialTutor.find({ status: { $ne: "registered" } })
+        // A form entry whose person completed the full registration from the
+        // portal stays in until that registration is approved; from then on
+        // the approved record above carries them (and the phone check below
+        // drops this entry).
+        (await PartialTutor.find({ $or: [{ status: { $ne: "registered" } }, { registeredTutorId: { $ne: null } }] })
           .sort({ createdAt: -1 }).lean())
           .filter((p) => {
             const key = last10(p.whatsapp);
@@ -580,18 +585,33 @@ export async function shortlistTutors(lead, {
  *
  * From here on a partial tutor is treated as a tutor: invited, counted,
  * offered to the parent, chosen. The only differences are the ones that
- * cannot apply — they have no tutor code, no approval status and no
- * availability flag — so those checks are skipped rather than failed.
+ * cannot apply — they have no approval status and no availability flag — so
+ * those checks are skipped rather than failed. Their tutor ID comes from the
+ * same numbering as registered tutors (utils/tutorCodes.js).
  */
 async function findCandidate(row) {
   if (row.isPartial) {
     const p = row.tutorId ? await PartialTutor.findById(row.tutorId).catch(() => null) : null;
     if (!p) return null;
+    // Completed the full registration from the portal: the tutor record they
+    // became is the one invited and assigned, approved yet or not.
+    const became = p.registeredTutorId ? await Tutor.findById(p.registeredTutorId).catch(() => null) : null;
+    if (became) {
+      return {
+        _id: became._id,
+        name: became.name || p.name || "",
+        phone: became.whatsapp || became.phone || p.whatsapp || "",
+        tutorCode: became.tutorCode || p.tutorCode || "",
+        isPartial: became.status !== "approved",
+        blocked: became.availabilityStatus === "Blocked",
+        notApproved: became.status === "rejected" ? "rejected" : "",
+      };
+    }
     return {
       _id: p._id,
       name: p.name || "",
       phone: p.whatsapp || "",
-      tutorCode: "",
+      tutorCode: p.tutorCode || "",
       isPartial: true,
       blocked: false,
       notApproved: "",

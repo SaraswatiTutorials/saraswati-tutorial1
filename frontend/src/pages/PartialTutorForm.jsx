@@ -159,6 +159,8 @@ export default function PartialTutorForm() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
   const [done, setDone] = useState(false);
+  // Their tutor ID, from the same numbering as registered tutors; logs them in to the tutor portal
+  const [tutorCode, setTutorCode] = useState("");
 
   const completed = [
     form.name.trim().length >= 3,
@@ -190,7 +192,7 @@ export default function PartialTutorForm() {
     setSubmitting(true);
     setServerError("");
     try {
-      await axios.post(`${API_BASE}/partial-tutors`, {
+      const { data } = await axios.post(`${API_BASE}/partial-tutors`, {
         name: form.name.trim(),
         whatsapp: form.whatsapp,
         experience: form.experience,
@@ -198,6 +200,7 @@ export default function PartialTutorForm() {
         location: form.location,
         consent: form.consent,
       });
+      setTutorCode(data?.tutorCode || "");
       setDone(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
@@ -259,6 +262,21 @@ export default function PartialTutorForm() {
                 <span className="font-bold text-slate-800 dark:text-slate-200">+91 {form.whatsapp}</span> to complete
                 your tutor profile.
               </p>
+              <div className="mx-auto mt-6 max-w-sm rounded-2xl bg-blue-50 px-5 py-4 ring-1 ring-blue-100 dark:bg-blue-500/10 dark:ring-blue-500/30">
+                {tutorCode ? (
+                  <>
+                    <p className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">Your tutor ID</p>
+                    <p className="mt-1 text-2xl font-bold tracking-wide text-slate-900 dark:text-white">{tutorCode}</p>
+                  </>
+                ) : null}
+                <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  Log in to the{" "}
+                  <Link to="/teacher/login" className="font-bold text-blue-700 underline-offset-2 hover:underline dark:text-blue-300">
+                    tutor portal
+                  </Link>{" "}
+                  with {tutorCode ? "this ID or " : ""}your WhatsApp number.
+                </p>
+              </div>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <Link
                   to="/"
@@ -270,6 +288,7 @@ export default function PartialTutorForm() {
                   type="button"
                   onClick={() => {
                     setForm(initialForm);
+                    setTutorCode("");
                     setDone(false);
                   }}
                   className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"

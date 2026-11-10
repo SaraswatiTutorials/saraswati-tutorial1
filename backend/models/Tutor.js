@@ -113,6 +113,11 @@ const tutorSchema = new mongoose.Schema(
     // Prevents sending the onboarding message more than once per tutor.
     onboardingMessageSentAt: { type: Date, default: null },
 
+    // Set when a partial tutor completed their profile from the tutor portal.
+    // They could already log in as a partial tutor, so they still can while
+    // this registration waits for approval.
+    fromPartialTutorId: { type: mongoose.Schema.Types.ObjectId, ref: "PartialTutor", default: null },
+
   },
   { timestamps: true }
 );

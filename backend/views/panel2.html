@@ -1134,12 +1134,15 @@ function table(headers, rows) {
 }
 const tutorCell = (t, subline) => '<div class="name">' + esc(t.name || "(no name)") + '</div><div class="sub">' + esc(subline || t.code || "") + "</div>";
 
-// A partial tutor has no tutor code, so the line under their name says where
-// they came from instead. Used everywhere a tutor is listed, the previews
-// included — those are what gets read before anything is sent, so leaving it
-// out of them would be the one place it actually mattered.
-const originLabel = (t) =>
-  (t.isPartial || t.source === "partial") ? "Partial tutor form" : (t.code || t.tutorCode || "");
+// A partial tutor's line under their name says where they came from, after
+// their tutor ID when they have one. Used everywhere a tutor is listed, the
+// previews included — those are what gets read before anything is sent, so
+// leaving it out of them would be the one place it actually mattered.
+const originLabel = (t) => {
+  const code = t.code || t.tutorCode || "";
+  if (t.isPartial || t.source === "partial") return (code ? code + " · " : "") + "Partial tutor form";
+  return code;
+};
 
 function invitedPanel(b) {
   if (!b.invited.length) return '<div class="none">No tutors invited yet.</div>';

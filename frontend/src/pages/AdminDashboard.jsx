@@ -1298,7 +1298,7 @@ export default function AdminDashboard() {
     return partialRecords.filter((pt) => {
       const loc = pt.location || {};
       const text = [
-        pt.name, pt.whatsapp, pt.experience, pt.occupation,
+        pt.name, pt.tutorCode, pt.whatsapp, pt.experience, pt.occupation,
         loc.placeLabel, loc.area, loc.city, loc.houseDetails, loc.pincode,
       ].filter(Boolean).join(" ").toLowerCase();
       if (phone.length >= 3 && String(pt.whatsapp || "").replace(/\D/g, "").includes(phone)) return true;
@@ -2059,7 +2059,7 @@ export default function AdminDashboard() {
                 type="search"
                 value={partialSearch}
                 onChange={(e) => { setPartialSearch(e.target.value); setVisiblePartialCount(CARD_BATCH_SIZE); }}
-                placeholder="Search by name, WhatsApp number, area, PIN, experience or occupation..."
+                placeholder="Search by name, tutor ID, WhatsApp number, area, PIN, experience or occupation..."
                 className="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-4 text-sm font-medium text-slate-800 dark:text-white outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
               />
             </label>
@@ -2136,7 +2136,14 @@ export default function AdminDashboard() {
                         </span>
                       </div>
 
-                      <p className="text-base font-bold text-slate-900 dark:text-slate-100">{pt.name}</p>
+                      <p className="text-base font-bold text-slate-900 dark:text-slate-100">
+                        {pt.name}
+                        {pt.tutorCode && (
+                          <span className="ml-2 align-middle rounded-full border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-0.5 text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                            {pt.tutorCode}
+                          </span>
+                        )}
+                      </p>
 
                       <div className="mt-3 grid gap-3 md:grid-cols-2">
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-semibold">

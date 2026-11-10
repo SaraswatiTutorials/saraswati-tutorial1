@@ -60,6 +60,8 @@ describe("partial tutor validation", () => {
 
 let store;
 let handlers;
+let codeCalls = [];
+let codeFails = false;
 
 before(async () => {
   mock.module(modulePath("models/PartialTutor.js"), {
@@ -85,6 +87,19 @@ before(async () => {
       },
     },
     namedExports: { PARTIAL_TUTOR_STATUSES: ["new", "contacted", "registered"] },
+  });
+  // The tutor ID is given by utils/tutorCodes.js (tested on its own); Odoo is never reached
+  mock.module(modulePath("utils/tutorCodes.js"), {
+    namedExports: {
+      assignPartialTutorCode: async (record, { readOdooCodes }) => {
+        codeCalls.push({ id: record._id, readsOdoo: typeof readOdooCodes === "function" });
+        if (codeFails) throw new Error("counter unavailable");
+        return "TUT0300";
+      },
+    },
+  });
+  mock.module(modulePath("utils/odooService.js"), {
+    namedExports: { listOdooTutorCodes: async () => { throw new Error("must not reach Odoo in tests"); } },
   });
   const { default: router } = await import(modulePath("routes/partialTutorRoutes.js"));
   const handlerFor = (method, path = "/") => {
@@ -116,6 +131,28 @@ describe("partial tutor route", () => {
     assert.equal(store[0].whatsapp, "9876543210");
     assert.equal(store[0].userAgent, "test-agent");
     assert.equal(store[0].consent.accepted, true);
+  });
+
+  test("a new sign-up is given a tutor ID, sent back to the form", async () => {
+    codeCalls = [];
+    codeFails = false;
+    const res = await call(handlers.submit, { body: validBody() });
+    assert.equal(res.statusCode, 201);
+    assert.equal(res.payload.tutorCode, "TUT0300");
+    assert.equal(codeCalls.length, 1);
+    assert.equal(codeCalls[0].readsOdoo, true);
+  });
+
+  test("if the ID can't be given, the form is still saved", async () => {
+    codeFails = true;
+    try {
+      const res = await call(handlers.submit, { body: validBody() });
+      assert.equal(res.statusCode, 201);
+      assert.equal(res.payload.tutorCode, "");
+      assert.equal(store.length, 1);
+    } finally {
+      codeFails = false;
+    }
   });
 
   test("an invalid submission is refused with a message and nothing is saved", async () => {

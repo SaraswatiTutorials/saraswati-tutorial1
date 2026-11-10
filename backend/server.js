@@ -36,6 +36,8 @@ import { startReminderScheduler, startRetryScheduler, startSyncScheduler } from 
 import { startTopThreeScheduler } from "./utils/topThreeScheduler.js";
 import { startTutorReplyScheduler } from "./utils/tutorReplyScheduler.js";
 import { sendTutorOptions } from "./utils/tutorOptionsMessage.js";
+import { backfillPartialTutorCodes } from "./utils/tutorCodes.js";
+import { listOdooTutorCodes } from "./utils/odooService.js";
 import BroadcastLog from "./models/BroadcastLog.js";
 import compression from "compression";
 
@@ -192,6 +194,11 @@ if (
         // best of whoever said yes — up to three, fewer if fewer replied.
         // Record what tutors answered, from the rows the n8n router writes.
         startTutorReplyScheduler();
+        // Every partial tutor without a tutor ID gets one, oldest first. New
+        // sign-ups get theirs when the form is sent; this catches the rest.
+        backfillPartialTutorCodes({ readOdooCodes: () => listOdooTutorCodes({ timeoutMs: 15000 }) })
+          .then((r) => { if (r.assigned) console.log(`[TutorCode] Gave ${r.assigned} partial tutor(s) a tutor ID.`); })
+          .catch((err) => console.error("[TutorCode] Start-up pass failed:", err.message));
         // The top three go to the parent when staff press the button in
         // Panel 2, not on a timer. TOP3_AUTO_SEND=true restores the sweep.
         if (String(process.env.TOP3_AUTO_SEND || "").toLowerCase() === "true") {

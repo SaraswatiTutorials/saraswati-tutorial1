@@ -25,6 +25,7 @@ import {
   PhotoPicker,
 } from "../components/portal/PortalParts";
 import { TutorAssignments } from "../components/portal/Assignments";
+import CompleteProfile from "../components/portal/CompleteProfile";
 import { uploadPortalPhoto } from "../utils/photo";
 import {
   LogOut,
@@ -598,6 +599,20 @@ export default function TeacherDashboard() {
             </span>
           )}
         </section>
+
+        {/* A partial tutor completes the full registration here */}
+        <CompleteProfile
+          token={token}
+          onRelogin={() => handleLogout("Please sign in again.")}
+          onConverted={(data) => {
+            localStorage.setItem("tutorToken", data.token);
+            localStorage.setItem("tutorId", data.tutor.id);
+            localStorage.setItem("tutorName", data.tutor.name);
+            localStorage.setItem("tutorCode", data.tutor.tutorCode || "");
+            if (data.tutor.photo) localStorage.setItem("tutorPhoto", data.tutor.photo);
+            window.location.reload();
+          }}
+        />
 
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatTile label="Active students" value={students.length} icon={Users} tone="slate" />

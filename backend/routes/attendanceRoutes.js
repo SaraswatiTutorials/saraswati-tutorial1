@@ -12,6 +12,8 @@ import {
 } from "../utils/odooService.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
 import { tutorLoginQuery, parentPhoneQuery } from "../utils/loginMatch.js";
+import { findPartialTutorForLogin, findTutorAccount } from "../utils/tutorAccount.js";
+import { assignPartialTutorCode } from "../utils/tutorCodes.js";
 import {
   parseClassTime,
   usualClassTime,
@@ -231,13 +233,58 @@ router.post("/tutor-login", async (req, res) => {
     }
 
     const query = tutorLoginQuery(identifier);
-    const tutor = query ? await Tutor.findOne(query) : null;
+    let tutor = query ? await Tutor.findOne(query) : null;
+
+    // Approved tutors log in. So does a partial tutor who completed the full
+    // registration from the portal while it waits for approval: they could
+    // already log in, and their students moved with them.
+    const canLogIn = (t) => !!t && (t.status === "approved" || (!!t.fromPartialTutorId && t.status === "pending"));
+
+    // A partial tutor (short sign-up form) logs in with their tutor ID or
+    // WhatsApp number. An approved registered tutor always comes first.
+    if (!canLogIn(tutor)) {
+      const partial = await findPartialTutorForLogin(identifier);
+      // Already completed the full registration: log in as that tutor
+      const became = partial?.registeredTutorId ? await Tutor.findById(partial.registeredTutorId) : null;
+      if (canLogIn(became)) {
+        tutor = became;
+      } else if (partial && !partial.registeredTutorId) {
+        if (!partial.tutorCode) {
+          try {
+            const { listOdooTutorCodes } = await import("../utils/odooService.js");
+            await assignPartialTutorCode(partial, {
+              readOdooCodes: typeof listOdooTutorCodes === "function" ? () => listOdooTutorCodes() : async () => null,
+            });
+          } catch (codeErr) {
+            console.error("[Tutor Login] Tutor ID not given:", codeErr.message);
+          }
+        }
+        const token = jwt.sign(
+          { id: partial._id, name: partial.name, role: "tutor", partial: true },
+          process.env.JWT_SECRET || "secretkey",
+          { expiresIn: "30d" }
+        );
+        return res.json({
+          success: true,
+          token,
+          tutor: {
+            id: partial._id,
+            name: partial.name,
+            tutorCode: partial.tutorCode || "",
+            email: "",
+            phone: partial.whatsapp || "",
+            photo: partial.photo || "",
+            isPartial: true,
+          },
+        });
+      }
+    }
 
     if (!tutor) {
       return res.status(401).json({ message: "Tutor not found with the provided credentials." });
     }
 
-    if (tutor.status !== "approved") {
+    if (!canLogIn(tutor)) {
       return res.status(403).json({ message: "Your tutor profile is pending approval or rejected." });
     }
 
@@ -353,7 +400,8 @@ router.post("/mark", verifyToken(["admin", "tutor"]), (req, res) =>
       return res.status(403).json({ success: false, message: "You can only mark attendance for your own students." });
     }
 
-    const tutor = await Tutor.findById(tutorId);
+    // A registered tutor, or a partial tutor assigned from Panel 2
+    const tutor = await findTutorAccount(tutorId);
     if (!tutor) return res.status(404).json({ success: false, message: "Tutor not found." });
 
     // A new class goes into the next cycle if the current one is already over:

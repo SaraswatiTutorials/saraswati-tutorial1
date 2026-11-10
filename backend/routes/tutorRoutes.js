@@ -15,14 +15,10 @@ import {
   compareTutors,
 } from "../utils/matchingEngine.js";
 import mongoose from "mongoose";
+import { registerTutor, tutorCodeOptions } from "../utils/tutorRegistration.js";
 
 const router = express.Router();
 
-function toCoordinate(value) {
-  if (value === "" || value == null) return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-}
 
 // Helper to dynamically calculate and append tutor statistics from ParentEnquiry
 async function appendStatsToTutor(tutor) {
@@ -365,83 +361,8 @@ router.post("/", async (req, res) => {
     }
     req.body.email = email;
 
-    let odooRes = null;
-    let odooSyncStatus = "pending";
-    let odooSyncError = "";
-    try {
-      odooRes = await upsertMasterTutor(req.body);
-      if (odooRes && (odooRes.id || typeof odooRes === "number")) {
-        odooSyncStatus = "synced";
-      } else {
-        odooSyncStatus = "failed";
-        odooSyncError = "Odoo returned no tutor ID";
-      }
-    } catch (err) {
-      console.error("[Odoo Error in upsertMasterTutor]:", err.message);
-      odooSyncStatus = "failed";
-      odooSyncError = err.message || "Odoo master tutor sync failed";
-    }
-
-    const hasVehicle = req.body.hasVehicle === "yes" ? "yes" : "no";
-    const hasOccupation = req.body.hasOccupation === "yes" ? "yes" : "no";
-
-    // Check for duplicate in MongoDB by phone number
-    let tutor = await Tutor.findOne({ phone: phone.trim() });
-
-    // Same mobile number written differently (+91, spaces, leading 0) is still the same tutor
-    if (!tutor) {
-      const phoneDigits = String(phone).replace(/\D/g, "");
-      if (phoneDigits.length >= 10) {
-        tutor = await Tutor.findOne({ phone: { $regex: `${phoneDigits.slice(-10)}$` } });
-      }
-    }
-
-    // Explicitly extract all matching fields to ensure they are never lost during spread
-    const body = req.body;
-    const tutorData = {
-      ...body,
-      hasVehicle,
-      hasOccupation,
-      odooLeadId: odooRes ? odooRes.id : (tutor ? tutor.odooLeadId : null),
-      tutorCode: odooRes ? odooRes.tutorCode : (tutor ? tutor.tutorCode : null),
-      odooSyncStatus,
-      odooSyncError,
-      // Matching fields — explicitly set so Mongoose strict mode never drops them
-      gender: body.gender || "",
-      dob: body.dob || "",
-      whatsapp: body.whatsapp || body.phone || "",
-      city: body.city || "",
-      area: body.area || "",
-      fullAddress: body.fullAddress || "",
-      pincode: body.pincode || "",
-      latitude: toCoordinate(body.latitude),
-      longitude: toCoordinate(body.longitude),
-      grades: Array.isArray(body.grades) ? body.grades : [],
-      boards: Array.isArray(body.boards) ? body.boards : [],
-      subjects: Array.isArray(body.subjects) ? body.subjects : [],
-      timings: Array.isArray(body.timings) ? body.timings : [],
-      locations: Array.isArray(body.locations) && body.locations.length
-        ? body.locations
-        : (body.area ? [body.area] : []),
-      maxTravelDistance: body.maxTravelDistance || "",
-    };
-
-    if (tutor) {
-      console.log(`[MongoDB] Tutor with phone ${phone} already exists. Updating existing record...`);
-      tutor = await Tutor.findByIdAndUpdate(tutor._id, tutorData, { new: true, runValidators: true });
-    } else {
-      console.log(`[MongoDB] Creating new tutor record with phone ${phone}...`);
-      tutor = new Tutor(tutorData);
-      await tutor.save();
-    }
-
-    // Auto-delete matching draft on successful registration
-    try {
-      await TutorRegistrationDraft.deleteOne({ phone: phone.trim() });
-      console.log(`[TutorDraft] Draft auto-deleted for phone ${phone} after registration.`);
-    } catch (draftErr) {
-      console.warn("[TutorDraft] Could not delete draft after registration:", draftErr.message);
-    }
+    // Odoo record, tutors collection, draft cleared: see utils/tutorRegistration.js
+    const tutor = await registerTutor(req.body);
 
     res.status(201).json(tutor);
 
@@ -513,7 +434,9 @@ router.put("/:id", verifyToken(["admin"]), async (req, res) => {
 
     // Sync to Odoo
     try {
-      const odooRes = await upsertMasterTutor(updatedTutor.toObject());
+      const odooRes = await upsertMasterTutor(updatedTutor.toObject(), {
+        reservedCodes: (await tutorCodeOptions("")).reservedCodes,
+      });
       if (odooRes && odooRes.id) {
         updatedTutor.odooLeadId = odooRes.id;
         updatedTutor.tutorCode = odooRes.tutorCode || updatedTutor.tutorCode;
