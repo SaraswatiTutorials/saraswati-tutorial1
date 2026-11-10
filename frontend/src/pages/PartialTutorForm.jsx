@@ -26,6 +26,7 @@ import { LocationField } from "../components/LocationPicker";
 import SiteHeader from "../components/SiteHeader";
 import SiteFooter from "../components/SiteFooter";
 import WhatsAppIcon from "../components/WhatsAppIcon";
+import TutorExistsDialog from "../components/TutorExistsDialog";
 
 // Short link that forwards to the tutors' WhatsApp group (see JoinCommunity.jsx)
 const COMMUNITY_URL = "https://saraswatitutorial.com/join-community";
@@ -158,6 +159,8 @@ export default function PartialTutorForm() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
+  // Set when this number is already registered: "log in instead" popup
+  const [existsInfo, setExistsInfo] = useState(null);
   const [done, setDone] = useState(false);
   // Their tutor ID, from the same numbering as registered tutors; logs them in to the tutor portal
   const [tutorCode, setTutorCode] = useState("");
@@ -204,6 +207,10 @@ export default function PartialTutorForm() {
       setDone(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
+      if (err.response?.status === 409 && err.response.data?.code === "TUTOR_EXISTS") {
+        setExistsInfo(err.response.data);
+        return;
+      }
       setServerError(err.response?.data?.message || "Could not send your details. Please try again.");
     } finally {
       setSubmitting(false);
@@ -560,6 +567,7 @@ export default function PartialTutorForm() {
       </main>
 
       <SiteFooter city={selectedCity} audience="tutor" />
+      <TutorExistsDialog info={existsInfo} phone={form.whatsapp} onClose={() => setExistsInfo(null)} />
     </div>
   );
 }

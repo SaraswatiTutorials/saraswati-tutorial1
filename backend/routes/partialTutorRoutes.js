@@ -5,6 +5,7 @@ import { verifyToken } from "../middleware/authMiddleware.js";
 import { validatePartialTutor } from "../utils/partialTutorValidation.js";
 import { assignPartialTutorCode } from "../utils/tutorCodes.js";
 import { listOdooTutorCodes } from "../utils/odooService.js";
+import { findExistingTutor, tutorExistsBody } from "../utils/tutorExists.js";
 
 const router = express.Router();
 
@@ -16,6 +17,10 @@ router.post("/", async (req, res) => {
   try {
     const { value, error } = validatePartialTutor(req.body);
     if (error) return res.status(400).json({ success: false, message: error });
+
+    // Already a tutor with us (registered, or signed up here before): log in instead
+    const existing = await findExistingTutor({ phones: [value.whatsapp] });
+    if (existing) return res.status(409).json(tutorExistsBody(existing));
 
     const record = await PartialTutor.create({
       ...value,

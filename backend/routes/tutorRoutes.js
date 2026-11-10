@@ -16,6 +16,7 @@ import {
 } from "../utils/matchingEngine.js";
 import mongoose from "mongoose";
 import { registerTutor, tutorCodeOptions } from "../utils/tutorRegistration.js";
+import { findExistingTutor, tutorExistsBody } from "../utils/tutorExists.js";
 
 const router = express.Router();
 
@@ -343,6 +344,19 @@ router.post("/match", async (req, res) => {
   }
 });
 
+// The full form asks this after its first step, so nobody fills in all three
+// steps only to be told at the end. POST / checks again on submit.
+router.post("/check-exists", async (req, res) => {
+  try {
+    const { phone, whatsapp, email } = req.body || {};
+    const existing = await findExistingTutor({ phones: [phone, whatsapp], email });
+    res.json(existing ? tutorExistsBody(existing) : { success: true, exists: false });
+  } catch (error) {
+    console.error("Tutor exists check error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.post("/", async (req, res) => {
   try {
     const { phone } = req.body;
@@ -360,6 +374,10 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ message: "Enter a valid email address" });
     }
     req.body.email = email;
+
+    // Already registered (same number or email): they log in instead
+    const existing = await findExistingTutor({ phones: [phone, req.body.whatsapp], email });
+    if (existing) return res.status(409).json(tutorExistsBody(existing));
 
     // Odoo record, tutors collection, draft cleared: see utils/tutorRegistration.js
     const tutor = await registerTutor(req.body);

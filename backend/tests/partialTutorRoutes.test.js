@@ -62,6 +62,8 @@ let store;
 let handlers;
 let codeCalls = [];
 let codeFails = false;
+let existing = null; // what the "already registered?" check answers
+let existsAsked = [];
 
 before(async () => {
   mock.module(modulePath("models/PartialTutor.js"), {
@@ -98,6 +100,12 @@ before(async () => {
       },
     },
   });
+  mock.module(modulePath("utils/tutorExists.js"), {
+    namedExports: {
+      findExistingTutor: async (who) => { existsAsked.push(who); return existing; },
+      tutorExistsBody: (found) => ({ success: false, exists: true, code: "TUTOR_EXISTS", ...found }),
+    },
+  });
   mock.module(modulePath("utils/odooService.js"), {
     namedExports: { listOdooTutorCodes: async () => { throw new Error("must not reach Odoo in tests"); } },
   });
@@ -111,6 +119,8 @@ before(async () => {
 
 beforeEach(() => {
   store = [];
+  existing = null;
+  existsAsked = [];
 });
 
 const call = async (handler, { body = {}, query = {} } = {}) => {
@@ -160,6 +170,16 @@ describe("partial tutor route", () => {
     assert.equal(res.statusCode, 400);
     assert.equal(res.payload.message, "Enter a valid 10-digit WhatsApp number");
     assert.equal(store.length, 0);
+  });
+
+  test("a number that is already registered is refused, and nothing is saved", async () => {
+    existing = { matchedOn: "phone", source: "tutor" };
+    const res = await call(handlers.submit, { body: validBody() });
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.payload.code, "TUTOR_EXISTS");
+    assert.equal(res.payload.matchedOn, "phone");
+    assert.equal(store.length, 0);
+    assert.deepEqual(existsAsked, [{ phones: ["9876543210"] }]);
   });
 
   test("the admin list is newest first and counts each status", async () => {

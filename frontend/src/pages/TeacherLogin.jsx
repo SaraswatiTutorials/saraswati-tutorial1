@@ -13,7 +13,8 @@ const LOGIN_FEATURES = [
 
 export default function TeacherLogin() {
   const location = useLocation();
-  const [identifier, setIdentifier] = useState("");
+  // Pre-filled when a registration form sends an already-registered tutor here
+  const [identifier, setIdentifier] = useState(location.state?.identifier || "");
   const [error, setError] = useState(location.state?.message || "");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
