@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, ChevronDown, ChevronUp, FileUp, Loader2, ShieldCheck, Clock } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, FileUp, Loader2, ShieldCheck, Clock, XCircle } from "lucide-react";
 import { API_BASE } from "../../config";
 import { cardClass } from "./PortalParts";
 import {
@@ -99,9 +99,23 @@ export default function CompleteProfile({ token, onConverted, onRelogin, initial
       <section className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
         <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
         <div>
-          <p className="text-sm font-bold text-slate-900 dark:text-white">Your full verification is with our team</p>
+          <p className="text-sm font-bold text-slate-900 dark:text-white">Your profile is pending approval</p>
           <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
-            We have your details and documents. We will let you know on WhatsApp once your profile is verified.
+            Our team is checking your details and documents. You can use the portal meanwhile, and we will let you know on WhatsApp once you are approved.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  if (status.stage === "rejected") {
+    return (
+      <section className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-500/30 dark:bg-rose-500/10">
+        <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600 dark:text-rose-400" />
+        <div>
+          <p className="text-sm font-bold text-slate-900 dark:text-white">Your profile was not approved</p>
+          <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
+            Please contact the Saraswati Tutorials team if you have any questions.
           </p>
         </div>
       </section>

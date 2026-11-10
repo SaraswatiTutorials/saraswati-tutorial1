@@ -172,7 +172,10 @@ export default function TutorShell({ nav, current, onNavigate, profileCard, onLo
               >
                 <Menu className="h-5 w-5" />
               </button>
-              <BrandLogo alt="" className="ml-1 hidden h-8 w-8 shrink-0 rounded-lg object-contain min-[360px]:block lg:hidden" />
+              {/* Hidden on the narrowest phones so the page name fits */}
+              <span className="ml-1 hidden shrink-0 min-[360px]:block lg:hidden">
+                <BrandLogo alt="" className="h-8 w-8 rounded-lg object-contain" />
+              </span>
               <div className="min-w-0 lg:hidden">
                 <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{currentLabel}</p>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Tutor Portal</p>

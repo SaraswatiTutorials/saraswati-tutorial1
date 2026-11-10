@@ -441,7 +441,7 @@ export default function TeacherDashboard() {
     { id: "history", label: "Class history", icon: History },
     { id: "assignments", label: "Tests", icon: ClipboardList },
     ...(stage === "partial" || stage === "submitted"
-      ? [{ id: "verification", label: "Full verification", icon: ShieldCheck, badge: stage === "partial" ? "To do" : "In review", badgeTone: "amber" }]
+      ? [{ id: "verification", label: "Full verification", icon: ShieldCheck, badge: stage === "partial" ? "To do" : "Pending", badgeTone: "amber" }]
       : []),
   ];
   // Once verification is done its menu item goes; don't leave the page on it
@@ -460,8 +460,9 @@ export default function TeacherDashboard() {
 
   const statusLine =
     stage === "partial" ? { text: "Not verified yet", icon: ShieldCheck, cls: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" }
-    : stage === "submitted" ? { text: "Verification in review", icon: Clock, cls: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" }
-    : stage === "full" ? { text: "Verified tutor", icon: BadgeCheck, cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300" }
+    : stage === "submitted" ? { text: "Pending approval", icon: Clock, cls: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" }
+    : stage === "rejected" ? { text: "Not approved", icon: XCircle, cls: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300" }
+    : stage === "full" ? { text: "Approved tutor", icon: BadgeCheck, cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300" }
     : null;
   const StatusIcon = statusLine?.icon;
 
@@ -690,7 +691,7 @@ export default function TeacherDashboard() {
                 </div>
               </section>
             )}
-            {(stage === "submitted" || stage === "relogin") && (
+            {(stage === "submitted" || stage === "relogin" || stage === "rejected") && (
               <CompleteProfile token={token} initialStatus={verification} onConverted={onConverted} onRelogin={relogin} />
             )}
 
