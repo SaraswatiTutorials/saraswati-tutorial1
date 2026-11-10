@@ -63,15 +63,21 @@ function Field({ label, children, hint }) {
   );
 }
 
-export default function CompleteProfile({ token, onConverted, onRelogin }) {
-  const [status, setStatus] = useState(null);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(empty);
+// initialStatus: the /full-profile answer when the page already has it (no second fetch).
+// defaultOpen: show the form straight away instead of behind the button.
+export default function CompleteProfile({ token, onConverted, onRelogin, initialStatus = null, defaultOpen = false }) {
+  const [status, setStatus] = useState(initialStatus);
+  const [open, setOpen] = useState(defaultOpen);
+  const [form, setForm] = useState(() =>
+    initialStatus?.stage === "partial" && initialStatus.known?.occupation
+      ? { ...empty, occupation: initialStatus.known.occupation }
+      : empty);
   const [uploading, setUploading] = useState({});
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (initialStatus) return undefined;
     let live = true;
     fetch(`${API_BASE}/portal/tutor/full-profile`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => (res.ok ? res.json() : null))
