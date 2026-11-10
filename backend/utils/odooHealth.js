@@ -23,6 +23,7 @@ import { getOdooCalls, maskText } from "./odooCallLog.js";
 import { REQUIREMENT_TEMPLATES, templateLookupDomain, toOdooDatetime } from "./whatsappService.js";
 import { TUTOR_OPTIONS_TEMPLATES, TUTOR_CARD_TEMPLATE } from "./tutorOptionsMessage.js";
 import { RECONFIRM_TEMPLATE, SELECTION_TEMPLATE } from "./pipelineStages.js";
+import { termsTemplateName } from "./termsTemplate.js";
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -218,6 +219,7 @@ export function templateChecklist(env = process.env) {
       names: env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME ? [env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME] : TUTOR_OPTIONS_TEMPLATES, anyOf: true, core: true },
     { key: "selected", use: "Step 5: tell the selected tutor", names: [SELECTION_TEMPLATE], core: true },
     { key: "assigned", use: "Demo assigned to tutor (admin panel)", names: [env.WHATSAPP_ASSIGNMENT_TEMPLATE_NAME || "Demo Assigned To Tutor"] },
+    { key: "terms", use: "Terms & Conditions to the parent (admin panel button)", names: [termsTemplateName(env)] },
     { key: "agreement", use: "Tutor agreement after registration", names: [env.WHATSAPP_ONBOARDING_TEMPLATE_NAME || "tutor_agreement"] },
     { key: "missed", use: "Attendance not marked reminder", names: [env.WHATSAPP_MISSED_CLASS_TEMPLATE_NAME || "tutor_attendance_not_marked"] },
     { key: "admin", use: "New enquiry alert to the admin", names: [env.WHATSAPP_ADMIN_ENQUIRY_TEMPLATE_NAME || "admin_new_enquiry_alert"] },
@@ -482,12 +484,15 @@ async function readFlow(db, f, { since, now }) {
 }
 
 async function readSyncJobs(db, { now, env }) {
+  // The x_tutor sync is switched off unless ODOO_X_TUTOR_SYNC=true (see syncService.js)
+  const jobs = SYNC_JOBS.filter((j) => j.key !== "odoo_x_tutor_sync"
+    || String(env.ODOO_X_TUTOR_SYNC || "").trim().toLowerCase() === "true");
   const states = await db.collection("syncstates")
-    .find({ key: { $in: SYNC_JOBS.map((j) => j.key) } }, { maxTimeMS: QUERY_MS }).toArray();
+    .find({ key: { $in: jobs.map((j) => j.key) } }, { maxTimeMS: QUERY_MS }).toArray();
   const byKey = new Map(states.map((s) => [s.key, s]));
   const everyMin = Number(env.TUTOR_SYNC_INTERVAL_MIN || 15);
   const lateAfterMin = Math.max(60, everyMin * 3);
-  return SYNC_JOBS.map((job) => {
+  return jobs.map((job) => {
     const s = byKey.get(job.key);
     const lastAt = s?.lastSyncAt ? new Date(s.lastSyncAt) : null;
     let status = "ok", note = "";
