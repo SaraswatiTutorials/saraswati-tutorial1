@@ -182,9 +182,25 @@ test("afterwards: they log in as their new record while it waits for approval", 
   assert.equal(byCode.payload.tutor.id, NEW_TUTOR_ID);
 });
 
-test("other pending registrations still can't log in", async () => {
+test("a website registration waiting for approval logs in, and is told it is pending", async () => {
   tutors.push({ _id: "t-web", name: "Web Pending", phone: "9111111111", status: "pending" });
-  assert.equal((await login("9111111111")).statusCode, 403);
+  const res = await login("9111111111");
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.payload.tutor.id, "t-web");
+  const stage = (await profile("t-web")).payload;
+  assert.equal(stage.stage, "submitted");
+  assert.equal(stage.fromPartialForm, false);
+});
+
+test("once approved, the panel says so", async () => {
+  await complete(form());
+  tutors.find((t) => t._id === NEW_TUTOR_ID).status = "approved";
+  assert.equal((await profile(NEW_TUTOR_ID)).payload.stage, "full");
+});
+
+test("an open session of a tutor who was then rejected is told so", async () => {
+  tutors.push({ _id: "t-rej", name: "Rex", phone: "9222222222", status: "rejected" });
+  assert.equal((await profile("t-rej")).payload.stage, "rejected");
 });
 
 test("a converted tutor who is rejected can't log in", async () => {

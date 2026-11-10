@@ -12,7 +12,11 @@ let tutors, partials, codeCalls, photoSaves;
 
 const fieldMatches = (doc, cond) => Object.entries(cond).every(([k, v]) =>
   v instanceof RegExp ? typeof doc[k] === "string" && v.test(doc[k]) : doc[k] === v);
-const firstMatch = (rows, query) => rows.find((r) => (query.$or || [query]).some((c) => fieldMatches(r, c))) || null;
+// {$or: [...], status: "approved"}: any of the $or, and every other field
+const firstMatch = (rows, query) => {
+  const { $or, ...rest } = query;
+  return rows.find((r) => ($or || [{}]).some((c) => fieldMatches(r, c)) && fieldMatches(r, rest)) || null;
+};
 
 before(async () => {
   mock.module(modulePath("models/Tutor.js"), {
@@ -114,11 +118,25 @@ test("an approved registered tutor still logs in as themselves", async () => {
   assert.equal(res.payload.tutor.isPartial, undefined);
 });
 
-test("someone pending approval who filled the partial form gets in as a partial tutor", async () => {
+test("someone pending approval logs in as their registration, even if they also filled the short form", async () => {
   const res = await login("9000000002");
   assert.equal(res.statusCode, 200);
-  assert.equal(res.payload.tutor.name, "Pat (form)");
-  assert.equal(res.payload.tutor.isPartial, true);
+  assert.equal(res.payload.tutor.id, "t-pending");
+  assert.equal(res.payload.tutor.status, "pending");
+  assert.equal(res.payload.tutor.isPartial, undefined);
+});
+
+test("two records on one number: the approved one wins over a pending one", async () => {
+  tutors.unshift({ _id: "t-dup-pending", name: "Annu again", tutorCode: "TUT0400", phone: "9000000001", status: "pending" });
+  const res = await login("9000000001");
+  assert.equal(res.payload.tutor.id, "t-approved");
+});
+
+test("a rejected tutor still can not log in", async () => {
+  tutors.push({ _id: "t-rejected", name: "Rex", tutorCode: "TUT0171", phone: "9000000003", status: "rejected" });
+  const res = await login("TUT0171");
+  assert.equal(res.statusCode, 403);
+  assert.match(res.payload.message, /not approved/);
 });
 
 test("a partial tutor without an ID yet is given one when they log in", async () => {

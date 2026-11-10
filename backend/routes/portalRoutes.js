@@ -77,9 +77,11 @@ router.post("/tutor/photo", verifyToken(["tutor"]), receivePhoto, async (req, re
 /**
  * Where this tutor stands:
  *   "partial"   — signed up on the short form; `needed` is what is still asked
- *   "submitted" — sent the rest from here; waiting for an admin's approval
+ *   "submitted" — a registered tutor waiting for an admin's approval: sent the
+ *                 rest from here, or registered on the website's full form
  *   "relogin"   — sent the rest from another device; this session is the old one
- *   "full"      — a registered tutor
+ *   "rejected"  — turned down after logging in (they can't log in again)
+ *   "full"      — an approved tutor
  */
 router.get("/tutor/full-profile", verifyToken(["tutor"]), async (req, res) => {
   try {
@@ -90,9 +92,15 @@ router.get("/tutor/full-profile", verifyToken(["tutor"]), async (req, res) => {
       if (p.registeredTutorId) return res.json({ success: true, stage: "relogin" });
       return res.json({ success: true, stage: "partial", known: knownFromPartial(p), needed: STILL_NEEDED });
     }
-    if (account.fromPartialTutorId && account.status === "pending") {
-      return res.json({ success: true, stage: "submitted", submittedAt: account.createdAt || null });
+    if (account.status === "pending") {
+      return res.json({
+        success: true,
+        stage: "submitted",
+        fromPartialForm: !!account.fromPartialTutorId,
+        submittedAt: account.createdAt || null,
+      });
     }
+    if (account.status === "rejected") return res.json({ success: true, stage: "rejected" });
     res.json({ success: true, stage: "full" });
   } catch (error) {
     console.error("Full profile status error:", error);

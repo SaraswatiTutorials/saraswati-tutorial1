@@ -233,12 +233,17 @@ router.post("/tutor-login", async (req, res) => {
     }
 
     const query = tutorLoginQuery(identifier);
-    let tutor = query ? await Tutor.findOne(query) : null;
+    // The same number can sit on more than one record (an old duplicate, a
+    // second registration). The approved one wins, then one still pending.
+    let tutor = query
+      ? (await Tutor.findOne({ ...query, status: "approved" }))
+        || (await Tutor.findOne({ ...query, status: "pending" }))
+        || (await Tutor.findOne(query))
+      : null;
 
-    // Approved tutors log in. So does a partial tutor who completed the full
-    // registration from the portal while it waits for approval: they could
-    // already log in, and their students moved with them.
-    const canLogIn = (t) => !!t && (t.status === "approved" || (!!t.fromPartialTutorId && t.status === "pending"));
+    // Approved and pending tutors log in; the portal tells a pending tutor
+    // that their profile is waiting for approval. Rejected tutors don't.
+    const canLogIn = (t) => !!t && (t.status === "approved" || t.status === "pending");
 
     // A partial tutor (short sign-up form) logs in with their tutor ID or
     // WhatsApp number. An approved registered tutor always comes first.
@@ -285,7 +290,7 @@ router.post("/tutor-login", async (req, res) => {
     }
 
     if (!canLogIn(tutor)) {
-      return res.status(403).json({ message: "Your tutor profile is pending approval or rejected." });
+      return res.status(403).json({ message: "Your tutor profile was not approved. Please contact the Saraswati Tutorials team." });
     }
 
     // Sign JWT token
@@ -305,6 +310,7 @@ router.post("/tutor-login", async (req, res) => {
         email: tutor.email,
         phone: tutor.phone,
         photo: tutor.photo || "",
+        status: tutor.status,
       },
     });
   } catch (error) {
