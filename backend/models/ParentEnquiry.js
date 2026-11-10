@@ -453,6 +453,18 @@ const parentEnquirySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    // The last time an admin sent this parent the Terms & Conditions template
+    // from the admin dashboard, and who sent it.
+    termsSentAt: {
+      type: Date,
+      default: null,
+    },
+
+    termsSentBy: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

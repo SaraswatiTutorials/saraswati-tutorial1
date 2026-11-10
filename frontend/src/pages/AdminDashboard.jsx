@@ -1091,6 +1091,42 @@ export default function AdminDashboard() {
     }
   };
 
+  // Sends the parent Odoo's Terms & Conditions WhatsApp template (the PDF is its header)
+  const [sendingTermsId, setSendingTermsId] = useState(null);
+  const handleSendTerms = async (lead) => {
+    const sentBefore = lead.termsSentAt
+      ? `\n\nAlready sent on ${new Date(lead.termsSentAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}. This sends it again.`
+      : "";
+    const confirmed = window.confirm(
+      `Send the Terms & Conditions PDF to ${lead.parentName || "the parent"} on WhatsApp (${lead.phone || "no phone"})?${sentBefore}`
+    );
+    if (!confirmed) return;
+
+    setSendingTermsId(lead._id);
+    try {
+      const res = await fetch(`${API_BASE}/parent-enquiries/${lead._id}/send-terms`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("adminToken")}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.sent) {
+        alert(`Terms & Conditions not sent. ${data.message || "Please try again."}`);
+        return;
+      }
+      setParentEnquiries((prev) =>
+        prev.map((item) =>
+          item._id === lead._id ? { ...item, termsSentAt: data.termsSentAt, termsSentBy: data.termsSentBy } : item
+        )
+      );
+      alert(`✅ Terms & Conditions sent to ${lead.parentName || "the parent"} on WhatsApp.`);
+    } catch (err) {
+      console.error("Error sending terms:", err);
+      alert("Couldn't reach the server, so nothing was sent. Please try again.");
+    } finally {
+      setSendingTermsId(null);
+    }
+  };
+
   function getTargetGradeOption(classGrade) {
     const cg = String(classGrade || "").trim();
     if (["1-5", "1–5", "1 to 5", "1", "2", "3", "4", "5"].includes(cg)) return "Class 1-5 (Primary)";
@@ -3105,6 +3141,9 @@ export default function AdminDashboard() {
                                 </span>
                               )}
                               {p.assignedTutor && <UnassignTutorButton onClick={() => handleUnassignTutor(p)} />}
+                              {p.assignedTutor && (
+                                <SendTermsButton lead={p} sending={sendingTermsId === p._id} onClick={() => handleSendTerms(p)} />
+                              )}
                             </div>
 
                             <button
@@ -4142,6 +4181,8 @@ export default function AdminDashboard() {
           <AdminAttendanceConsole
             parentEnquiries={uniqueParentEnquiries}
             onUnassignTutor={handleUnassignTutor}
+            onSendTerms={handleSendTerms}
+            sendingTermsId={sendingTermsId}
             fetchLeadAttendanceLogs={fetchLeadAttendanceLogs}
             attendanceLogs={attendanceLogs}
             fetchingLogsLeadId={fetchingLogsLeadId}
@@ -4590,6 +4631,8 @@ const DEFAULT_ATTENDANCE_COLUMNS = [
 function AdminAttendanceConsole({
   parentEnquiries,
   onUnassignTutor,
+  onSendTerms,
+  sendingTermsId,
   fetchLeadAttendanceLogs,
   attendanceLogs,
   fetchingLogsLeadId,
@@ -5282,6 +5325,9 @@ function AdminAttendanceConsole({
                                             <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                                               <span>Current Assigned: <strong className="text-slate-800 dark:text-slate-100">{p.assignedTutor || "Not Assigned"}</strong></span>
                                               {p.assignedTutor && <UnassignTutorButton onClick={() => onUnassignTutor(p)} />}
+                                              {p.assignedTutor && onSendTerms && (
+                                                <SendTermsButton lead={p} sending={sendingTermsId === p._id} onClick={() => onSendTerms(p)} />
+                                              )}
                                             </div>
                                           </div>
 
@@ -6195,6 +6241,34 @@ function UnassignTutorButton({ onClick }) {
     >
       <UserMinus className="h-3.5 w-3.5" />
       Unassign
+    </button>
+  );
+}
+
+// Sends the parent the Terms & Conditions PDF on WhatsApp. Once sent, it says when.
+function SendTermsButton({ lead, sending, onClick }) {
+  const sentAt = lead.termsSentAt ? new Date(lead.termsSentAt) : null;
+  const sentLabel = sentAt && !Number.isNaN(sentAt.getTime())
+    ? sentAt.toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+    : "";
+  const tone = sentLabel
+    ? "border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 focus-visible:ring-emerald-500"
+    : "border-indigo-200 dark:border-indigo-900/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 focus-visible:ring-indigo-500";
+  return (
+    <button
+      type="button"
+      disabled={sending}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      title={sentLabel
+        ? `Terms & Conditions sent ${sentAt.toLocaleString("en-IN")}${lead.termsSentBy ? ` by ${lead.termsSentBy}` : ""}. Click to send again.`
+        : "Send the Terms & Conditions PDF to the parent on WhatsApp"}
+      className={`inline-flex items-center gap-1 rounded-full border bg-white dark:bg-slate-900 px-2.5 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60 disabled:cursor-wait cursor-pointer ${tone}`}
+    >
+      {sentLabel ? <CheckCircle2 className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
+      {sending ? "Sending…" : sentLabel ? `T&C sent ${sentLabel}` : "Send T&C"}
     </button>
   );
 }

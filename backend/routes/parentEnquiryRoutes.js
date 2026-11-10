@@ -36,6 +36,7 @@ import { getRecommendations, buildParamsFromLead } from "../utils/recommendation
 import { notifyAdminOfNewEnquiry } from "../utils/adminAlerts.js";
 import { parseEnquiryDetails, deriveEnquiryFields, joinStudentNames } from "../utils/enquiryDetails.js";
 import Assignment from "../models/Assignment.js";
+import { termsTemplateName } from "../utils/termsTemplate.js";
 
 
 const router = express.Router();
@@ -1392,6 +1393,74 @@ router.post("/:id/unassign-tutor", verifyToken(["admin"]), async (req, res) => {
     res.json({ message: "Tutor unassigned", lead, tutorName });
   } catch (error) {
     console.error("Unassign tutor error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// =============================================================
+// POST send the parent the Terms & Conditions template (with its PDF)
+// POST /api/parent-enquiries/:id/send-terms
+//
+// Pressed by an admin on the main dashboard once a tutor is assigned. Goes
+// through Odoo as the approved WhatsApp template, so it reaches the parent
+// even outside WhatsApp's 24-hour window. Body: { dryRun? }
+// =============================================================
+router.post("/:id/send-terms", verifyToken(["admin"]), async (req, res) => {
+  try {
+    const { dryRun = false } = req.body || {};
+    const lead = await ParentEnquiry.findById(req.params.id);
+    if (!lead) return res.status(404).json({ message: "Lead not found." });
+
+    if (!lead.assignedTutorId && !lead.assignedTutor) {
+      return res.status(400).json({ message: "Assign a tutor first. The terms are sent once a tutor is assigned." });
+    }
+    const phoneNumber = String(lead.phone || "").trim();
+    if (!phoneNumber) {
+      return res.status(400).json({ message: "This parent has no phone number." });
+    }
+
+    const templateName = termsTemplateName();
+    if (dryRun) {
+      return res.json({ message: "Dry run - nothing was sent", sent: false, dryRun: true, phoneNumber, templateName });
+    }
+
+    const result = await sendWhatsAppToTutor({
+      phoneNumber,
+      messageBody: "",
+      templateName,
+      templateVars: {},
+      forceTemplate: true, // always the template: the PDF is its header
+    });
+
+    if (!result.success) {
+      const notApproved = result.failureReason === "Template Deleted or Inactive";
+      const message = notApproved
+        ? `The "${templateName}" template isn't approved in Odoo yet. In Odoo, open the template, press Submit for Approval, and wait for Meta to approve it.`
+        : `WhatsApp didn't send: ${result.failureReason || "unknown reason"}.`;
+      console.error(`[Send Terms] ${lead.requirementId || lead._id}: ${result.failureReason}`);
+      return res.status(502).json({ message, sent: false, failureReason: result.failureReason || "" });
+    }
+
+    lead.termsSentAt = new Date();
+    lead.termsSentBy = req.user?.email || "";
+    await lead.save({ validateBeforeSave: false });
+
+    if (lead.odooLeadId) {
+      addOdooChatterMessage(
+        lead.odooLeadId,
+        `Terms & Conditions sent to the parent on WhatsApp${lead.termsSentBy ? ` by ${lead.termsSentBy}` : ""}.`,
+      ).catch((err) => console.error(`[Send Terms] Odoo note failed for ${lead.requirementId}:`, err.message));
+    }
+
+    res.json({
+      message: "Terms & Conditions sent to the parent",
+      sent: true,
+      templateName,
+      termsSentAt: lead.termsSentAt,
+      termsSentBy: lead.termsSentBy,
+    });
+  } catch (error) {
+    console.error("Send terms error:", error);
     res.status(500).json({ message: error.message });
   }
 });

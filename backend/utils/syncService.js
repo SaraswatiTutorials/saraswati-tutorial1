@@ -48,6 +48,15 @@ const SYNC_KEY      = "odoo_tutor_sync";
 const SYNC_KEY_XTUTOR = "odoo_x_tutor_sync";
 
 /**
+ * The x_tutor sync is off unless ODOO_X_TUTOR_SYNC=true. The live Odoo has no
+ * x_tutor model ("Object x_tutor doesn't exist"), so every run failed; tutors
+ * still come across from master_tutors.
+ */
+export function xTutorSyncEnabled(env = process.env) {
+  return String(env.ODOO_X_TUTOR_SYNC || "").trim().toLowerCase() === "true";
+}
+
+/**
  * Parse a comma-separated string into an array of trimmed strings.
  */
 function parseCommaSeparated(str) {
@@ -472,11 +481,17 @@ export async function syncXTutorToMongo(fullResync = false) {
  */
 export function startSyncScheduler() {
   const intervalMs = SYNC_INTERVAL_MIN * 60 * 1000;
-  console.log(`[SyncService] Starting Odoo→MongoDB tutor sync every ${SYNC_INTERVAL_MIN} min (both master_tutors + x_tutor)`);
+  console.log(
+    `[SyncService] Starting Odoo→MongoDB tutor sync every ${SYNC_INTERVAL_MIN} min ` +
+    `(master_tutors${xTutorSyncEnabled() ? " + x_tutor" : "; x_tutor sync is off"})`
+  );
 
   const runBothSyncs = () => Promise.allSettled([
     syncOdooTutorsToMongo().catch(err => console.error("[SyncService] master_tutors sync error:", err.message)),
-    syncXTutorToMongo().catch(err => console.error("[SyncService] x_tutor sync error:", err.message)),
+    // Read on each run, so the setting can change without a redeploy
+    xTutorSyncEnabled()
+      ? syncXTutorToMongo().catch(err => console.error("[SyncService] x_tutor sync error:", err.message))
+      : Promise.resolve(),
   ]);
 
   // Run immediately on startup to catch any missed changes

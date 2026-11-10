@@ -47,7 +47,7 @@ export function areaOf({ service, model = "", op = "" }) {
   const m = String(model);
   if (op === "message_post" && m !== "discuss.channel") return "notes";
   if (m === "crm.lead") return "leads";
-  if (m.startsWith("x_master_tutor") || m.startsWith("x_tutor")) return "tutors";
+  if (m.startsWith("x_master_tutor") || m.startsWith("master_tutor") || m.startsWith("x_tutor")) return "tutors";
   if (m === "res.partner") return "contacts";
   if (m.startsWith("whatsapp.") || m === "discuss.channel" || m === "ir.attachment") return "whatsapp";
   if (m === "ir.cron") return "queue";
