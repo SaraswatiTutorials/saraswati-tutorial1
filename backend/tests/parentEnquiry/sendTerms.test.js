@@ -127,12 +127,13 @@ test("the template name can be changed without a code change", async () => {
   assert.equal(sends[0].templateName, "terms_conditions_v2");
 });
 
-test("no tutor assigned: refused, nothing sent", async () => {
+test("works with no tutor assigned too: the admin sends it whenever they choose", async () => {
   lead = freshLead({ assignedTutor: "", assignedTutorId: null });
   const res = await sendTerms();
-  assert.equal(res.statusCode, 400);
-  assert.match(res.payload.message, /Assign a tutor first/);
-  assert.equal(sends.length, 0);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.payload.sent, true);
+  assert.equal(sends.length, 1);
+  assert.equal(sends[0].phoneNumber, "9876543210");
 });
 
 test("no phone: refused, nothing sent", async () => {
