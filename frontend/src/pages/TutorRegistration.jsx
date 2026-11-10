@@ -26,6 +26,7 @@ import {
 import { API_BASE } from "../config";
 import { LocationField } from "../components/LocationPicker";
 import FeedbackWidget from "../components/FeedbackWidget";
+import TutorExistsDialog from "../components/TutorExistsDialog";
 import {
   experienceOptions,
   occupationOptions,
@@ -161,6 +162,9 @@ export default function TutorRegistration() {
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  // Set when the number or email is already registered: "log in instead" popup
+  const [existsInfo, setExistsInfo] = useState(null);
+  const [checkingExists, setCheckingExists] = useState(false);
   const [touched, setTouched] = useState({});
   const [previewPhoto, setPreviewPhoto] = useState(null);
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
@@ -715,6 +719,10 @@ export default function TutorRegistration() {
       localStorage.removeItem(DRAFT_KEY);
       navigate("/thank-you?type=tutor");
     } catch (err) {
+      if (err?.response?.status === 409 && err.response.data?.code === "TUTOR_EXISTS") {
+        setExistsInfo(err.response.data);
+        return;
+      }
       console.error("FULL ERROR:", err);
 
       alert(
@@ -729,13 +737,38 @@ export default function TutorRegistration() {
     }
   };
 
-  const goNext = () => {
+  // Already registered with this number or email? Asked before step 2 so nobody
+  // fills the whole form first. If the check can't be made, carry on: the
+  // server checks again when the form is sent.
+  const alreadyRegistered = async () => {
+    setCheckingExists(true);
+    try {
+      const { data } = await axios.post(`${API_BASE}/tutors/check-exists`, {
+        phone: formData.phone,
+        whatsapp: sameAsMobile ? formData.phone : formData.whatsapp,
+        email: formData.email,
+      });
+      if (data?.exists) {
+        setExistsInfo(data);
+        return true;
+      }
+    } catch {
+      // network trouble: the final submit still checks
+    } finally {
+      setCheckingExists(false);
+    }
+    return false;
+  };
+
+  const goNext = async () => {
+    if (checkingExists) return;
     if (step === 1) {
       const error = validateStep1();
       if (error) {
         alert(error);
         return;
       }
+      if (await alreadyRegistered()) return;
     }
 
     if (step === 2) {
@@ -1049,8 +1082,8 @@ export default function TutorRegistration() {
 
                 <NavigationFooter>
                   <div />
-                  <PrimaryButton disabled={!isStep1Ready} onClick={goNext}>
-                    Next <ChevronRight className="h-4 w-4" />
+                  <PrimaryButton disabled={!isStep1Ready || checkingExists} onClick={goNext}>
+                    {checkingExists ? "Checking..." : "Next"} <ChevronRight className="h-4 w-4" />
                   </PrimaryButton>
                 </NavigationFooter>
               </section>
@@ -1621,6 +1654,8 @@ export default function TutorRegistration() {
           }
         }
       `}</style>
+
+      <TutorExistsDialog info={existsInfo} phone={formData.phone} onClose={() => setExistsInfo(null)} />
 
       <FeedbackWidget
         source="tutor-registration"
