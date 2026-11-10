@@ -25,7 +25,6 @@ import Tutor from "../models/Tutor.js";
 import PartialTutor from "../models/PartialTutor.js";
 import BroadcastLog from "../models/BroadcastLog.js";
 import {
-  buildCentralizedQuery,
   calculateTutorScore,
   compareTutors,
   computeMatchReason,
@@ -380,17 +379,41 @@ function occupationNote(occupation) {
  * scores zero on the rest. The denominator is left alone, so the percentages
  * stay directly comparable with a registered tutor's.
  */
-const PARTIAL_CAN_EARN = new Set(["pincode", "area", "city", "experience"]);
+const COUNTS_ON_A_SHORTLIST = new Set(["pincode", "area", "city", "experience"]);
 
-function earnedByPartial(score) {
+/**
+ * Three things decide a shortlist: how near the tutor is, how long they have
+ * taught, and what they do for a living. Occupation is added separately, by
+ * withOccupation.
+ *
+ * The matching engine also scores grade, board, subject, timing and gender.
+ * All five are discarded here, for everybody — registered tutors and partial
+ * form entries are judged the same way, so a shortlist can be read as a
+ * straight answer to "who is nearby and experienced enough".
+ *
+ * The denominator is rebuilt from what is left rather than reusing the
+ * engine's. The engine counts the discarded factors in its maximum, so
+ * keeping it would squash every percentage against a ceiling nobody could
+ * reach: a perfect tutor would have read 55%.
+ */
+function shortlistScore(score, params) {
   const kept = Object.fromEntries(
-    Object.entries(score.breakdown).map(([k, v]) => [k, PARTIAL_CAN_EARN.has(k) ? v : 0]),
+    Object.entries(score.breakdown).map(([k, v]) => [k, COUNTS_ON_A_SHORTLIST.has(k) ? v : 0]),
   );
   const total = Object.values(kept).reduce((n, v) => n + v, 0);
+
+  // What could have been earned: experience always, and each part of the
+  // location only when the enquiry gave something to compare it against.
+  let max = 10;
+  if (params.pincode) max += 40;
+  if (params.area || params.locality || params.landmark) max += 25;
+  if (params.city) max += 10;
+
   return {
     ...score,
     score: total,
-    percentage: Math.min(100, Math.round((total / (score.maxPossibleScore || 100)) * 100)),
+    maxPossibleScore: max,
+    percentage: Math.min(100, Math.round((total / (max || 100)) * 100)),
     breakdown: kept,
   };
 }
@@ -407,7 +430,15 @@ export async function shortlistTutors(lead, {
   if (!requirementId) return blocked(stage, "This enquiry has no requirement ID.");
 
   const params = matchParamsFor(lead);
-  const registered = await Tutor.find(buildCentralizedQuery(params));
+
+  // Every approved, unblocked tutor is a candidate. The engine's usual query
+  // also insists on the grade the student is in and the gender the parent
+  // asked for; neither is applied here, because a shortlist is built on
+  // distance, experience and occupation alone.
+  const registered = await Tutor.find({
+    status: "approved",
+    availabilityStatus: { $ne: "Blocked" },
+  });
 
   // Everyone who filled in the short sign-up form is a candidate too — see
   // partialAsTutor for what is known about them and what is not. Nobody is
@@ -415,19 +446,13 @@ export async function shortlistTutors(lead, {
   // already in the running under their registered record, so that the same
   // person cannot occupy two places on one shortlist.
   //
-  // The check is against every *approved* tutor, and only those. Two
-  // different mistakes are being avoided at once:
-  //
-  //   - against only this requirement's matches, an approved tutor who failed
-  //     the grade or gender test would reappear through the sign-up form.
-  //     Being filtered out is an answer, not another door to try.
-  //   - against every tutor on file, the thirty-four people who are pending
-  //     here and also filled in the form would vanish from both pools: out of
-  //     the first for not being approved, out of the second as duplicates of
-  //     a record that is not in the running either.
-  //
-  // So an approved tutor is already represented and their form entry is
-  // dropped; anyone else is carried by their form entry.
+  // The check is against approved tutors, and only those. Matching against
+  // every tutor on file would make the thirty-four people who are pending
+  // here and also filled in the form vanish from both pools: out of the first
+  // for not being approved, out of the second as duplicates of a record that
+  // is not in the running either. So an approved tutor is already
+  // represented and their form entry is dropped; anyone else is carried by
+  // their form entry.
   const onFile = await Tutor.find({ status: "approved" }, { whatsapp: 1, phone: 1 }).lean();
   const registeredPhones = new Set(
     onFile.flatMap((t) => [last10(t.whatsapp), last10(t.phone)]).filter(Boolean),
@@ -453,9 +478,9 @@ export async function shortlistTutors(lead, {
   const scored = candidates
     .map((tutor) => {
       const raw = calculateTutorScore(params, tutor);
-      // earnedByPartial strips the engine's unearned marks; occupation is
-      // added after, because a form entry did declare that one.
-      const score = withOccupation(tutor.isPartial ? earnedByPartial(raw) : raw, tutor);
+      // The same rule for everybody: keep distance and experience, drop the
+      // rest, then add occupation.
+      const score = withOccupation(shortlistScore(raw, params), tutor);
       return {
         doc: tutor,
         name: tutor.name,
@@ -482,20 +507,20 @@ export async function shortlistTutors(lead, {
     // A tutor who matches nothing about where the family is, is not a match at
     // all; without this they ride in on subject alone from another city.
     .filter((t) => !(hasLocation && t.locationScore === 0) && t.matchPercentage > 0)
-    .sort((a, b) => {
-      // Approved tutors first, always. Somebody who registered and was
-      // approved outranks somebody who only filled in the short form, however
-      // well that entry scores — the form entries take whatever places are
-      // left once the approved ones run out, which on a thinly covered area
-      // is most of the list and on a dense one is none of it.
-      if (a.isPartial !== b.isPartial) return a.isPartial ? 1 : -1;
-
-      // Then distance, which leads. compareTutors treats two people within a
-      // kilometre of each other as equally near and lets the score settle it,
-      // so occupation's quarter decides between neighbours rather than
-      // dragging somebody in from the far side of the city.
-      return compareTutors(a, b);
-    });
+    // Distance leads, and nothing else outranks it. compareTutors treats two
+    // people within a kilometre of each other as equally near and lets the
+    // score settle it, so occupation's quarter decides between neighbours
+    // rather than dragging somebody in from the far side of the city.
+    //
+    // Registered tutors and partial form entries are ranked together, on the
+    // same three things. An earlier version put every approved tutor above
+    // every form entry, which sounded right but meant the form entries were
+    // never seen: with forty-five to a hundred and fifty approved tutors
+    // inside ten kilometres of every family, the twenty places were always
+    // taken before the form was reached. Whether somebody has finished
+    // registering is not one of the three criteria, so it does not decide
+    // the order either.
+    .sort((a, b) => compareTutors(a, b));
 
   const top = scored.slice(0, limit);
   const tutors = top.map((t, i) => ({
