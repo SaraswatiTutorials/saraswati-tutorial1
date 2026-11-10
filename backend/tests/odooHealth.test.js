@@ -113,6 +113,7 @@ test("calls are grouped by what they are for", () => {
   assert.equal(areaOf({ service: "object", model: "crm.lead", op: "message_post" }), "notes");
   assert.equal(areaOf({ service: "object", model: "discuss.channel", op: "message_post" }), "whatsapp");
   assert.equal(areaOf({ service: "object", model: "x_master_tutors", op: "create" }), "tutors");
+  assert.equal(areaOf({ service: "object", model: "master_tutors", op: "search_read" }), "tutors");
   assert.equal(areaOf({ service: "object", model: "ir.cron", op: "method_direct_trigger" }), "queue");
   assert.equal(maskText("call 919876543210 now"), "call …3210 now");
   assert.equal(maskText("(#131026) Message undeliverable"), "(#131026) Message undeliverable"); // Meta's code stays readable
@@ -196,4 +197,14 @@ test("an Odoo that cannot be reached is reported, not crashed on", async () => {
   assert.match(out.problems[0], /cannot be reached.*refused/);
   assert.ok(out.warnings.some((w) => /database is not connected/.test(w)));
   assert.ok(!JSON.stringify(out).includes("s3cret-pass"));
+});
+
+test("the switched-off x_tutor sync is not listed; master tutors is", async () => {
+  const { readSendFlows } = await import("../utils/odooHealth.js");
+  const db = { collection: () => ({ find: () => ({ toArray: async () => [] }), aggregate: () => ({ toArray: async () => [] }) }) };
+  const off = await readSendFlows(db, { since: new Date(0), env: {} });
+  assert.ok(off.some((f) => f.key === "odoo_tutor_sync"));
+  assert.ok(!off.some((f) => f.key === "odoo_x_tutor_sync"));
+  const on = await readSendFlows(db, { since: new Date(0), env: { ODOO_X_TUTOR_SYNC: "true" } });
+  assert.ok(on.some((f) => f.key === "odoo_x_tutor_sync"));
 });
