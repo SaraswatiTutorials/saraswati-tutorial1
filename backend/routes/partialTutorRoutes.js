@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import PartialTutor, { PARTIAL_TUTOR_STATUSES } from "../models/PartialTutor.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
 import { validatePartialTutor } from "../utils/partialTutorValidation.js";
+import { assignPartialTutorCode } from "../utils/tutorCodes.js";
+import { listOdooTutorCodes } from "../utils/odooService.js";
 
 const router = express.Router();
 
@@ -21,7 +23,19 @@ router.post("/", async (req, res) => {
       userAgent: req.headers["user-agent"] || "",
     });
 
-    return res.status(201).json({ success: true, message: "Thank you! Our team will call you soon.", id: record._id });
+    // Their tutor ID, from the same numbering as registered tutors. The form is
+    // already saved, so a failure here only leaves the ID for the server's
+    // start-up pass (backfillPartialTutorCodes) or their first login.
+    let tutorCode = "";
+    try {
+      tutorCode = await assignPartialTutorCode(record, { readOdooCodes: () => listOdooTutorCodes() });
+    } catch (codeErr) {
+      console.error("[PartialTutor] Tutor ID not given:", codeErr.message);
+    }
+
+    return res.status(201).json({
+      success: true, message: "Thank you! Our team will call you soon.", id: record._id, tutorCode,
+    });
   } catch (err) {
     console.error("[PartialTutor] Save error:", err);
     return res.status(500).json({ success: false, message: "Server error." });

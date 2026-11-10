@@ -26,6 +26,17 @@ import {
 import { API_BASE } from "../config";
 import { LocationField } from "../components/LocationPicker";
 import FeedbackWidget from "../components/FeedbackWidget";
+import {
+  experienceOptions,
+  occupationOptions,
+  genderOptions,
+  cityOptions,
+  travelDistanceOptions,
+  gradeOptions,
+  boardOptions,
+  subjectOptions,
+  timingGroups,
+} from "../data/tutorFormOptions";
 
 const DRAFT_KEY = "tutorRegistrationDraft";
 
@@ -84,58 +95,6 @@ const steps = [
     icon: ShieldCheck,
   },
 ];
-
-const experienceOptions = [
-  "0 year",
-  "1 year",
-  "2 year",
-  "3 year",
-  "4 year",
-  "5 year",
-  "5+ years",
-  "10+ years",
-  "15+ years",
-  "20+ years",
-  "25+ years",
-  "30+ years",
-];
-
-const occupationOptions = [
-  "School Teacher",
-  "College Lecturer",
-  "Student",
-  "Freelancer",
-  "Working Professional",
-  "Other",
-];
-
-const genderOptions = ["Male", "Female", "Other"];
-const cityOptions = ["Bangalore", "Mumbai"];
-const travelDistanceOptions = ["5 km", "10 km", "15 km", "20+ km"];
-const gradeOptions = [
-  "Class 1-5 (Primary)",
-  "Class 6-8 (Middle)",
-  "Class 9-10 (Secondary)",
-  "Class 11-12 (Senior Secondary)",
-];
-const boardOptions = ["CBSE", "ICSE", "IB", "IGCSE", "State Board"];
-const subjectOptions = [
-  "Mathematics",
-  "Science",
-  "Physics",
-  "Chemistry",
-  "Biology",
-  "English",
-  "Hindi",
-  "Kannada",
-  "Commerce",
-  "Social Studies",
-];
-
-const timingGroups = {
-  "Morning 5:00 AM – 9:00 AM": ["5:00 AM – 9:00 AM"],
-  "Evening 4 PM – 8 PM": ["4-5 PM", "5-6 PM", "6-7 PM", "7-8 PM"],
-};
 
 export default function TutorRegistration() {
   const navigate = useNavigate();
