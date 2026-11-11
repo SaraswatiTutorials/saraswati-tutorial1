@@ -12,13 +12,14 @@ export function phonePattern(input) {
   return new RegExp(`${last10.split("").join("[\\s\\-.]*")}\\s*$`);
 }
 
-// Tutor Code or email (case-insensitive), or a full phone/WhatsApp number
+// Tutor Code (case-insensitive) or a full phone/WhatsApp number. Not email:
+// several tutor records can share one email, so it can't say who is signing in.
 export function tutorLoginQuery(identifier) {
   const clean = String(identifier || "").trim();
   if (!clean) return null;
 
   const exact = new RegExp(`^${escapeRegex(clean)}$`, "i");
-  const or = [{ tutorCode: exact }, { email: exact }];
+  const or = [{ tutorCode: exact }];
 
   const phone = /^[\d\s+\-().]+$/.test(clean) ? phonePattern(clean) : null;
   if (phone) or.push({ phone }, { whatsapp: phone });

@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 
 test("a new person is not registered", async () => {
-  assert.equal(await findExistingTutor({ phones: ["9123456789"], email: "new@example.test" }), null);
+  assert.equal(await findExistingTutor({ phones: ["9123456789"] }), null);
 });
 
 test("the same number, however it is written, is found", async () => {
@@ -55,13 +55,13 @@ test("the WhatsApp number given on the form is checked as well as the phone", as
   assert.deepEqual(await findExistingTutor({ phones: ["9123456789", "9000000002"] }), { matchedOn: "phone", source: "tutor" });
 });
 
-test("the same email, in any capitals, is found", async () => {
-  assert.deepEqual(await findExistingTutor({ phones: ["9123456789"], email: " asha@example.TEST " }), { matchedOn: "email", source: "tutor" });
+test("email is not checked: a new number with someone's email is a new tutor", async () => {
+  assert.equal(await findExistingTutor({ phones: ["9123456789"], email: "asha@example.test" }), null);
 });
 
 test("pending and rejected tutors count as registered", async () => {
   assert.ok(await findExistingTutor({ phones: ["9000000002"] }));
-  assert.ok(await findExistingTutor({ email: "rex@example.test" }));
+  assert.ok(await findExistingTutor({ phones: ["9000000003"] }));
 });
 
 test("a short-form sign-up counts, until it has become a full tutor", async () => {
@@ -69,17 +69,15 @@ test("a short-form sign-up counts, until it has become a full tutor", async () =
   assert.equal(await findExistingTutor({ phones: ["9822222222"] }), null);
 });
 
-test("part of a number, or a pattern in the email, never matches someone", async () => {
+test("part of a number never matches someone", async () => {
   assert.equal(await findExistingTutor({ phones: ["43210"] }), null);
-  assert.equal(await findExistingTutor({ email: ".*@example.test" }), null);
-  assert.equal(await findExistingTutor({ email: "not an email" }), null);
+  assert.equal(await findExistingTutor({ phones: [".*"] }), null);
   assert.equal(await findExistingTutor({}), null);
 });
 
 test("the answer says what matched, never who", async () => {
-  const body = tutorExistsBody({ matchedOn: "email", source: "tutor" });
+  const body = tutorExistsBody({ matchedOn: "phone", source: "partial" });
   assert.deepEqual(Object.keys(body).sort(), ["code", "exists", "matchedOn", "message", "source", "success"]);
   assert.equal(body.code, "TUTOR_EXISTS");
-  assert.equal(body.message, "A tutor with this email address is already registered.");
-  assert.equal(tutorExistsBody({ matchedOn: "phone", source: "partial" }).message, "A tutor with this phone number is already registered.");
+  assert.equal(body.message, "A tutor with this phone number is already registered.");
 });

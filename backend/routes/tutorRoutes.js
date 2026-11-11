@@ -344,12 +344,12 @@ router.post("/match", async (req, res) => {
   }
 });
 
-// The full form asks this after its first step, so nobody fills in all three
+// The full form asks this (by number) after its first step, so nobody fills in all three
 // steps only to be told at the end. POST / checks again on submit.
 router.post("/check-exists", async (req, res) => {
   try {
-    const { phone, whatsapp, email } = req.body || {};
-    const existing = await findExistingTutor({ phones: [phone, whatsapp], email });
+    const { phone, whatsapp } = req.body || {};
+    const existing = await findExistingTutor({ phones: [phone, whatsapp] });
     res.json(existing ? tutorExistsBody(existing) : { success: true, exists: false });
   } catch (error) {
     console.error("Tutor exists check error:", error);
@@ -375,8 +375,8 @@ router.post("/", async (req, res) => {
     }
     req.body.email = email;
 
-    // Already registered (same number or email): they log in instead
-    const existing = await findExistingTutor({ phones: [phone, req.body.whatsapp], email });
+    // Already registered (same phone or WhatsApp number): they log in instead
+    const existing = await findExistingTutor({ phones: [phone, req.body.whatsapp] });
     if (existing) return res.status(409).json(tutorExistsBody(existing));
 
     // Odoo record, tutors collection, draft cleared: see utils/tutorRegistration.js

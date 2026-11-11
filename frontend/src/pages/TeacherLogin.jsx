@@ -29,7 +29,7 @@ export default function TeacherLogin() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!identifier.trim()) {
-      setError("Please enter your Tutor Code, Email, or Phone.");
+      setError("Please enter your Tutor Code or mobile number.");
       return;
     }
     setError("");
@@ -70,7 +70,7 @@ export default function TeacherLogin() {
       headline="Your classes and students, all in one place."
       features={LOGIN_FEATURES}
       title="Tutor sign in"
-      subtitle="Use your Tutor Code (e.g. TUT0218), registered email, or full mobile number."
+      subtitle="Use your Tutor Code (e.g. TUT0218) or your full mobile number."
       footer={
         <div className="space-y-2">
           <p>
@@ -87,7 +87,7 @@ export default function TeacherLogin() {
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
         <div>
           <label htmlFor="identifier" className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Tutor Code, email or mobile
+            Tutor Code or mobile number
           </label>
           <div className="flex h-12 items-center rounded-xl border border-slate-300 bg-white transition focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-900">
             <BadgeCheck className="ml-3.5 h-4 w-4 shrink-0 text-slate-400" />
@@ -97,7 +97,7 @@ export default function TeacherLogin() {
               autoComplete="username"
               autoCapitalize="none"
               spellCheck={false}
-              placeholder="TUT0001 / name@email.com / 98765 43210"
+              placeholder="TUT0001 / 98765 43210"
               value={identifier}
               onChange={(e) => {
                 setIdentifier(e.target.value);
@@ -123,7 +123,7 @@ export default function TeacherLogin() {
           {loading ? "Signing in..." : "Sign in"}
         </button>
         <p className="text-center text-xs text-slate-400 dark:text-slate-500">
-          Only approved tutors can sign in. Need help? Contact the Saraswati team.
+          Need help signing in? Contact the Saraswati team.
         </p>
       </form>
     </PortalLogin>

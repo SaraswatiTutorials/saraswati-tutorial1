@@ -36,9 +36,13 @@ describe("tutorLoginQuery", () => {
     });
   const tutor = { tutorCode: "TUT0218", email: "Gyan@Example.com", phone: "7892046340", whatsapp: "" };
 
-  test("logs in by tutor code or email, ignoring case", () => {
+  test("logs in by tutor code, ignoring case", () => {
     assert.ok(matches(tutorLoginQuery("tut0218"), tutor));
-    assert.ok(matches(tutorLoginQuery(" gyan@example.com "), tutor));
+  });
+
+  test("email no longer logs anyone in", () => {
+    assert.equal(matches(tutorLoginQuery(" gyan@example.com "), tutor), false);
+    assert.equal(matches(tutorLoginQuery("Gyan@Example.com"), tutor), false);
   });
 
   test("logs in by the full phone number", () => {
