@@ -243,6 +243,19 @@ function leadDuplicateKey(lead) {
   return phone && students ? `${phone}#${students}` : "";
 }
 
+// A search that looks like a tutor ID: "TUT0192", "tut 192", "TUT-0192".
+// Returns the number (192), or null when the text isn't a tutor ID.
+function tutorCodeQuery(text) {
+  const m = String(text || "").trim().match(/^tut[\s-]*0*(\d{1,6})$/i);
+  return m ? Number(m[1]) : null;
+}
+
+// Whether a tutor's ID has that number ("TUT0192" and older "TUT-192" both have 192).
+function tutorCodeIs(code, number) {
+  const m = String(code || "").match(/(\d+)\s*$/);
+  return !!m && Number(m[1]) === number;
+}
+
 function tutorDuplicateKey(tutor) {
   const phone = lastTenDigits(tutor?.phone);
   const name = String(tutor?.name || "").trim().toLowerCase();
@@ -1261,10 +1274,14 @@ export default function AdminDashboard() {
   }, [drafts, deferredSearch]);
 
   const filteredTutors = useMemo(() => {
-    const q = deferredSearch.toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
+    // Typed a tutor ID: only tutors with exactly that ID
+    const codeNumber = tutorCodeQuery(q);
+    if (codeNumber != null) return uniqueTutors.filter((t) => tutorCodeIs(t.tutorCode, codeNumber));
     return uniqueTutors.filter(
       (t) =>
         t.name?.toLowerCase().includes(q) ||
+        t.tutorCode?.toLowerCase().includes(q) ||
         t.subject?.toLowerCase().includes(q) ||
         t.location?.toLowerCase().includes(q) ||
         t.email?.toLowerCase().includes(q) ||
@@ -1292,6 +1309,9 @@ export default function AdminDashboard() {
   const filteredPartialRecords = useMemo(() => {
     const query = partialSearch.trim().toLowerCase();
     if (!query) return partialRecords;
+    // Typed a tutor ID: only entries with exactly that ID
+    const codeNumber = tutorCodeQuery(query);
+    if (codeNumber != null) return partialRecords.filter((pt) => tutorCodeIs(pt.tutorCode, codeNumber));
     const words = query.split(/\s+/);
     // A query with no letters is a phone number, however it is spaced: "+91 98450 12345".
     const phone = /[a-z]/.test(query) ? "" : query.replace(/\D/g, "").replace(/^91(?=\d{10}$)/, "");
@@ -2059,7 +2079,7 @@ export default function AdminDashboard() {
                 type="search"
                 value={partialSearch}
                 onChange={(e) => { setPartialSearch(e.target.value); setVisiblePartialCount(CARD_BATCH_SIZE); }}
-                placeholder="Search by name, tutor ID, WhatsApp number, area, PIN, experience or occupation..."
+                placeholder="Search by tutor ID (e.g. TUT0250), name, WhatsApp number, area, PIN, experience or occupation..."
                 className="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-4 text-sm font-medium text-slate-800 dark:text-white outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
               />
             </label>
@@ -3844,7 +3864,7 @@ export default function AdminDashboard() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search tutors by name, subject, location, email or phone..."
+              placeholder="Search by tutor ID (e.g. TUT0192), name, subject, location, email or phone..."
               className="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-4 text-sm font-medium text-slate-800 dark:text-white outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
             />
           </label>
@@ -3954,7 +3974,12 @@ export default function AdminDashboard() {
                                 <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" aria-label="Odoo sync failed" />
                               )}
                             </p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">{t.email || "No email"}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">
+                              {t.tutorCode && (
+                                <span className="mr-1.5 font-semibold text-indigo-600 dark:text-indigo-300">{t.tutorCode}</span>
+                              )}
+                              {t.email || "No email"}
+                            </p>
                           </div>
                         </div>
 
