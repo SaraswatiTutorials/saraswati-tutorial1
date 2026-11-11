@@ -52,15 +52,15 @@ const form = () => ({ name: "Asha", phone: "9876543210", whatsapp: "9876543211",
 test("after step 1: a new person carries on", async () => {
   const res = await run("/check-exists", { phone: "9876543210", whatsapp: "9876543211", email: "asha@example.test" });
   assert.deepEqual(res.payload, { success: true, exists: false });
-  assert.deepEqual(asked, [{ phones: ["9876543210", "9876543211"], email: "asha@example.test" }]);
+  assert.deepEqual(asked, [{ phones: ["9876543210", "9876543211"] }]); // email not used
 });
 
 test("after step 1: someone already registered is told so", async () => {
-  existing = { matchedOn: "email", source: "tutor" };
+  existing = { matchedOn: "phone", source: "tutor" };
   const res = await run("/check-exists", { phone: "9876543210", email: "asha@example.test" });
   assert.equal(res.statusCode, 200);
   assert.equal(res.payload.exists, true);
-  assert.equal(res.payload.matchedOn, "email");
+  assert.equal(res.payload.matchedOn, "phone");
 });
 
 test("sending the form: someone already registered is refused, nothing is saved", async () => {
@@ -76,7 +76,7 @@ test("sending the form: a new person is registered as before", async () => {
   const res = await run("/", form());
   assert.equal(res.statusCode, 201);
   assert.equal(registered.length, 1);
-  assert.deepEqual(asked, [{ phones: ["9876543210", "9876543211"], email: "asha@example.test" }]);
+  assert.deepEqual(asked, [{ phones: ["9876543210", "9876543211"] }]);
 });
 
 test("the form's own checks still come first", async () => {

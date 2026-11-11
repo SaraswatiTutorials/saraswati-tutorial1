@@ -1,8 +1,9 @@
 // One person, one tutor record. Before anybody registers (the full website
 // form or the short partial form) this looks for a tutor who already has the
-// same phone/WhatsApp number or email. Registered tutors of every status count,
-// and so does a short-form sign-up that hasn't become a full registration yet
-// (once it has, the registered tutor stands for it).
+// same phone/WhatsApp number. Email is not checked: one email can be shared.
+// Registered tutors of every status count, and so does a short-form sign-up
+// that hasn't become a full registration yet (once it has, the registered
+// tutor stands for it).
 //
 // The answer only says THAT someone is registered and on what, never who:
 // anybody can type a number into the form.
@@ -10,20 +11,15 @@ import Tutor from "../models/Tutor.js";
 import PartialTutor from "../models/PartialTutor.js";
 import { phonePattern } from "./loginMatch.js";
 
-const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 export const TUTOR_EXISTS = "TUTOR_EXISTS";
 
 /**
- * @param {{ phones?: string[], email?: string }} who
- * @returns {Promise<null | { matchedOn: "phone" | "email", source: "tutor" | "partial" }>}
+ * @param {{ phones?: string[] }} who
+ * @returns {Promise<null | { matchedOn: "phone", source: "tutor" | "partial" }>}
  */
-export async function findExistingTutor({ phones = [], email = "" } = {}) {
+export async function findExistingTutor({ phones = [] } = {}) {
   const last10 = [...new Set(phones.map((p) => String(p || "").replace(/\D/g, "").slice(-10)).filter((d) => d.length === 10))];
   const patterns = last10.map(phonePattern).filter(Boolean);
-  const cleanEmail = String(email || "").trim();
-  const emailRe = EMAIL_RE.test(cleanEmail) ? new RegExp(`^\\s*${escapeRegex(cleanEmail)}\\s*$`, "i") : null;
 
   if (patterns.length) {
     const byPhone = { $or: patterns.flatMap((re) => [{ phone: re }, { whatsapp: re }]) };
@@ -33,9 +29,6 @@ export async function findExistingTutor({ phones = [], email = "" } = {}) {
       { _id: 1 },
     ).lean();
     if (partial) return { matchedOn: "phone", source: "partial" };
-  }
-  if (emailRe && (await Tutor.findOne({ email: emailRe }, { _id: 1 }).lean())) {
-    return { matchedOn: "email", source: "tutor" };
   }
   return null;
 }
@@ -48,8 +41,6 @@ export function tutorExistsBody(found) {
     code: TUTOR_EXISTS,
     matchedOn: found.matchedOn,
     source: found.source,
-    message: found.matchedOn === "email"
-      ? "A tutor with this email address is already registered."
-      : "A tutor with this phone number is already registered.",
+    message: "A tutor with this phone number is already registered.",
   };
 }

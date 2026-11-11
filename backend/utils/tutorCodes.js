@@ -33,6 +33,12 @@ export function tutorCodeNumber(code) {
 }
 
 /** Every TUT ID held by a partial tutor, for upsertMasterTutor to skip. */
+/** Every TUT code already on a registered tutor in MongoDB, upper-cased. */
+export async function registeredTutorCodes() {
+  const rows = await Tutor.find({ tutorCode: CODE_PATTERN }, { tutorCode: 1 }).lean();
+  return [...new Set(rows.map((r) => r.tutorCode.toUpperCase()))];
+}
+
 export async function partialTutorCodes() {
   const rows = await PartialTutor.find({ tutorCode: CODE_PATTERN }, { tutorCode: 1 }).lean();
   return [...new Set(rows.map((r) => r.tutorCode.toUpperCase()))];

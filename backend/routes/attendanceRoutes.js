@@ -229,7 +229,10 @@ router.post("/tutor-login", async (req, res) => {
   try {
     const { identifier } = req.body;
     if (!identifier) {
-      return res.status(400).json({ message: "Identifier (code, email, or phone) is required." });
+      return res.status(400).json({ message: "Enter your Tutor Code or mobile number." });
+    }
+    if (String(identifier).includes("@")) {
+      return res.status(400).json({ message: "Sign in with your Tutor Code or mobile number. Email sign-in is not available." });
     }
 
     const query = tutorLoginQuery(identifier);

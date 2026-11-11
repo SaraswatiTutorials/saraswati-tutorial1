@@ -162,7 +162,7 @@ export default function TutorRegistration() {
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  // Set when the number or email is already registered: "log in instead" popup
+  // Set when the number is already registered: "log in instead" popup
   const [existsInfo, setExistsInfo] = useState(null);
   const [checkingExists, setCheckingExists] = useState(false);
   const [touched, setTouched] = useState({});
@@ -737,7 +737,7 @@ export default function TutorRegistration() {
     }
   };
 
-  // Already registered with this number or email? Asked before step 2 so nobody
+  // Already registered with this number? Asked before step 2 so nobody
   // fills the whole form first. If the check can't be made, carry on: the
   // server checks again when the form is sent.
   const alreadyRegistered = async () => {
@@ -746,7 +746,6 @@ export default function TutorRegistration() {
       const { data } = await axios.post(`${API_BASE}/tutors/check-exists`, {
         phone: formData.phone,
         whatsapp: sameAsMobile ? formData.phone : formData.whatsapp,
-        email: formData.email,
       });
       if (data?.exists) {
         setExistsInfo(data);

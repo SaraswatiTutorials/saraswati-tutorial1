@@ -42,6 +42,16 @@ dotenv.config();
 import Tutor from "../models/Tutor.js";
 import SyncState from "../models/SyncState.js";
 import { callOdooMethod, getOdooUid } from "./whatsappService.js";
+import { matchOdooTutor } from "./odooTutorMatch.js";
+
+// How the syncs look tutors up: see utils/odooTutorMatch.js
+const matchDeps = {
+  findTutors: (query) => Tutor.find(query, { phone: 1, whatsapp: 1 }).lean(),
+  countOdooCode: async (code) => {
+    const uid = await getOdooUid();
+    return callOdooMethod(uid, "master_tutors", "search_count", [[["tutor_id", "=", code]]]);
+  },
+};
 
 const SYNC_INTERVAL_MIN = Number(process.env.TUTOR_SYNC_INTERVAL_MIN || 15);
 const SYNC_KEY      = "odoo_tutor_sync";
@@ -144,6 +154,7 @@ export async function syncOdooTutorsToMongo() {
 
   let synced = 0;
   let errors = 0;
+  let skippedUnsafe = 0;
 
   try {
     const odooTutors = await fetchOdooTutorsSince(since);
@@ -196,22 +207,18 @@ export async function syncOdooTutorsToMongo() {
           (k) => profileUpdate[k] === undefined && delete profileUpdate[k]
         );
 
-        // ── Match by tutorCode first, fallback to mobile number ─────────────
-        const matchQuery = ot.tutor_id
-          ? { tutorCode: ot.tutor_id }
-          : {
-              $or: [
-                { phone: { $regex: String(ot.mobile || "").replace(/\D/g, "").slice(-10) } },
-                { whatsapp: { $regex: String(ot.whatsapp || ot.mobile || "").replace(/\D/g, "").slice(-10) } },
-              ],
-            };
+        // ── Which MongoDB tutor this is: the code and the number must agree ─
+        const target = await matchOdooTutor(ot, matchDeps);
+        if (target.skip) {
+          skippedUnsafe++;
+          console.warn(`[SyncService] Skipped Odoo tutor ${ot.tutor_id || ot.mobile}: ${target.skip}`);
+          continue;
+        }
 
         // Only update existing — never create from Odoo sync alone
-        const result = await Tutor.findOneAndUpdate(
-          matchQuery,
-          { $set: profileUpdate },
-          { new: false } // we don't need the updated doc
-        );
+        const result = target.id
+          ? await Tutor.findByIdAndUpdate(target.id, { $set: profileUpdate }, { new: false })
+          : null;
 
         if (result) {
           synced++;
@@ -241,8 +248,11 @@ export async function syncOdooTutorsToMongo() {
       { upsert: true }
     );
 
-    console.log(`[SyncService] ✅ Sync complete: ${synced} updated, ${errors} errors`);
-    return { synced, errors };
+    console.log(
+      `[SyncService] ✅ Sync complete: ${synced} updated, ${errors} errors` +
+      (skippedUnsafe ? `, ${skippedUnsafe} skipped (shared code or number mismatch)` : "")
+    );
+    return { synced, errors, skippedUnsafe };
 
   } catch (err) {
     console.error("[SyncService] Critical sync error:", err.message);
@@ -373,26 +383,24 @@ export async function syncXTutorToMongo(fullResync = false) {
         const whatsapp  = (ot.x_studio_whatsapp_number_2 || "").trim().replace(/\D/g, "").slice(-10);
         const name      = (ot.x_studio_full_name_1 || "").trim();
 
-        if (!tutorCode && !phone && !name) {
+        if (!tutorCode && !phone && !whatsapp) {
           skipped++;
-          continue; // nothing to match on
+          continue; // nothing safe to match on (a name alone is not enough)
         }
 
-        // ── Build match query ───────────────────────────────────────────────
-        const orClauses = [];
-        if (tutorCode)  orClauses.push({ tutorCode });
-        if (phone)      orClauses.push({ phone:    { $regex: phone } });
-        if (whatsapp)   orClauses.push({ whatsapp: { $regex: whatsapp } });
-        if (name)       orClauses.push({ name:     { $regex: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } });
-
-        const matchQuery = { $or: orClauses };
+        // ── Which MongoDB tutor this is: the code and the number must agree ─
+        // Matching by name, or copying the code and numbers across, is how one
+        // person's details ended up on another's record; neither is done now.
+        const target = await matchOdooTutor({ tutor_id: tutorCode, mobile: phone, whatsapp }, { findTutors: matchDeps.findTutors });
+        if (target.skip || !target.id) {
+          skipped++;
+          if (target.skip) console.warn(`[SyncService/x_tutor] Skipped id=${ot.id}: ${target.skip}`);
+          continue;
+        }
 
         // ── Build profile update payload ─────────────────────────────────────
-        // tutorCode and phone/whatsapp are synced from Odoo (Odoo is master)
+        // Never the tutor code, phone or WhatsApp number: those say who it is.
         const profileUpdate = {};
-        if (tutorCode)  profileUpdate.tutorCode  = tutorCode;
-        if (phone)      profileUpdate.phone      = phone;
-        if (whatsapp)   profileUpdate.whatsapp   = whatsapp;
         if (name)       profileUpdate.name       = name;
 
         const email       = (ot.x_studio_email_address_2   || "").trim();
@@ -421,11 +429,7 @@ export async function syncXTutorToMongo(fullResync = false) {
         // NEVER touch: onboardingCompleted, onboardingMessageSentAt,
         //              availabilityStatus, status, broadcastHistory
 
-        const result = await Tutor.findOneAndUpdate(
-          matchQuery,
-          { $set: profileUpdate },
-          { new: false }
-        );
+        const result = await Tutor.findByIdAndUpdate(target.id, { $set: profileUpdate }, { new: false });
 
         if (result) {
           synced++;

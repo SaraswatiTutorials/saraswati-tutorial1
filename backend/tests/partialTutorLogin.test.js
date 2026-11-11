@@ -146,6 +146,13 @@ test("a partial tutor without an ID yet is given one when they log in", async ()
   assert.equal(res.payload.tutor.tutorCode, "TUT0301");
 });
 
+test("an email is refused with a clear message, even a registered one", async () => {
+  tutors[0].email = "annu@example.test";
+  const res = await login("annu@example.test");
+  assert.equal(res.statusCode, 400);
+  assert.match(res.payload.message, /Tutor Code or mobile number/);
+});
+
 test("nobody by that ID or number: refused as before", async () => {
   const res = await login("TUT9999");
   assert.equal(res.statusCode, 401);
