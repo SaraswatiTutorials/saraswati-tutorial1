@@ -28,8 +28,10 @@ import {
   calculateTutorScore,
   compareTutors,
   computeMatchReason,
+  getDistanceTier,
   parseAddress,
 } from "./matchingEngine.js";
+import { roadDistancesKm } from "./roadDistance.js";
 import {
   sendWhatsAppToTutor,
   buildBroadcastMessage,
@@ -480,7 +482,7 @@ export async function shortlistTutors(lead, {
     params.landmark || params.city || params.district || params.state
   );
 
-  const scored = candidates
+  const rows = candidates
     .map((tutor) => {
       const raw = calculateTutorScore(params, tutor);
       // The same rule for everybody: keep distance and experience, drop the
@@ -500,10 +502,19 @@ export async function shortlistTutors(lead, {
         locationScore: score.locationScore,
         distanceKm: score.distanceKm,
         distanceTier: score.distanceTier,
-        reason: [computeMatchReason(params, tutor, score), occupationNote(tutor.occupation)]
-          .filter(Boolean).join(" • "),
+        _score: score,
       };
-    })
+    });
+
+  // By road where it can be had (openrouteservice), else the straight line.
+  // Worked out before the radius is applied, so "within 10 km" means by road.
+  const roadDistance = await applyRoadDistances(params, rows, radiusKm);
+  for (const r of rows) {
+    r.reason = [computeMatchReason(params, r.doc, r._score), occupationNote(r.occupation)]
+      .filter(Boolean).join(" • ");
+  }
+
+  const scored = rows
     // Too far to teach this family, so out — before anything else is weighed.
     // Somebody whose distance cannot be worked out, because one end has no
     // coordinates, is kept and judged on the pincode, area and city match
@@ -536,6 +547,8 @@ export async function shortlistTutors(lead, {
     score: t.score,
     matchPercentage: t.matchPercentage,
     distanceKm: t.distanceKm,
+    // "road" (openrouteservice) or "straight" (the line between the two pins)
+    ...(t.distanceSource ? { distanceSource: t.distanceSource, straightKm: t.straightKm } : {}),
     experience: t.experience,
     occupation: t.occupation,
     reason: t.reason,
@@ -557,6 +570,8 @@ export async function shortlistTutors(lead, {
     registeredConsidered: registered.length,
     partialConsidered: partials.length,
     radiusKm,
+    distanceMode: distanceModeOf(tutors),
+    roadDistance,
     matchedCount: scored.length,
     tutorCount: tutors.length,
     partialCount,
@@ -573,11 +588,68 @@ export async function shortlistTutors(lead, {
     partialCount,
     candidatesConsidered: candidates.length,
     radiusKm,
+    distanceMode: distanceModeOf(tutors),
     source: "panel 2 shortlist button",
     matchedAt: new Date(),
   });
 
   return { ...plan, saved: true };
+}
+
+// Road is never shorter than the straight line (give or take where a pin is
+// snapped onto the nearest road), so anyone this far beyond the radius in a
+// straight line is out either way and isn't asked about.
+const ROAD_PREFILTER_SLACK_KM = 0.5;
+
+/**
+ * Swaps each nearby candidate's straight-line distance for the road distance.
+ * Rows keep `straightKm`, and `distanceSource` says which one `distanceKm` is.
+ * Never throws: without a key, or with the service down, everyone keeps the
+ * straight line, as before. Returns what happened, for Panel 2.
+ */
+export async function applyRoadDistances(params, rows, radiusKm, options = {}) {
+  for (const r of rows) {
+    if (r.distanceKm != null) { r.straightKm = r.distanceKm; r.distanceSource = "straight"; }
+  }
+  const near = rows.filter((r) => r.distanceKm != null && r.distanceKm <= radiusKm + ROAD_PREFILTER_SLACK_KM);
+  const summary = { used: 0, asked: near.length, fromCache: 0, requests: 0, failed: false, reason: "" };
+  if (!near.length) return summary;
+
+  let result;
+  try {
+    result = await roadDistancesKm(
+      { lat: Number(params.latitude), lng: Number(params.longitude) },
+      near.map((r) => ({ lat: Number(r.doc.latitude), lng: Number(r.doc.longitude) })),
+      options,
+    );
+  } catch (err) {
+    return { ...summary, failed: true, reason: err.message };
+  }
+
+  near.forEach((r, i) => {
+    const km = result.km[i];
+    if (km == null) return;
+    r.distanceKm = km;
+    r.distanceTier = getDistanceTier(km);
+    r.distanceSource = "road";
+    if (r._score) r._score.distanceKm = km;
+    summary.used += 1;
+  });
+  return {
+    ...summary,
+    enabled: result.enabled,
+    fromCache: result.fromCache,
+    requests: result.requests,
+    failed: result.failed,
+    reason: result.reason,
+  };
+}
+
+/** "road", "straight" or "mixed", over the rows that have a distance at all. */
+function distanceModeOf(rows) {
+  const sources = new Set(rows.map((r) => r.distanceSource).filter(Boolean));
+  if (!sources.size) return "none";
+  return sources.size > 1 ? "mixed" : [...sources][0];
 }
 
 /**
@@ -707,6 +779,7 @@ export async function inviteTutors(lead, { limit = INVITE_SIZE, dryRun = false, 
       tutorCode: tutor.tutorCode,
       isPartial: tutor.isPartial,
       distanceKm: row.distanceKm,
+      distanceSource: row.distanceSource,
       matchPercentage: row.matchPercentage,
       willSend: true,
       doc: tutor,
@@ -738,8 +811,8 @@ export async function inviteTutors(lead, { limit = INVITE_SIZE, dryRun = false, 
         templateVars: chosen.buildVars(p.name, lead, ward),
       })),
       partialCount: toSend.filter((p) => p.isPartial).length,
-      tutors: toSend.map(({ name, tutorCode, distanceKm, isPartial }) =>
-        ({ name, tutorCode, distanceKm, isPartial })),
+      tutors: toSend.map(({ name, tutorCode, distanceKm, distanceSource, isPartial }) =>
+        ({ name, tutorCode, distanceKm, distanceSource, isPartial })),
     };
   }
 
@@ -763,6 +836,7 @@ export async function inviteTutors(lead, { limit = INVITE_SIZE, dryRun = false, 
       adminName: "Panel 2",
       adminEmail: "",
       distanceKm: p.distanceKm,
+      distanceSource: p.distanceSource || "",
       matchPercentage: p.matchPercentage,
       broadcastType: "requirement",
     }).save();
@@ -845,6 +919,7 @@ export async function sendTopThree(lead, { dryRun = false, force = false } = {})
     experience: t.experience,
     occupation: t.occupation,
     distanceKm: t.distanceKm,
+    distanceSource: t.distanceSource,
     // Carried through so the board can still say where this person came from
     // after the options have gone to the parent.
     isPartial: t.isPartial === true,
