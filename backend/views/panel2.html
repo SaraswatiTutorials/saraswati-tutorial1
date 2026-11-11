@@ -697,7 +697,17 @@ const leftFor = (mins) => {
 };
 const plural = (n, word) => n + " " + word + (n === 1 ? "" : "s");
 const idOf = (b) => b.requirementId || (b.parentName + "|" + b.createdAt);
-const km = (d) => (d != null ? esc(d) + " km" : "—");
+// By road unless marked: "≈" is the straight line between the two map pins,
+// used when road distance couldn't be had (older shortlists have no mark).
+const km = (d, source) => (d == null ? "—"
+  : source === "straight"
+    ? '<span title="Straight line between the two map pins (road distance was not available)">≈ ' + esc(d) + " km</span>"
+    : esc(d) + " km");
+const distanceNote = (mode) => ({
+  road: "Distances by road",
+  mixed: "By road; ≈ is a straight line where road distance wasn't available",
+  straight: "≈ Straight-line distances (road distance not available)",
+}[mode] || "");
 const initials = (name) => (String(name || "").trim().split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).slice(0, 2).map((w) => [...w][0]).join("") || "?").toUpperCase();
 const avatar = (name) => '<span class="avatar" aria-hidden="true">' + esc(initials(name)) + "</span>";
 
@@ -1156,7 +1166,7 @@ function invitedPanel(b) {
         tutorCell(t, [originLabel(t), t.occupation].filter(Boolean).join(" · ")),
         deliveryCell(t.delivery, t.deliveryError, t.sendStatus, t.failureReason),
         replyCell(t.reply, t.repliedAt),
-        km(t.distanceKm),
+        km(t.distanceKm, t.distanceSource),
         esc(t.experience || "—"),
         t.sentAt ? esc(when(t.sentAt)) : "—",
       ]));
@@ -1173,6 +1183,7 @@ function shortlistPanel(b) {
     (s.consideredCount != null ? "<span>From " + esc(s.consideredCount) + " considered</span>" : "") +
     (s.partialCount ? "<span>" + esc(s.partialCount) + " from the partial tutor form</span>" : "") +
     (s.radiusKm ? "<span>Within " + esc(s.radiusKm) + " km</span>" : "") +
+    (distanceNote(s.distanceMode) ? "<span>" + esc(distanceNote(s.distanceMode)) + "</span>" : "") +
     (s.at ? "<span>Made " + esc(when(s.at)) + "</span>" : "") + "</div>" +
     (b.shortlistAfterInvites
       ? '<div class="note">This shortlist was made at ' + esc(hhmm(s.at)) + ", after the invitations went out at " + esc(hhmm(b.firstInviteAt)) +
@@ -1182,7 +1193,7 @@ function shortlistPanel(b) {
       ? table(["Tutor", "Rank", "Score", "Distance", "Experience"],
           s.tutors.map((t, i) => [
             tutorCell(t, [originLabel(t), t.occupation].filter(Boolean).join(" · ")),
-            esc(t.rank || i + 1), esc(t.score ?? "—"), km(t.distanceKm), esc(t.experience || "—"),
+            esc(t.rank || i + 1), esc(t.score ?? "—"), km(t.distanceKm, t.distanceSource), esc(t.experience || "—"),
           ]))
       : '<div class="none">The shortlist has no tutors.</div>');
 }
@@ -1195,7 +1206,7 @@ function top3Panel(b) {
     table(["Tutor", "Option", "Score", "Distance", "Experience"],
       b.top3.tutors.map((t, i) => [
         tutorCell(t, t.isPartial ? "Partial tutor form" : (t.area || t.code)),
-        esc(t.choice || i + 1), esc(t.score ?? "—"), km(t.distanceKm), esc(t.experience || "—"),
+        esc(t.choice || i + 1), esc(t.score ?? "—"), km(t.distanceKm, t.distanceSource), esc(t.experience || "—"),
       ]));
 }
 
@@ -1319,11 +1330,17 @@ function previewBody(stage, j) {
       '<div class="msg">' + esc(j.messageBody) + "</div>";
   }
   if (stage === "shortlist") {
-    return kv([["Matched", j.matchedCount + " of " + j.candidatesConsidered + " considered"], ["Will save", plural(j.tutorCount, "tutor")]]) +
+    const rd = j.roadDistance || {};
+    const distanceLine = j.distanceMode === "road" ? "By road" + (rd.fromCache ? " (" + rd.fromCache + " remembered from before)" : "")
+      : j.distanceMode === "mixed" ? "By road, some straight line (≈)" + (rd.reason ? ": " + rd.reason : "")
+      : j.distanceMode === "straight" ? "Straight line (≈)" + (rd.reason ? ": " + rd.reason : "")
+      : "";
+    return kv([["Matched", j.matchedCount + " of " + j.candidatesConsidered + " considered"], ["Will save", plural(j.tutorCount, "tutor")]]
+      .concat(distanceLine ? [["Distance", esc(distanceLine)]] : [])) +
       (j.tutors && j.tutors.length
         ? table(["Tutor", "Rank", "Match", "Distance", "Experience"], j.tutors.map((t) => [
             tutorCell({ name: t.name }, [originLabel(t), t.occupation].filter(Boolean).join(" · ")),
-            esc(t.rank), esc(t.matchPercentage != null ? t.matchPercentage + "%" : "—"), km(t.distanceKm), esc(t.experience || "—"),
+            esc(t.rank), esc(t.matchPercentage != null ? t.matchPercentage + "%" : "—"), km(t.distanceKm, t.distanceSource), esc(t.experience || "—"),
           ]))
         : '<div class="none">No tutor matched this enquiry.</div>');
   }
@@ -1331,7 +1348,7 @@ function previewBody(stage, j) {
     const sample = (j.preview || [])[0];
     return kv([["Template", esc(j.templateName)], ["Will invite", plural(j.willSend, "tutor")], ["Shortlist size", esc(j.shortlistSize)]]) +
       (j.tutors && j.tutors.length
-        ? '<div class="sub-h">Who will get it</div>' + table(["Tutor", "Distance"], j.tutors.map((t) => [tutorCell({ name: t.name }, originLabel(t)), km(t.distanceKm)]))
+        ? '<div class="sub-h">Who will get it</div>' + table(["Tutor", "Distance"], j.tutors.map((t) => [tutorCell({ name: t.name }, originLabel(t)), km(t.distanceKm, t.distanceSource)]))
         : '<div class="none">Nobody left to invite on this shortlist.</div>') +
       (j.skipped && j.skipped.length
         ? '<div class="sub-h">Skipped</div><ul class="plain-list">' + j.skipped.map((s) => "<li>" + esc(s.name) + ": " + esc(s.skipReason) + "</li>").join("") + "</ul>"
@@ -1343,7 +1360,7 @@ function previewBody(stage, j) {
   if (stage === "top3") {
     return kv([["Said yes", esc(j.interestedCount)], ["Will offer", plural(j.offeredCount, "tutor")]]) +
       table(["Tutor", "Option", "Distance", "Experience"], (j.tutors || []).map((t) => [
-        tutorCell({ name: t.name }, originLabel(t)), esc(t.choice), km(t.distanceKm), esc(t.experience || "—"),
+        tutorCell({ name: t.name }, originLabel(t)), esc(t.choice), km(t.distanceKm, t.distanceSource), esc(t.experience || "—"),
       ]));
   }
   if (stage === "selected") {

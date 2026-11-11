@@ -46,7 +46,7 @@ const optionsCache = new Map();
 const BROADCAST_FIELDS = {
   requirementId: 1, tutorId: 1, tutorName: 1, tutorCode: 1, tutorPhone: 1,
   status: 1, responseStatus: 1, respondedAt: 1, time: 1, createdAt: 1,
-  failureReason: 1, whatsappMessageId: 1, distanceKm: 1, broadcastType: 1,
+  failureReason: 1, whatsappMessageId: 1, distanceKm: 1, distanceSource: 1, broadcastType: 1,
   tutorSource: 1,
 };
 
@@ -315,6 +315,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
           occupation: t.occupation || "",
           area: [t.area, t.city].filter(Boolean).join(", "),
           distanceKm: l.distanceKm ?? null,
+          distanceSource: l.distanceSource || "",
           sendStatus: l.status || "",
           reply: l.responseStatus || "No Response",
           repliedAt: l.respondedAt || null,
@@ -410,10 +411,11 @@ router.get("/api/board", requireLogin, async (req, res) => {
               consideredCount: shortlist.candidatesConsidered ?? null,
               partialCount: shortlist.partialCount ?? null,
               radiusKm: shortlist.radiusKm ?? null,
+              distanceMode: shortlist.distanceMode || "",
               at: shortlist.matchedAt || null,
               tutors: (shortlist.tutors || []).map((t) => ({
                 rank: t.rank, name: t.name, code: t.tutorCode, score: t.score,
-                distanceKm: t.distanceKm, experience: t.experience || "",
+                distanceKm: t.distanceKm, distanceSource: t.distanceSource || "", experience: t.experience || "",
                 occupation: t.occupation || "", reason: t.reason || "",
                 // Came off the short sign-up form rather than a registration,
                 // so the board can say so instead of showing a blank code.
@@ -443,7 +445,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
               deliveryError: top3Delivery.get(lead.requirementId)?.reason || "",
               tutors: (top3.tutors || []).map((t) => ({
                 choice: t.choice, name: t.name, code: t.tutorCode, score: t.score,
-                distanceKm: t.distanceKm, experience: t.experience || "",
+                distanceKm: t.distanceKm, distanceSource: t.distanceSource || "", experience: t.experience || "",
                 occupation: t.occupation || "", area: [t.area, t.city].filter(Boolean).join(", "),
                 isPartial: t.isPartial === true,
               })),

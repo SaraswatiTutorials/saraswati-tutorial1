@@ -139,6 +139,11 @@ const broadcastLogSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    // "road" (openrouteservice) or "straight" (between the two map pins); "" on older logs
+    distanceSource: {
+      type: String,
+      default: "",
+    },
     matchPercentage: {
       type: Number,
       default: null,

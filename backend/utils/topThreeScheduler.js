@@ -128,6 +128,7 @@ export async function sweepTopThree({ send } = {}) {
       tutorCode: t.tutorCode,
       experience: t.experience,
       distanceKm: t.distanceKm,
+      distanceSource: t.distanceSource,
       photo: t.photo || photos.get(t.tutorCode) || "",
     }));
 
