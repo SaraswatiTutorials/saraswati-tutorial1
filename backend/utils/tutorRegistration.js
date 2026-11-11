@@ -8,7 +8,7 @@
 import Tutor from "../models/Tutor.js";
 import TutorRegistrationDraft from "../models/TutorRegistrationDraft.js";
 import { upsertMasterTutor } from "./odooService.js";
-import { partialTutorCodes, existingCodeForPhone } from "./tutorCodes.js";
+import { partialTutorCodes, registeredTutorCodes, existingCodeForPhone } from "./tutorCodes.js";
 
 export function toCoordinate(value) {
   if (value === "" || value == null) return null;
@@ -23,11 +23,13 @@ export function toCoordinate(value) {
  */
 export async function tutorCodeOptions(phone) {
   try {
-    const [reservedCodes, preferredCode] = await Promise.all([
+    // A new Odoo code must not be one any tutor already has, in Odoo or here
+    const [partialCodes, registeredCodes, preferredCode] = await Promise.all([
       partialTutorCodes(),
+      registeredTutorCodes(),
       existingCodeForPhone(phone),
     ]);
-    return { reservedCodes, preferredCode };
+    return { reservedCodes: [...partialCodes, ...registeredCodes], preferredCode };
   } catch (err) {
     console.warn("[TutorCode] Could not read partial tutor IDs:", err.message);
     return {};
