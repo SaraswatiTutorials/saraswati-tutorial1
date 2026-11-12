@@ -27,6 +27,8 @@
  *     node scripts/repinTutorsFromAddress.js            preview, changes nothing
  *     node scripts/repinTutorsFromAddress.js --apply    re-pin from the last preview
  *     node scripts/repinTutorsFromAddress.js --undo     put the old pins back
+ * Add --no-pin to any of these to work on tutors who have no pin at all but
+ * saved a home address (their undo puts them back to no pin).
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -182,7 +184,14 @@ export async function geocodeAddress(address, pincode, find = lookup) {
   return { reason: "no place in Bangalore found for this address" };
 }
 
-const NEEDS = { geoSource: "backfill" };
+// Which tutors a run is for: those pinned at an area centre (default), or,
+// with --no-pin, those who have no pin at all but did save a home address
+const NO_PIN = process.argv.includes("--no-pin");
+const MODE = NO_PIN ? "nopin" : "backfill";
+const NEEDS = NO_PIN
+  ? { $or: [{ latitude: null }, { latitude: { $exists: false } }] }
+  : { geoSource: "backfill" };
+const previewFile = (date) => path.join(REPORTS, `repin-preview-${date}${NO_PIN ? "-nopin" : ""}.json`);
 
 async function preview(db) {
   const tutors = (await db.collection("tutors").find(NEEDS, {
@@ -192,30 +201,35 @@ async function preview(db) {
   const plan = [];
   for (const [n, t] of tutors.entries()) {
     const g = await geocodeAddress(t.fullAddress, t.pincode);
-    const old = { lat: t.latitude, lng: t.longitude };
+    const hadPin = Number.isFinite(t.latitude) && Number.isFinite(t.longitude);
+    const old = hadPin ? { lat: t.latitude, lng: t.longitude } : { lat: null, lng: null };
     const row = {
       id: String(t._id), name: t.name, tutorCode: t.tutorCode || "", phone: t.phone || "",
-      address: t.fullAddress, oldArea: t.locations?.[0] || "", old,
+      address: t.fullAddress, oldArea: t.locations?.[0] || "", old, mode: MODE,
     };
     if (g.reason) row.skip = g.reason;
     else {
       row.new = { lat: Number(g.lat.toFixed(7)), lng: Number(g.lng.toFixed(7)) };
-      row.movedKm = Number(haversineKm(old, row.new).toFixed(2));
+      row.movedKm = hadPin ? Number(haversineKm(old, row.new).toFixed(2)) : null;
       Object.assign(row, { precision: g.precision, matched: g.label, query: g.query, via: g.via, kind: g.kind });
     }
     plan.push(row);
-    console.log(`${String(n + 1).padStart(3)}/${tutors.length} ${(t.name || "").slice(0, 24).padEnd(25)} ${row.skip ? `SKIP: ${row.skip}` : `${row.precision}, moved ${row.movedKm} km → ${String(row.matched).slice(0, 60)}`}`);
+    const what = row.movedKm == null ? "new pin" : `moved ${row.movedKm} km`;
+    console.log(`${String(n + 1).padStart(3)}/${tutors.length} ${(t.name || "").slice(0, 24).padEnd(25)} ${row.skip ? `SKIP: ${row.skip}` : `${row.precision}, ${what} → ${String(row.matched).slice(0, 60)}`}`);
   }
   fs.mkdirSync(REPORTS, { recursive: true });
-  const file = path.join(REPORTS, `repin-preview-${today()}.json`);
+  const file = previewFile(today());
   fs.writeFileSync(file, JSON.stringify(plan, null, 2));
   const ok = plan.filter((r) => !r.skip);
-  console.log(`\n${ok.length} of ${plan.length} can be re-pinned; ${plan.length - ok.length} skipped.`);
-  console.log(`Plan: ${file}\nNothing changed. Check it, then: node scripts/repinTutorsFromAddress.js --apply`);
+  console.log(`
+${ok.length} of ${plan.length} can be pinned; ${plan.length - ok.length} skipped.`);
+  console.log(`Plan: ${file}
+Nothing changed. Check it, then run again with --apply${NO_PIN ? " --no-pin" : ""}`);
 }
 
 function latestPreview() {
-  const files = fs.existsSync(REPORTS) ? fs.readdirSync(REPORTS).filter((f) => /^repin-preview-.*\.json$/.test(f)).sort() : [];
+  const pattern = NO_PIN ? /^repin-preview-.*-nopin.json$/ : /^repin-preview-d{4}-d{2}-d{2}.json$/;
+  const files = fs.existsSync(REPORTS) ? fs.readdirSync(REPORTS).filter((f) => pattern.test(f)).sort() : [];
   if (!files.length) throw new Error("No preview found: run without --apply first.");
   return path.join(REPORTS, files.at(-1));
 }
@@ -225,26 +239,33 @@ async function apply(db) {
   const plan = JSON.parse(fs.readFileSync(file, "utf8")).filter((r) => r.new);
   let done = 0;
   for (const r of plan) {
-    // Only if the pin is still the old area-centre one
+    const hadPin = r.old.lat != null;
+    // Only if the tutor still has the pin (or no pin) the preview saw
+    const still = hadPin
+      ? { geoSource: "backfill", latitude: r.old.lat, longitude: r.old.lng }
+      : { $or: [{ latitude: null }, { latitude: { $exists: false } }] };
     const res = await db.collection("tutors").updateOne(
-      { _id: new mongoose.Types.ObjectId(r.id), geoSource: "backfill", latitude: r.old.lat, longitude: r.old.lng },
+      { _id: new mongoose.Types.ObjectId(r.id), ...still },
       { $set: {
         latitude: r.new.lat, longitude: r.new.lng, geoSource: "home-address", geoPrecision: r.precision,
-        geoRepinnedAt: new Date(), previousGeo: { latitude: r.old.lat, longitude: r.old.lng, source: "backfill" },
+        geoRepinnedAt: new Date(),
+        previousGeo: { latitude: r.old.lat, longitude: r.old.lng, source: hadPin ? "backfill" : "none" },
       } },
     );
     done += res.modifiedCount;
   }
-  console.log(`Re-pinned ${done} of ${plan.length} tutors from ${path.basename(file)}.`);
+  console.log(`Pinned ${done} of ${plan.length} tutors from ${path.basename(file)}.`);
 }
 
+// Puts back what was there before: the area-centre pin, or no pin (--no-pin)
 async function undo(db) {
+  const source = NO_PIN ? "none" : "backfill";
   const res = await db.collection("tutors").updateMany(
-    { geoSource: "home-address", "previousGeo.source": "backfill" },
-    [{ $set: { latitude: "$previousGeo.latitude", longitude: "$previousGeo.longitude", geoSource: "backfill" } },
+    { geoSource: "home-address", "previousGeo.source": source },
+    [{ $set: { latitude: "$previousGeo.latitude", longitude: "$previousGeo.longitude", geoSource: NO_PIN ? null : "backfill" } },
       { $unset: ["previousGeo", "geoPrecision", "geoRepinnedAt"] }],
   );
-  console.log(`Put the old pin back on ${res.modifiedCount} tutors.`);
+  console.log(`Put back the previous ${NO_PIN ? "(empty) " : ""}pin on ${res.modifiedCount} tutors.`);
 }
 
 async function main() {
