@@ -37,6 +37,7 @@ import { startTopThreeScheduler } from "./utils/topThreeScheduler.js";
 import { startTutorReplyScheduler } from "./utils/tutorReplyScheduler.js";
 import { sendTutorOptions } from "./utils/tutorOptionsMessage.js";
 import { backfillPartialTutorCodes } from "./utils/tutorCodes.js";
+import { startTutorOdooRetryScheduler } from "./utils/tutorOdooRetry.js";
 import { listOdooTutorCodes } from "./utils/odooService.js";
 import BroadcastLog from "./models/BroadcastLog.js";
 import compression from "compression";
@@ -199,6 +200,9 @@ if (
         backfillPartialTutorCodes({ readOdooCodes: () => listOdooTutorCodes({ timeoutMs: 15000 }) })
           .then((r) => { if (r.assigned) console.log(`[TutorCode] Gave ${r.assigned} partial tutor(s) a tutor ID.`); })
           .catch((err) => console.error("[TutorCode] Start-up pass failed:", err.message));
+        // Registered tutors whose Odoo record failed at sign-up get it (and a
+        // unique tutor ID) here, every 30 min.
+        startTutorOdooRetryScheduler();
         // The top three go to the parent when staff press the button in
         // Panel 2, not on a timer. TOP3_AUTO_SEND=true restores the sweep.
         if (String(process.env.TOP3_AUTO_SEND || "").toLowerCase() === "true") {
