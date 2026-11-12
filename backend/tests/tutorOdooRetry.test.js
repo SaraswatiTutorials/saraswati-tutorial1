@@ -22,7 +22,7 @@ function world({ tutors = [], partials = [], odoo = [], upsert } = {}) {
   const holders = (list, code, notId) => list.filter((x) => String(x.tutorCode || "").toUpperCase() === code && String(x._id) !== String(notId));
   const deps = {
     log: quiet,
-    findPending: async () => tutors.filter((t) => !t.tutorCode),
+    findPending: async () => tutors.filter((t) => !t.tutorCode || (t.odooSyncStatus === "failed" && !t.odooLeadId)),
     readOdooCodes: async () => odoo.map((r) => r.tutor_id).filter(Boolean),
     nextCode: async (odooCodes) => {
       const all = [...tutors, ...partials].map((x) => x.tutorCode).concat(odooCodes);
@@ -41,9 +41,9 @@ function world({ tutors = [], partials = [], odoo = [], upsert } = {}) {
       odoo.push(rec);
       return { id: rec.id, tutorCode: rec.tutor_id };
     }),
-    saveCode: async (id, { code, odooId }) => {
+    saveCode: async (id, { code, odooId, had = "" }) => {
       const t = tutors.find((x) => x._id === id);
-      if (t.tutorCode) return false;
+      if ((t.tutorCode || "") !== had) return false;
       Object.assign(t, { tutorCode: code, odooLeadId: odooId });
       saved.push({ id, code, odooId });
       return true;
@@ -83,6 +83,63 @@ test("…but not when another registered tutor already has it", async () => {
   });
   await retryTutorOdooSync(w.deps);
   assert.equal(w.saved[0].code, "TUT0201");
+});
+
+test("a tutor who already has a partial-form ID but no Odoo record gets Odoo created with that same ID", async () => {
+  const w = world({
+    tutors: [{ _id: "t", name: "Teju", tutorCode: "TUT0701", odooSyncStatus: "failed", odooLeadId: null, fromPartialTutorId: "p1" }],
+    partials: [{ _id: "p1", tutorCode: "TUT0701" }],
+    odoo: [{ id: 1, tutor_id: "TUT0800" }],
+  });
+  const r = await retryTutorOdooSync(w.deps);
+  assert.equal(r.fixed, 1);
+  assert.equal(w.upserts[0].opts.preferredCode, "TUT0701");
+  assert.deepEqual(w.saved, [{ id: "t", code: "TUT0701", odooId: 501 }]);
+});
+
+test("…but Odoo is not touched when someone else also holds that ID", async () => {
+  const w = world({
+    tutors: [
+      { _id: "t", name: "Teju", tutorCode: "TUT0701", odooSyncStatus: "failed" },
+      { _id: "x", name: "Other", tutorCode: "TUT0701", odooLeadId: 9 },
+    ],
+  });
+  const r = await retryTutorOdooSync(w.deps);
+  assert.equal(r.needsLook, 1);
+  assert.equal(w.upserts.length, 0);
+  assert.match(w.failed[0].error, /TUT0701 is also held by tutor Other/);
+});
+
+test("…nor when an Odoo record already has it", async () => {
+  const w = world({
+    tutors: [{ _id: "t", tutorCode: "TUT0701", odooSyncStatus: "failed" }],
+    odoo: [{ id: 33, tutor_id: "TUT0701" }],
+  });
+  await retryTutorOdooSync(w.deps);
+  assert.equal(w.upserts.length, 0);
+  assert.match(w.failed[0].error, /Odoo record #33/);
+});
+
+test("…and their ID is never swapped for the one Odoo has for their number", async () => {
+  const w = world({
+    tutors: [{ _id: "t", tutorCode: "TUT0701", odooSyncStatus: "failed" }],
+    upsert: async () => ({ id: 40, tutorCode: "TUT0123" }),
+  });
+  const r = await retryTutorOdooSync(w.deps);
+  assert.equal(r.needsLook, 1);
+  assert.equal(w.saved.length, 0);
+  assert.match(w.failed[0].error, /has TUT0123, but they have TUT0701/);
+});
+
+test("tutors already linked to Odoo, or synced, are left alone", async () => {
+  const w = world({
+    tutors: [
+      { _id: "a", tutorCode: "TUT0001", odooSyncStatus: "failed", odooLeadId: 5 },
+      { _id: "b", tutorCode: "TUT0002", odooSyncStatus: "synced", odooLeadId: 6 },
+    ],
+  });
+  const r = await retryTutorOdooSync(w.deps);
+  assert.equal(r.checked, 0);
 });
 
 test("an Odoo record that comes back with someone else's ID is not copied", async () => {

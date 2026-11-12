@@ -1,7 +1,12 @@
 /**
- * Retries the Odoo master_tutors record for registered tutors who have no
- * tutor ID because Odoo failed when they registered (tutorRegistration.js
- * saves them in MongoDB anyway, and nothing used to try again).
+ * Retries the Odoo master_tutors record for registered tutors whose Odoo
+ * record failed when they registered (tutorRegistration.js saves them in
+ * MongoDB anyway, and nothing used to try again):
+ *   - tutors with no tutor ID at all;
+ *   - tutors who already have one from the partial form but never got an Odoo
+ *     record (sync "failed", no Odoo record linked). They keep their ID: Odoo
+ *     is created with it, and if Odoo can't take it nothing is changed and
+ *     they are marked "Needs a look".
  *
  * Every ID this hands out is unique:
  *   - a new ID comes from nextTutorCode (utils/tutorCodes.js): above every TUT
@@ -34,18 +39,24 @@ const NO_CODE = [
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const sameCode = (code) => new RegExp(`^\\s*${escape(code)}\\s*$`, "i");
-const looksOffline = (msg) => /ENOTFOUND|EHOSTUNREACH|ECONNREFUSED|ETIMEDOUT|timed? ?out|fetch failed|socket hang up|login failed/i.test(msg);
+const unchanged = (had) => (had ? { tutorCode: sameCode(had) } : { $or: NO_CODE });
+const looksOffline =(msg) => /ENOTFOUND|EHOSTUNREACH|ECONNREFUSED|ETIMEDOUT|timed? ?out|fetch failed|socket hang up|login failed/i.test(msg);
 
 export const defaultDeps = {
   now: () => Date.now(),
   findPending: (olderThan, limit) => Tutor.find({
     $and: [
-      { $or: NO_CODE },
+      { $or: [
+        ...NO_CODE,
+        // Has an ID (from the partial form) but Odoo never got their record
+        { tutorCode: /^\s*TUT\d+\s*$/i, odooSyncStatus: "failed", $or: [{ odooLeadId: null }, { odooLeadId: { $exists: false } }] },
+      ] },
       { status: { $ne: "rejected" } },
       { createdAt: { $lt: olderThan } },
       { odooSyncError: { $not: new RegExp(`^${escape(NEEDS_LOOK)}`) } },
     ],
-  }).sort({ createdAt: 1 }).limit(limit).lean(),
+    // Least recently tried first, so one that keeps failing never blocks the rest
+  }).sort({ updatedAt: 1 }).limit(limit).lean(),
   readOdooCodes: () => listOdooTutorCodes({ timeoutMs: 15000 }),
   nextCode: (odooCodes) => nextTutorCode({ odooCodes }),
   reservedCodes: async () => [...await registeredTutorCodes(), ...await partialTutorCodes()],
@@ -61,16 +72,17 @@ export const defaultDeps = {
       { fields: ["id"], context: { active_test: false } });
   },
   upsert: (data, options) => upsertMasterTutor(data, options),
-  // Only fills an empty ID: false when the tutor got one in the meantime
-  saveCode: async (id, { code, odooId }) => {
+  // Only when the tutor's ID is still what it was (empty, or the one they
+  // had): false when it changed in the meantime
+  saveCode: async (id, { code, odooId, had = "" }) => {
     const res = await Tutor.updateOne(
-      { _id: id, $or: NO_CODE },
+      { _id: id, ...unchanged(had) },
       { $set: { tutorCode: code, odooLeadId: odooId, odooSyncStatus: "synced", odooSyncError: "" } },
     );
     return res.modifiedCount > 0;
   },
-  markFailed: (id, error, odooId) => Tutor.updateOne(
-    { _id: id, $or: NO_CODE },
+  markFailed: (id, error, odooId, had = "") => Tutor.updateOne(
+    { _id: id, ...unchanged(had) },
     { $set: { odooSyncStatus: "failed", odooSyncError: error, ...(odooId ? { odooLeadId: odooId } : {}) } },
   ),
   log: console,
@@ -99,7 +111,7 @@ async function heldBy(code, tutor, odooId, deps) {
 }
 
 /**
- * One pass: up to BATCH tutors without an ID, oldest first.
+ * One pass: up to BATCH tutors without an ID or an Odoo record, least recently tried first.
  * Returns { checked, fixed, failed, needsLook, odooDown }.
  */
 export async function retryTutorOdooSync(overrides = {}) {
@@ -119,35 +131,43 @@ export async function retryTutorOdooSync(overrides = {}) {
   for (const tutor of pending) {
     out.checked += 1;
     let odooId = null;
+    // The ID they already have (from the partial form), which they keep
+    const current = String(tutor.tutorCode || "").trim().toUpperCase();
+    const had = CODE.test(current) ? current : "";
+    const flag = async (why) => {
+      await deps.markFailed(tutor._id, `${NEEDS_LOOK} ${why}`, odooId, had);
+      deps.log.warn(`[TutorOdooRetry] ${tutor.name || tutor._id}: ${why}`);
+      out.needsLook += 1;
+    };
     try {
-      const wanted = await pickCode(tutor, odooCodes, deps);
+      let wanted;
+      if (had) {
+        // Only create their Odoo record with it if truly nobody else has it
+        const before = await heldBy(had, tutor, null, deps);
+        if (before) { await flag(`${had} is also held by ${before}; their Odoo record was not created`); continue; }
+        wanted = had;
+      } else {
+        wanted = await pickCode(tutor, odooCodes, deps);
+      }
       const reservedCodes = await deps.reservedCodes();
       const res = await deps.upsert(tutor, { preferredCode: wanted, reservedCodes });
       odooId = res?.id ?? null;
       const code = String(res?.tutorCode || "").trim().toUpperCase();
 
       if (!odooId) throw new Error("Odoo returned no tutor record");
-      if (!CODE.test(code)) {
-        await deps.markFailed(tutor._id, `${NEEDS_LOOK} Odoo record #${odooId} has no usable tutor ID ("${res?.tutorCode || ""}")`, odooId);
-        out.needsLook += 1;
-        continue;
-      }
+      if (!CODE.test(code)) { await flag(`Odoo record #${odooId} has no usable tutor ID ("${res?.tutorCode || ""}")`); continue; }
+      if (had && code !== had) { await flag(`Odoo record #${odooId} for their number has ${code}, but they have ${had}; nothing changed`); continue; }
       const clash = await heldBy(code, tutor, odooId, deps);
-      if (clash) {
-        await deps.markFailed(tutor._id, `${NEEDS_LOOK} Odoo record #${odooId} has ${code}, which ${clash} already has`, odooId);
-        deps.log.warn(`[TutorOdooRetry] ${tutor.name || tutor._id}: ${code} is already ${clash}'s; not saved.`);
-        out.needsLook += 1;
-        continue;
-      }
-      if (await deps.saveCode(tutor._id, { code, odooId })) {
+      if (clash) { await flag(`Odoo record #${odooId} has ${code}, which ${clash} already has; not saved`); continue; }
+      if (await deps.saveCode(tutor._id, { code, odooId, had })) {
         out.fixed += 1;
-        deps.log.log(`[TutorOdooRetry] ${tutor.name || tutor._id} is now ${code} (Odoo #${odooId}).`);
+        deps.log.log(`[TutorOdooRetry] ${tutor.name || tutor._id} ${had ? "now has their Odoo record with" : "is now"} ${code} (Odoo #${odooId}).`);
         if (!odooCodes.includes(code)) odooCodes.push(code);
       }
     } catch (err) {
       const msg = err?.message || String(err);
       out.failed += 1;
-      try { await deps.markFailed(tutor._id, msg, odooId); } catch { /* reported below */ }
+      try { await deps.markFailed(tutor._id, msg, odooId, had); } catch { /* reported below */ }
       deps.log.error(`[TutorOdooRetry] ${tutor.name || tutor._id}: ${msg}`);
       if (looksOffline(msg)) { out.odooDown = true; break; }
     }
