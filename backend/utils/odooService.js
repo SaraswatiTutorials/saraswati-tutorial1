@@ -972,7 +972,8 @@ export async function listOdooTutorCodes({ timeoutMs = 6000 } = {}) {
     if (!uid) throw new Error("Odoo login failed");
     const rows = await callOdoo("object", "execute_kw", [
       _DB, uid, _PASSWORD, "master_tutors", "search_read",
-      [[["tutor_id", "=like", "TUT%"]]], { fields: ["tutor_id"] },
+      // Archived tutors' IDs count too, so none is ever handed out again
+      [[["tutor_id", "=like", "TUT%"]]], { fields: ["tutor_id"], context: { active_test: false } },
     ]);
     return (rows || []).map((r) => r.tutor_id).filter(Boolean);
   })();
@@ -1265,8 +1266,21 @@ export async function upsertMasterTutor(data, options = {}) {
         existing[0].id;
 
 
-      const tutorCode =
+      let tutorCode =
         existing[0].tutor_id;
+
+      // Their Odoo record has no tutor ID yet: give it the one asked for,
+      // unless another Odoo record (archived ones included) already has it
+      if (!String(tutorCode || "").trim() && /^TUT\d+$/.test(preferredCode)) {
+        const holders = await callOdoo("object", "execute_kw", [
+          _DB, uid, _PASSWORD, "master_tutors", "search_count",
+          [[["tutor_id", "=ilike", preferredCode]]], { context: { active_test: false } },
+        ]);
+        if (!holders) {
+          payload.tutor_id = preferredCode;
+          tutorCode = preferredCode;
+        }
+      }
 
 
       console.log(

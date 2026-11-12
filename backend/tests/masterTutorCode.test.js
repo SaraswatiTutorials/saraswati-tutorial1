@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 
 const modulePath = (rel) => new URL(`../${rel}`, import.meta.url).href;
 
-let odooCodes, created, existingByMobile;
+let odooCodes, created, existingByMobile, written;
 
 before(async () => {
   mock.module("dotenv", { defaultExport: { config: () => ({}) }, namedExports: { config: () => ({}) } });
@@ -20,10 +20,14 @@ before(async () => {
         const [, , , model, op, opArgs] = args;
         if (model !== "master_tutors") throw new Error(`unexpected model ${model}`);
         if (op === "search_read" && JSON.stringify(opArgs).includes('"mobile"')) result = existingByMobile;
+        else if (op === "search_count" && JSON.stringify(opArgs).includes('"tutor_id"')) {
+          const code = opArgs[0][0][2].toUpperCase();
+          result = odooCodes.filter((c) => c.toUpperCase() === code).length;
+        }
         else if (op === "search_count") result = odooCodes.length;
         else if (op === "search_read") result = odooCodes.map((c) => ({ tutor_id: c }));
         else if (op === "create") { created.push(opArgs[0]); result = 900 + created.length; }
-        else if (op === "write") result = true;
+        else if (op === "write") { written.push(opArgs); result = true; }
         else throw new Error(`unexpected ${op}`);
       }
       const text = JSON.stringify({ jsonrpc: "2.0", id: 1, result });
@@ -36,6 +40,7 @@ beforeEach(() => {
   odooCodes = ["TUT0001", "TUT0002", "TUT0003"];
   created = [];
   existingByMobile = [];
+  written = [];
 });
 
 const tutor = { name: "New Person", phone: "9811111111", email: "n@example.test" };
@@ -68,6 +73,21 @@ test("someone already in Odoo keeps Odoo's ID; nothing is created", async () => 
   const res = await upsert(tutor, { preferredCode: "TUT0210" });
   assert.equal(res.tutorCode, "TUT0002");
   assert.equal(created.length, 0);
+});
+
+test("someone in Odoo with an empty ID gets the ID asked for", async () => {
+  existingByMobile = [{ id: 55, tutor_id: false }];
+  const res = await upsert(tutor, { preferredCode: "TUT0210" });
+  assert.equal(res.tutorCode, "TUT0210");
+  assert.equal(written[0][1].tutor_id, "TUT0210");
+  assert.equal(created.length, 0);
+});
+
+test("...but not one another Odoo record already has", async () => {
+  existingByMobile = [{ id: 55, tutor_id: false }];
+  const res = await upsert(tutor, { preferredCode: "TUT0002" });
+  assert.equal(res.tutorCode, false);
+  assert.equal(written[0][1].tutor_id, undefined);
 });
 
 test("Odoo's tutor IDs can be listed (read only)", async () => {
