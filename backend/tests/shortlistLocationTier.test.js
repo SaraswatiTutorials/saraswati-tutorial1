@@ -144,3 +144,11 @@ test("no location at all comes last, still judged on area", async () => {
   assert.deepEqual(names(plan), ["Tutor 2", "Tutor 1"]);
   assert.equal(plan.tutors[1].locationTier, 6);
 });
+
+test("every shortlisted tutor carries their phone number, registered or partial", async () => {
+  tutors = [tutor("1", 2)];
+  partials = [partial("9", 3)];
+  const plan = await shortlist();
+  assert.equal(plan.tutors.find((t) => t.name === "Tutor 1").phone, "980000001");
+  assert.equal(plan.tutors.find((t) => t.name === "Partial 9").phone, "970000009");
+});

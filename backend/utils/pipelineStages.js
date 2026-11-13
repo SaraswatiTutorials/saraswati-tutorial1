@@ -567,7 +567,9 @@ export async function shortlistTutors(lead, {
         experience: tutor.experience || "",
         occupation: tutor.occupation || "",
         isPartial: tutor.isPartial === true,
-        phone: tutor.isPartial ? tutor.whatsapp : undefined,
+        // Shown beside the name in Panel 2, so two people with similar names
+        // (or the same person under two entries) can be told apart
+        phone: tutor.isPartial ? tutor.whatsapp : (tutor.whatsapp || tutor.phone || ""),
         score: score.score,
         matchPercentage: score.percentage,
         locationScore: score.locationScore,
@@ -634,7 +636,8 @@ export async function shortlistTutors(lead, {
     // Marked so the board, and the invite step, can tell at a glance that
     // this person has not registered yet.
     isPartial: t.isPartial,
-    ...(t.isPartial ? { phone: t.phone || "", source: "partial sign-up form" } : {}),
+    phone: t.phone || "",
+    ...(t.isPartial ? { source: "partial sign-up form" } : {}),
   }));
 
   const partialCount = tutors.filter((t) => t.isPartial).length;

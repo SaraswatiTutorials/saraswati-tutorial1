@@ -1148,10 +1148,15 @@ const tutorCell = (t, subline) => '<div class="name">' + esc(t.name || "(no name
 // their tutor ID when they have one. Used everywhere a tutor is listed, the
 // previews included — those are what gets read before anything is sent, so
 // leaving it out of them would be the one place it actually mattered.
+//
+// Their phone number follows the ID, so two people with similar names — or
+// one person who has two entries — can be told apart at a glance.
 const originLabel = (t) => {
   const code = t.code || t.tutorCode || "";
-  if (t.isPartial || t.source === "partial") return (code ? code + " · " : "") + "Partial tutor form";
-  return code;
+  const phone = t.phone || t.tutorPhone || "";
+  const parts = [code, phone].filter(Boolean);
+  if (t.isPartial || t.source === "partial") parts.push("Partial tutor form");
+  return parts.join(" · ");
 };
 
 // Full verification and Odoo Sign agreement, as the agreement sync last saw
