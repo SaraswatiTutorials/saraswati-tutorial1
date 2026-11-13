@@ -109,6 +109,22 @@ const tutorSchema = new mongoose.Schema(
     // When false, the tutor receives the Tutor Authorisation message (Workflow 1, once only).
     onboardingCompleted: { type: Boolean, default: false },
 
+    // The tutor's agreement in Odoo Sign, copied here by utils/agreementSync.js
+    // (Odoo is only read). Not the same as `agreement` above, which is the
+    // placement-fee tick box on the registration form. It does not change
+    // onboardingCompleted: admins still set that by hand.
+    //   status: "none" (no agreement sent) | "sent" (waiting to sign) |
+    //           "signed" | "refused" | "cancelled"
+    odooAgreement: {
+      status: { type: String, default: "none" },
+      signed: { type: Boolean, default: false },
+      signedAt: { type: Date, default: null },
+      sentAt: { type: Date, default: null },
+      document: { type: String, default: "" },      // Odoo sign request name
+      signRequestId: { type: Number, default: null }, // Odoo sign.request id
+      syncedAt: { type: Date, default: null },
+    },
+
     // Timestamp of first onboarding WhatsApp message.
     // Prevents sending the onboarding message more than once per tutor.
     onboardingMessageSentAt: { type: Date, default: null },
@@ -127,6 +143,7 @@ tutorSchema.index({ name: 1 });
 tutorSchema.index({ status: 1 });
 tutorSchema.index({ phone: 1 });
 tutorSchema.index({ tutorCode: 1 });
+tutorSchema.index({ "odooAgreement.status": 1 });
 tutorSchema.index({ grades: 1 });
 tutorSchema.index({ boards: 1 });
 tutorSchema.index({ subjects: 1 });

@@ -1154,6 +1154,29 @@ const originLabel = (t) => {
   return code;
 };
 
+// Full verification and Odoo Sign agreement, as the agreement sync last saw
+// them, with buttons to send the login link or the agreement again.
+const AGREEMENT_WORD = { signed: ["Signed", "s-ok"], sent: ["Sent, not signed", "s-wait"], none: ["Not signed", "s-bad"],
+  refused: ["Refused", "s-bad"], cancelled: ["Cancelled", "s-bad"] };
+function checkBadges(t) {
+  if (t.verified == null && !t.agreement) return '<span class="status s-none">Not found</span>';
+  const [word, tone] = AGREEMENT_WORD[t.agreement] || AGREEMENT_WORD.none;
+  return '<span class="status ' + (t.verified ? "s-ok" : "s-wait") + '">' + (t.verified ? "Verified" : "Not verified") + "</span> " +
+    '<span class="status ' + tone + '">' + word + "</span>" +
+    (t.agreement === "signed" && t.agreementAt ? '<div class="sub">Signed ' + esc(when(t.agreementAt)) + "</div>" : "");
+}
+function resendButtons(t, sent = {}) {
+  const who = t.personId || t.code;
+  if (!who) return "";
+  const busy = !!running[selectedId];
+  const btn = (kind, label) => '<button class="btn" data-step="verify" data-tutor="' + esc(who) + '" data-kind="' + kind + '"' + (busy ? " disabled" : "") + ">" + label + "</button>";
+  return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">' +
+    (t.verified === false ? btn("profile", sent.profile ? "Send login link again" : "Send login link") : "") +
+    (t.agreement && t.agreement !== "signed" ? btn("agreement", sent.agreement || t.agreement === "sent" ? "Send agreement again" : "Send agreement") : "") +
+    "</div>";
+}
+const checksCell = (t, sent) => checkBadges(t) + resendButtons(t, sent);
+
 function invitedPanel(b) {
   if (!b.invited.length) return '<div class="none">No tutors invited yet.</div>';
   const c = b.counts;
@@ -1161,9 +1184,10 @@ function invitedPanel(b) {
     (c.undelivered ? '<span class="bad">' + c.undelivered + " not delivered</span>" : "") +
     "<span>" + c.delivered + " delivered</span><span>" + c.interested + " said yes</span><span>" + c.notInterested + " declined</span><span>" + c.waiting + " no reply</span>" +
     (b.firstInviteAt ? "<span>First sent " + esc(when(b.firstInviteAt)) + "</span>" : "") + "</div>" +
-    table(["Tutor", "Delivery", "Reply", "Distance", "Experience", "Invited"],
+    table(["Tutor", "Verification & agreement", "Delivery", "Reply", "Distance", "Experience", "Invited"],
       b.invited.map((t) => [
         tutorCell(t, [originLabel(t), t.occupation].filter(Boolean).join(" · ")),
+        checksCell(t),
         deliveryCell(t.delivery, t.deliveryError, t.sendStatus, t.failureReason),
         replyCell(t.reply, t.repliedAt),
         km(t.distanceKm, t.distanceSource),
@@ -1203,14 +1227,31 @@ function top3Panel(b) {
   return '<div class="meta"><span>' + (b.top3.sent ? "Sent to parent " : "Attempted, not sent ") + esc(when(b.top3.at)) + "</span>" +
     (b.top3.templateName ? "<span>Template " + esc(b.top3.templateName) + "</span>" : "") + "</div>" +
     (b.top3.sent ? '<div style="margin-bottom:6px">' + deliveryCell(b.top3.delivery, b.top3.deliveryError) + "</div>" : "") +
-    table(["Tutor", "Option", "Score", "Distance", "Experience"],
+    table(["Tutor", "Verification & agreement", "Option", "Score", "Distance", "Experience"],
       b.top3.tutors.map((t, i) => [
         tutorCell(t, t.isPartial ? "Partial tutor form" : (t.area || t.code)),
+        checksCell(t),
         esc(t.choice || i + 1), esc(t.score ?? "—"), km(t.distanceKm, t.distanceSource), esc(t.experience || "—"),
       ]));
 }
 
-// The five steps, each saying what has happened and what can be pressed.
+// Who was sent a login link (full verification) or the agreement, from step 6.
+const sentWord = (k) => !k ? "—"
+  : k.status === "Sent" ? deliveryCell(k.delivery, k.deliveryError, "Sent") + '<div class="sub">' + esc(when(k.at)) + "</div>"
+  : '<span class="status s-bad">Failed</span><div class="err">' + esc(k.failureReason || "unknown reason") + "</div>";
+function verificationPanel(b) {
+  const v = b.verification || [];
+  if (!v.length) return '<div class="none">No login link or agreement sent for this enquiry yet. Use step 6.</div>';
+  return table(["Tutor", "Now", "Login link sent", "Agreement sent"],
+    v.map((t) => [
+      tutorCell(t, originLabel(t)),
+      checksCell(t, { profile: !!t.profile, agreement: !!t.agreementSend }),
+      sentWord(t.profile),
+      sentWord(t.agreementSend),
+    ]));
+}
+
+// The steps, each saying what has happened and what can be pressed.
 function stepList(b) {
   const c = b.counts;
   const r = b.reconfirm;
@@ -1288,6 +1329,24 @@ function stepList(b) {
         : [{ stage: "selected", label: "Preview", enabled: false }],
       why: b.assignedTutor ? "" : !offered.length ? "Send the parent their options first." : "",
     },
+    (() => {
+      const v = b.verification || [];
+      const links = v.filter((t) => t.profile && t.profile.status === "Sent").length;
+      const agreements = v.filter((t) => t.agreementSend && t.agreementSend.status === "Sent").length;
+      const top3Ready = !!(t3 && t3.tutors.length) || b.canSendTop3;
+      return {
+        n: 6, title: "Verification & agreement", sends: "Sends WhatsApp to tutors",
+        result: v.length
+          ? plural(links, "login link") + " and " + plural(agreements, "agreement") + " sent, to " + plural(v.length, "tutor") + ". See the Verification tab."
+          : "Not sent. Partial tutors get a login link to complete full verification; anyone without a signed agreement gets the agreement.",
+        state: v.length ? "done" : "",
+        actions: [
+          { stage: "verify", group: "top3", label: "Preview: top 3", enabled: top3Ready },
+          { stage: "verify", group: "invited", label: "Preview: invited (" + (c.invited || 0) + ")", enabled: (c.invited || 0) > 0 },
+        ],
+        why: !top3Ready && !c.invited ? "Invite tutors first." : "",
+      };
+    })(),
   ];
   return steps.map((s) => ({ ...s, state: s.n === nextStep && s.state !== "failed" ? "next" : s.state }));
 }
@@ -1304,6 +1363,7 @@ function stepSection(b) {
       '<div class="acts">' + s.actions.map((a) =>
         '<button class="btn' + (s.state === "next" ? " btn-primary" : "") + '" data-step="' + a.stage + '"' +
         (a.tutorId ? ' data-tutor="' + esc(a.tutorId) + '"' : "") +
+        (a.group ? ' data-group="' + esc(a.group) + '"' : "") +
         (a.resend ? ' data-resend="1"' : "") + (a.force ? ' data-force="1"' : "") +
         (a.enabled && !busy ? "" : " disabled") + ">" + esc(a.label) + "</button>").join("") + "</div>" +
     "</li>").join("");
@@ -1315,6 +1375,7 @@ function stepSection(b) {
 const STEP_NAMES = {
   reconfirm: "Re-confirm with the parent", shortlist: "Shortlist tutors", invite: "Invite tutors",
   top3: "Send top 3 to the parent", selected: "Confirm to the tutor",
+  verify: "Verification & agreement",
 };
 
 function kv(pairs) {
@@ -1338,9 +1399,10 @@ function previewBody(stage, j) {
     return kv([["Matched", j.matchedCount + " of " + j.candidatesConsidered + " considered"], ["Will save", plural(j.tutorCount, "tutor")]]
       .concat(distanceLine ? [["Distance", esc(distanceLine)]] : [])) +
       (j.tutors && j.tutors.length
-        ? table(["Tutor", "Rank", "Match", "Distance", "Experience"], j.tutors.map((t) => [
+        ? table(["Tutor", "Rank", "Match", "Distance", "Location", "Experience"], j.tutors.map((t) => [
             tutorCell({ name: t.name }, [originLabel(t), t.occupation].filter(Boolean).join(" · ")),
-            esc(t.rank), esc(t.matchPercentage != null ? t.matchPercentage + "%" : "—"), km(t.distanceKm, t.distanceSource), esc(t.experience || "—"),
+            esc(t.rank), esc(t.matchPercentage != null ? t.matchPercentage + "%" : "—"), km(t.distanceKm, t.distanceSource),
+            esc(t.locationTier ? t.locationTier + ". " + (t.locationSource || "") : "—"), esc(t.experience || "—"),
           ]))
         : '<div class="none">No tutor matched this enquiry.</div>');
   }
@@ -1367,6 +1429,25 @@ function previewBody(stage, j) {
     return kv([["Tutor", esc(j.tutorName)], ["To", esc(j.phoneNumber)], ["Template", esc(j.templateName)]]) +
       '<div class="msg">' + esc(j.messageBody) + "</div>";
   }
+  if (stage === "verify") {
+    const tpl = (t) => esc(t.name) + (t.approved ? "" : ' <span class="status s-bad">not approved yet</span>');
+    const kindCell = (k, doneTone) => k.willSend ? '<span class="status s-act">Will send</span>'
+      : !k.needed ? '<span class="status ' + doneTone + '">' + esc(k.reason) + "</span>"
+      : '<span class="status s-wait">Not sent</span><div class="err">' + esc(k.reason) + "</div>";
+    return (j.group === "single" && !j.willSend
+        ? '<div class="note">Nothing to send: ' + esc((j.tutors || []).map((t) => t.name + " — " + (j.kind === "profile" ? t.profile.reason : t.agreement.reason)).join("; ")) + "</div>"
+        : "") +
+      kv([["Group", esc(j.groupLabel)], ["Login links", esc(j.profileCount)], ["Agreements", esc(j.agreementCount)],
+        ["Login template", tpl(j.templates.profile)], ["Agreement template", tpl(j.templates.agreement)],
+        ["Agreement link", '<a href="' + esc(j.agreementLink) + '" target="_blank" rel="noopener">Open</a>']]) +
+      table(["Tutor", "Full verification", "Agreement", "Gets"], (j.tutors || []).map((t) => [
+        tutorCell({ name: t.name }, originLabel(t)),
+        kindCell(t.profile, "s-ok"),
+        kindCell(t.agreement, "s-ok"),
+        "<b>" + esc(t.gets) + "</b>",
+      ])) +
+      (j.notFound && j.notFound.length ? '<div class="note">Not found in the database: ' + j.notFound.map(esc).join(", ") + "</div>" : "");
+  }
   return "";
 }
 
@@ -1374,9 +1455,10 @@ function sendLabel(stage, j) {
   if (stage === "shortlist") return "Save shortlist";
   if (stage === "invite") return "Send to " + plural(j.willSend || 0, "tutor");
   if (stage === "selected") return "Send to tutor";
+  if (stage === "verify") return "Send " + plural(j.willSend || 0, "message");
   return "Send to parent";
 }
-const canSend = (stage, j) => stage === "shortlist" ? (j.tutorCount || 0) > 0 : stage === "invite" ? (j.willSend || 0) > 0 : true;
+const canSend = (stage, j) => stage === "shortlist" ? (j.tutorCount || 0) > 0 : stage === "invite" || stage === "verify" ? (j.willSend || 0) > 0 : true;
 
 function previewBlock(b) {
   const p = previews[idOf(b)];
@@ -1426,6 +1508,17 @@ function describeResult(stage, j, httpOk) {
         (failed.length ? " Failed: " + failed.map((f) => esc(f.name) + " (" + esc(f.failureReason) + ")").join(", ") + ". Press Invite more to retry them." : ""),
     };
   }
+  if (stage === "verify") {
+    const failed = (j.tutors || []).flatMap((t) => ["profile", "agreement"]
+      .filter((k) => t[k].willSend && !t[k].sent)
+      .map((k) => esc(t.name) + " (" + (k === "profile" ? "login link" : "agreement") + ": " + esc(t[k].failureReason || "failed") + ")"));
+    return {
+      tone: failed.length ? (j.sent ? "wait" : "") : "fine",
+      html: "Sent " + j.sent + " of " + plural(j.willSend, "message") + ". " +
+        (j.tutors || []).filter((t) => t.gets !== "nothing").map((t) => esc(t.name) + ": " + esc(t.gets)).join("; ") + "." +
+        (failed.length ? " Failed: " + failed.join(", ") + "." : "") + " See the Verification tab.",
+    };
+  }
   if (j.sent) {
     return { tone: "fine", html: stage === "top3" ? "Sent to the parent: " + plural(j.offeredCount, "tutor") + "." + (j.photoCards ? " Option cards sent: " + j.cardsSent + "." : "")
       : stage === "selected" ? esc(j.tutorName) + " has been told." : "Sent to the parent." };
@@ -1450,6 +1543,8 @@ async function openPreview(button) {
   const payload = {
     stage: button.dataset.step, requirementId: b.requirementId, dryRun: true,
     tutorId: button.dataset.tutor || undefined,
+    group: button.dataset.group || undefined,
+    kind: button.dataset.kind || undefined,
     resend: button.dataset.resend === "1", force: button.dataset.force === "1",
   };
   delete results[id];
@@ -1515,8 +1610,9 @@ function detail(b) {
     ["invited", "Invited", b.counts.invited],
     ["shortlist", "Shortlist", b.shortlisted ? b.shortlisted.count : 0],
     ["top3", "Top 3", b.top3 ? b.top3.tutors.length : 0],
+    ["verification", "Verification", (b.verification || []).length],
   ];
-  const panels = { invited: invitedPanel, shortlist: shortlistPanel, top3: top3Panel };
+  const panels = { invited: invitedPanel, shortlist: shortlistPanel, top3: top3Panel, verification: verificationPanel };
   const facts = [
     ["Phone", b.phone ? '<a href="tel:' + esc(b.phone) + '">' + esc(b.phone) + "</a>" : "—"],
     ["Class", esc(b.grade || "—")],

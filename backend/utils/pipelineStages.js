@@ -69,7 +69,57 @@ const whenSent = (date) =>
  * however well they score, so anyone beyond this is dropped outright rather
  * than ranked low. Set SHORTLIST_RADIUS_KM to change it.
  */
-export const SHORTLIST_RADIUS_KM = Number(process.env.SHORTLIST_RADIUS_KM || 10);
+export const SHORTLIST_RADIUS_KM = Number(process.env.SHORTLIST_RADIUS_KM || 8);
+
+/**
+ * How much a tutor's map location can be trusted, best first. The shortlist
+ * fills its places from tier 1 before it looks at tier 2, and so on: a
+ * distance measured from a pin the tutor dropped themselves is real, one from
+ * the middle of an area they teach in can be out by 10-20 km. Within a tier,
+ * the nearest come first as before.
+ *
+ *   1  the tutor picked the spot on a map (registration, or the partial form)
+ *   2  found from their full home address
+ *   3  found from the area named in their address
+ *   4  found from their pincode alone
+ *   5  centre of the first area they teach in, not their home
+ *   6  no location at all (judged on area and pincode match only)
+ *
+ * Tiers 2-4 come from scripts/repinTutorsFromAddress.js (geoSource
+ * "home-address" with geoPrecision); tier 5 is the 22 Oct 2026 backfill.
+ */
+export const LOCATION_TIERS = {
+  1: "Picked on map",
+  2: "From full address",
+  3: "From area in address",
+  4: "From pincode",
+  5: "Area centre (not home)",
+  6: "No location",
+};
+
+const hasPin = (t) => Number.isFinite(Number(t?.latitude)) && Number.isFinite(Number(t?.longitude)) &&
+  t.latitude !== null && t.longitude !== null;
+
+export function locationTierOf(tutor) {
+  if (!hasPin(tutor)) return 6;
+  if (tutor.isPartial || tutor.pinFromPartialForm) return 1;
+  if (tutor.geoSource === "backfill") return 5;
+  if (tutor.geoSource === "home-address") {
+    return { "full address": 2, "part of address": 3, pincode: 4 }[tutor.geoPrecision] || 3;
+  }
+  return 1; // set on the map at registration
+}
+
+// A partial-form pin further than this from the registered one is a mistake
+// (one is 490 km away, outside Bangalore), so it is not used
+const PARTIAL_PIN_MAX_SHIFT_KM = 50;
+
+function kmBetween(a, b) {
+  const rad = (d) => (d * Math.PI) / 180;
+  const h = Math.sin(rad(b.latitude - a.latitude) / 2) ** 2 +
+    Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(rad(b.longitude - a.longitude) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
 
 /** How many tutors each stage works with. Both are overridable per call. */
 export const SHORTLIST_SIZE = Number(process.env.PIPELINE_SHORTLIST_SIZE || 20);
@@ -441,7 +491,7 @@ export async function shortlistTutors(lead, {
   const registered = await Tutor.find({
     status: "approved",
     availabilityStatus: { $ne: "Blocked" },
-  });
+  }).lean();
 
   // Everyone who filled in the short sign-up form is a candidate too — see
   // partialAsTutor for what is known about them and what is not. Nobody is
@@ -460,20 +510,41 @@ export async function shortlistTutors(lead, {
   const registeredPhones = new Set(
     onFile.flatMap((t) => [last10(t.whatsapp), last10(t.phone)]).filter(Boolean),
   );
-  const partials = includePartial
+  // A form entry whose person completed the full registration from the
+  // portal stays in until that registration is approved; from then on the
+  // approved record above carries them (and the phone check below drops
+  // this entry).
+  const allPartials = includePartial
     ? dedupePartials(
-        // A form entry whose person completed the full registration from the
-        // portal stays in until that registration is approved; from then on
-        // the approved record above carries them (and the phone check below
-        // drops this entry).
-        (await PartialTutor.find({ $or: [{ status: { $ne: "registered" } }, { registeredTutorId: { $ne: null } }] })
-          .sort({ createdAt: -1 }).lean())
-          .filter((p) => {
-            const key = last10(p.whatsapp);
-            return !key || !registeredPhones.has(key);
-          }),
-      ).map(partialAsTutor)
+        await PartialTutor.find({ $or: [{ status: { $ne: "registered" } }, { registeredTutorId: { $ne: null } }] })
+          .sort({ createdAt: -1 }).lean(),
+      )
     : [];
+  const partials = allPartials
+    .filter((p) => {
+      const key = last10(p.whatsapp);
+      return !key || !registeredPhones.has(key);
+    })
+    .map(partialAsTutor);
+
+  // An approved tutor who also filled in the partial form picked their spot on
+  // its map. Unless their registered location was picked on a map too, that
+  // pin is the better one, so their distance is measured from it.
+  const partialPinByPhone = new Map();
+  for (const p of allPartials) {
+    const key = last10(p.whatsapp);
+    const pin = { latitude: p.location?.latitude, longitude: p.location?.longitude };
+    if (key && hasPin(pin) && !partialPinByPhone.has(key)) partialPinByPhone.set(key, pin);
+  }
+  for (const t of registered) {
+    if (locationTierOf(t) === 1) continue;
+    const pin = [last10(t.whatsapp), last10(t.phone)].map((k) => k && partialPinByPhone.get(k)).find(Boolean);
+    if (!pin) continue;
+    if (hasPin(t) && kmBetween(t, pin) > PARTIAL_PIN_MAX_SHIFT_KM) continue;
+    t.latitude = pin.latitude;
+    t.longitude = pin.longitude;
+    t.pinFromPartialForm = true;
+  }
 
   const candidates = [...registered, ...partials];
 
@@ -502,12 +573,13 @@ export async function shortlistTutors(lead, {
         locationScore: score.locationScore,
         distanceKm: score.distanceKm,
         distanceTier: score.distanceTier,
+        locationTier: locationTierOf(tutor),
         _score: score,
       };
     });
 
   // By road where it can be had (openrouteservice), else the straight line.
-  // Worked out before the radius is applied, so "within 10 km" means by road.
+  // Worked out before the radius is applied, so "within 8 km" means by road.
   const roadDistance = await applyRoadDistances(params, rows, radiusKm);
   for (const r of rows) {
     r.reason = [computeMatchReason(params, r.doc, r._score), occupationNote(r.occupation)]
@@ -536,7 +608,12 @@ export async function shortlistTutors(lead, {
     // taken before the form was reached. Whether somebody has finished
     // registering is not one of the three criteria, so it does not decide
     // the order either.
-    .sort((a, b) => compareTutors(a, b));
+    //
+    // Above all of that sits how far the location itself can be trusted
+    // (LOCATION_TIERS): everyone within the radius whose spot was picked on a
+    // map comes before anyone whose spot was worked out from an address, and
+    // so on down to area centres. Distance and score then order each tier.
+    .sort((a, b) => (a.locationTier - b.locationTier) || compareTutors(a, b));
 
   const top = scored.slice(0, limit);
   const tutors = top.map((t, i) => ({
@@ -552,6 +629,8 @@ export async function shortlistTutors(lead, {
     experience: t.experience,
     occupation: t.occupation,
     reason: t.reason,
+    locationTier: t.locationTier,
+    locationSource: LOCATION_TIERS[t.locationTier] + (t.doc?.pinFromPartialForm ? " (partial form)" : ""),
     // Marked so the board, and the invite step, can tell at a glance that
     // this person has not registered yet.
     isPartial: t.isPartial,

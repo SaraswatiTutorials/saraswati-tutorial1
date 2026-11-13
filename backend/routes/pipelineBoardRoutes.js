@@ -215,7 +215,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
 
     const ids = leads.map((l) => l.requirementId).filter(Boolean);
 
-    const [logs, shortlists, top3s, assignments, reconfirmations] = await Promise.all([
+    const [logs, shortlists, top3s, assignments, reconfirmations, verificationSends] = await Promise.all([
       db.collection("broadcastlogs")
         .find({ requirementId: { $in: ids } }, { projection: BROADCAST_FIELDS }).toArray(),
 
@@ -237,24 +237,57 @@ router.get("/api/board", requireLogin, async (req, res) => {
       db.collection("tutor_top3").find({ requirementId: { $in: ids } }).sort({ preparedAt: 1 }).toArray(),
       db.collection("tutor_assignments").find({ requirementId: { $in: ids } }).sort({ resolvedAt: 1 }).toArray(),
       db.collection("parent_reconfirmations").find({ requirementId: { $in: ids } }).sort({ sentAt: 1 }).toArray(),
+      // Login links and agreement links from the "Verification & agreement" step
+      db.collection("tutor_verification_sends").find({ requirementId: { $in: ids } }).sort({ createdAt: 1 }).toArray(),
     ]);
 
     deliveryLookupFailed = false;
     const delivery = await readDeliveryStates([...new Set([
       ...logs.map((l) => Number(l.whatsappMessageId)),
       ...reconfirmations.map((r) => Number(r.messageId)),
+      ...verificationSends.map((v) => Number(v.whatsappMessageId)),
     ].filter(Boolean))]);
 
     // Broadcast logs record who was messaged, not what they are like, so the
     // tutors' own records supply experience and occupation for the table.
-    const codes = [...new Set(logs.map((l) => l.tutorCode).filter(Boolean))];
-    const tutorDocs = codes.length
-      ? await db.collection("tutors")
-          .find({ tutorCode: { $in: codes } },
-            { projection: { tutorCode: 1, experience: 1, occupation: 1, area: 1, city: 1 } })
-          .toArray()
-      : [];
-    const tutorByCode = new Map(tutorDocs.map((t) => [t.tutorCode, t]));
+    const codes = [...new Set([
+      ...logs.map((l) => l.tutorCode),
+      ...top3s.flatMap((t) => (t.tutors || []).map((x) => x.tutorCode)),
+      ...verificationSends.map((v) => v.tutorCode),
+    ].filter(Boolean))];
+    const personIds = [...new Set([...logs.map((l) => l.tutorId), ...verificationSends.map((v) => v.personId)]
+      .filter((id) => id && mongoose.isValidObjectId(id)).map(String))].map((id) => new mongoose.Types.ObjectId(id));
+    const byCodeOrId = { $or: [{ tutorCode: { $in: codes } }, { _id: { $in: personIds } }] };
+    const [tutorDocs, partialDocs] = codes.length || personIds.length
+      ? await Promise.all([
+          db.collection("tutors").find(byCodeOrId,
+            { projection: { tutorCode: 1, experience: 1, occupation: 1, area: 1, city: 1, status: 1, odooAgreement: 1 } }).toArray(),
+          db.collection("partialtutors").find(byCodeOrId,
+            { projection: { tutorCode: 1, registeredTutorId: 1, odooAgreement: 1 } }).toArray(),
+        ])
+      : [[], []];
+    const tutorByCode = new Map(tutorDocs.filter((t) => t.tutorCode).map((t) => [t.tutorCode, t]));
+    const tutorById = new Map(tutorDocs.map((t) => [String(t._id), t]));
+    const partialByCode = new Map(partialDocs.filter((p) => p.tutorCode).map((p) => [p.tutorCode, p]));
+    const partialById = new Map(partialDocs.map((p) => [String(p._id), p]));
+
+    // Has this tutor done full verification, and signed the agreement in Odoo
+    // Sign? From the copies the agreement sync keeps (utils/agreementSync.js).
+    // A partial tutor who completed the registration counts as their tutor record.
+    const checksFor = (id, code) => {
+      const p = partialById.get(String(id || "")) || (code ? partialByCode.get(code) : null);
+      const t = tutorById.get(String(id || "")) || (p?.registeredTutorId ? tutorById.get(String(p.registeredTutorId)) : null)
+        || (code ? tutorByCode.get(code) : null);
+      const holder = t || p;
+      if (!holder) return { verified: null, agreement: "", agreementAt: null };
+      const a = holder.odooAgreement || {};
+      return {
+        verified: !!t,
+        agreement: a.status || "none",
+        agreementAt: a.status === "signed" ? a.signedAt || null : a.sentAt || null,
+        personId: String(holder._id),
+      };
+    };
 
     const byReq = (rows) => {
       const m = new Map();
@@ -269,6 +302,26 @@ router.get("/api/board", requireLogin, async (req, res) => {
     const topBy = byReq(top3s);
     const assignBy = byReq(assignments);
     const reconfirmBy = byReq(reconfirmations);
+    const verifyBy = byReq(verificationSends);
+
+    // One line per tutor: what each was sent, newest attempt of each kind
+    const verificationFor = (requirementId) => {
+      const people = new Map();
+      for (const v of verifyBy.get(requirementId) || []) {
+        const key = String(v.personId);
+        const row = people.get(key) || {
+          ...checksFor(v.personId, v.tutorCode), personId: key,
+          name: v.tutorName || "", code: v.tutorCode || "", source: v.tutorSource || "tutor", profile: null, agreementSend: null,
+        };
+        row[v.kind === "agreement" ? "agreementSend" : "profile"] = {
+          status: v.status, at: v.createdAt, group: v.group || "", failureReason: v.failureReason || "",
+          delivery: delivery.get(Number(v.whatsappMessageId))?.state || "",
+          deliveryError: delivery.get(Number(v.whatsappMessageId))?.reason || "",
+        };
+        people.set(key, row);
+      }
+      return [...people.values()];
+    };
     const last = (arr) => (arr && arr.length ? arr[arr.length - 1] : null);
     // A failed attempt is recorded too, so prefer the attempt that went out.
     const sentTop3 = (id) => [...(topBy.get(id) || [])].reverse().find((r) => r.sent) || last(topBy.get(id));
@@ -305,6 +358,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
       const invited = [...latestPerTutor.values()].map(({ log: l }) => {
         const t = tutorByCode.get(l.tutorCode) || {};
         return {
+          ...checksFor(l.tutorId, l.tutorCode),
           name: l.tutorName || "",
           code: l.tutorCode || "",
           // "partial" when this person came off the partial tutor form; they
@@ -444,6 +498,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
               delivery: top3Delivery.get(lead.requirementId)?.state || "",
               deliveryError: top3Delivery.get(lead.requirementId)?.reason || "",
               tutors: (top3.tutors || []).map((t) => ({
+                ...checksFor(t.tutorId, t.tutorCode),
                 choice: t.choice, name: t.name, code: t.tutorCode, score: t.score,
                 distanceKm: t.distanceKm, distanceSource: t.distanceSource || "", experience: t.experience || "",
                 occupation: t.occupation || "", area: [t.area, t.city].filter(Boolean).join(", "),
@@ -451,6 +506,8 @@ router.get("/api/board", requireLogin, async (req, res) => {
               })),
             }
           : null,
+
+        verification: verificationFor(lead.requirementId),
 
         chosen: lead.assignedTutor
           ? { name: lead.assignedTutor, code: assignment?.tutorCode || "", at: assignment?.resolvedAt || null, choice: assignment?.choice ?? null }

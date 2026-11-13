@@ -31,6 +31,7 @@ import portalRoutes from "./routes/portalRoutes.js";
 import pipelineBoardRoutes from "./routes/pipelineBoardRoutes.js";
 import panelActionRoutes from "./routes/panelActionRoutes.js";
 import partialTutorRoutes from "./routes/partialTutorRoutes.js";
+import agreementRoutes from "./routes/agreementRoutes.js";
 
 import { startReminderScheduler, startRetryScheduler, startSyncScheduler } from "./utils/reminderScheduler.js";
 import { startTopThreeScheduler } from "./utils/topThreeScheduler.js";
@@ -38,6 +39,7 @@ import { startTutorReplyScheduler } from "./utils/tutorReplyScheduler.js";
 import { sendTutorOptions } from "./utils/tutorOptionsMessage.js";
 import { backfillPartialTutorCodes } from "./utils/tutorCodes.js";
 import { startTutorOdooRetryScheduler } from "./utils/tutorOdooRetry.js";
+import { startAgreementSyncScheduler } from "./utils/agreementSync.js";
 import { listOdooTutorCodes } from "./utils/odooService.js";
 import BroadcastLog from "./models/BroadcastLog.js";
 import compression from "compression";
@@ -115,6 +117,7 @@ app.use("/api/geo",              geoRoutes);
 app.use("/api/feedback",         feedbackRoutes);
 app.use("/api/portal",           portalRoutes);
 app.use("/api/partial-tutors",   partialTutorRoutes);
+app.use("/api/agreements",       agreementRoutes);
 
 // Panel 2: the tutor pipeline, with its own login. Mounted outside /api on
 // purpose, so it shares no middleware with the existing routes.
@@ -203,6 +206,8 @@ if (
         // Registered tutors whose Odoo record failed at sign-up get it (and a
         // unique tutor ID) here, every 30 min.
         startTutorOdooRetryScheduler();
+        // Who has signed their agreement in Odoo Sign → Tutor.odooAgreement
+        startAgreementSyncScheduler();
         // The top three go to the parent when staff press the button in
         // Panel 2, not on a timer. TOP3_AUTO_SEND=true restores the sweep.
         if (String(process.env.TOP3_AUTO_SEND || "").toLowerCase() === "true") {
