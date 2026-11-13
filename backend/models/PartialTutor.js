@@ -48,6 +48,18 @@ const partialTutorSchema = new mongoose.Schema(
     registeredTutorId: { type: mongoose.Schema.Types.ObjectId, ref: "Tutor", default: null },
     registeredAt: { type: Date, default: null },
 
+    // Their agreement in Odoo Sign, copied by utils/agreementSync.js (same
+    // shape as Tutor.odooAgreement). Only kept while they have not registered.
+    odooAgreement: {
+      status: { type: String, default: "none" },
+      signed: { type: Boolean, default: false },
+      signedAt: { type: Date, default: null },
+      sentAt: { type: Date, default: null },
+      document: { type: String, default: "" },
+      signRequestId: { type: Number, default: null },
+      syncedAt: { type: Date, default: null },
+    },
+
     ipAddress: { type: String, default: "" },
     userAgent: { type: String, default: "" },
   },

@@ -13,15 +13,20 @@ const LOGIN_FEATURES = [
 
 export default function TeacherLogin() {
   const location = useLocation();
-  // Pre-filled when a registration form sends an already-registered tutor here
-  const [identifier, setIdentifier] = useState(location.state?.identifier || "");
+  // Pre-filled when a registration form sends an already-registered tutor here,
+  // or from ?id=TUT0218 in the WhatsApp login link sent to partial tutors
+  const linkId = new URLSearchParams(location.search).get("id") || "";
+  const [identifier, setIdentifier] = useState(location.state?.identifier || linkId);
   const [error, setError] = useState(location.state?.message || "");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   // Already signed in: go straight to the dashboard (not after a sign-out or expired session)
   useEffect(() => {
-    if (!location.state?.message && localStorage.getItem("tutorToken") && localStorage.getItem("tutorId")) {
+    // A login link names who should sign in, so it does not jump into someone else's session
+    const signedInAs = localStorage.getItem("tutorCode") || "";
+    const otherTutor = linkId && linkId.toUpperCase() !== signedInAs.toUpperCase();
+    if (!location.state?.message && !otherTutor && localStorage.getItem("tutorToken") && localStorage.getItem("tutorId")) {
       navigate("/teacher/dashboard", { replace: true });
     }
   }, []);

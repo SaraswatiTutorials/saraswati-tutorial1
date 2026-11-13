@@ -9,7 +9,8 @@
  * than depending on the admin JWT.
  *
  * POST /panel2/api/stage/:stage
- *   body: { requirementId, dryRun, limit?, tutorId?, force?, resend? }
+ *   body: { requirementId, dryRun, limit?, tutorId?, force?, resend?, group? }
+ *   (group, for "verify" only: "top3" or "invited")
  *
  * `dryRun: true` is the safe way to use all of this: the stage does its real
  * work and reports exactly what would be sent, but sends nothing and saves
@@ -30,6 +31,7 @@ import {
   SHORTLIST_SIZE,
   INVITE_SIZE,
 } from "../utils/pipelineStages.js";
+import { sendVerificationLinks } from "../utils/verificationLinks.js";
 
 const router = express.Router();
 
@@ -40,10 +42,11 @@ export const STAGE_LIST = [
   { key: "invite", label: `Invite ${INVITE_SIZE} tutors`, hint: "Ask the top of the shortlist if they are interested" },
   { key: "top3", label: "Send top 3 to parent", hint: "Offer the best of whoever said yes" },
   { key: "selected", label: "Tell the chosen tutor", hint: "Confirm the parent's pick to that tutor" },
+  { key: "verify", label: "Verification & agreement", hint: "Login link to partial tutors, agreement to anyone who has not signed" },
 ];
 
 /** Shortlisting only saves a record. Every other stage messages someone. */
-const SENDS_A_MESSAGE = new Set(["reconfirm", "invite", "top3", "selected"]);
+const SENDS_A_MESSAGE = new Set(["reconfirm", "invite", "top3", "selected", "verify"]);
 
 const MAX_LIMIT = 50;
 
@@ -62,7 +65,7 @@ router.get("/api/stage", requireLogin, (req, res) => {
 
 router.post("/api/stage/:stage", requireLogin, async (req, res) => {
   const { stage } = req.params;
-  const { requirementId, dryRun = true, limit, tutorId, force = false, resend = false } = req.body || {};
+  const { requirementId, dryRun = true, limit, tutorId, force = false, resend = false, group = "top3", kind = "" } = req.body || {};
 
   if (!requirementId) return res.status(400).json({ message: "requirementId is required." });
 
@@ -84,7 +87,7 @@ router.post("/api/stage/:stage", requireLogin, async (req, res) => {
     }
   }
 
-  const lockKey = `${requirementId}|${stage}`;
+  const lockKey = `${requirementId}|${stage}${stage === "verify" ? "|" + (tutorId || group) : ""}`;
   if (!isDryRun && running.has(lockKey)) {
     return res.status(409).json({ stage, ok: false, blocked: true, reason: "This step is already running for this enquiry." });
   }
@@ -115,6 +118,12 @@ router.post("/api/stage/:stage", requireLogin, async (req, res) => {
         break;
       case "selected":
         result = await notifySelectedTutor(lead, tutorId, options);
+        break;
+      case "verify":
+        result = await sendVerificationLinks(lead, {
+          group: String(group), dryRun: options.dryRun, resend: options.resend,
+          tutorId: tutorId ? String(tutorId) : "", kind: kind ? String(kind) : "",
+        });
         break;
       default:
         return res.status(400).json({ message: `Unknown stage "${stage}".` });

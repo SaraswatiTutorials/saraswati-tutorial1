@@ -61,6 +61,7 @@ import { FEEDBACK_CATEGORY_LABELS, FEEDBACK_SOURCE_LABELS } from "../data/feedba
 import ThemeToggle from "../components/ThemeToggle";
 import AdminLayout from "../components/admin/AdminLayout";
 import EditLeadModal from "../components/admin/EditLeadModal";
+import SignedAgreements from "../components/admin/SignedAgreements";
 import { formatClassTimeRange, formatTime12, classTimeError, logMinutes, formatHours, plannedClassMinutes } from "../utils/classTime";
 import TimeInput12 from "../components/TimeInput12";
 import {
@@ -88,6 +89,7 @@ const ADMIN_PAGES = {
   bookings: { title: "Bookings", section: "Leads" },
   tutors: { title: "Tutors", section: "Tutors" },
   partialTutors: { title: "Partial Forms", section: "Tutors" },
+  agreements: { title: "Signed Agreements", section: "Tutors" },
   tutorDrafts: { title: "Tutor Drafts", section: "Tutors" },
   attendance: { title: "Attendance & Class Tracking", section: "Operations" },
   analytics: { title: "Analytics & Visitor Insights", section: "Insights" },
@@ -1674,6 +1676,7 @@ export default function AdminDashboard() {
         { key: "tutors", label: "Tutors", icon: Award, badge: pendingTutors },
         { key: "tutorDrafts", label: "Tutor Drafts", icon: FileText, badge: totalTutorDraftCount },
         { key: "partialTutors", label: "Partial Forms", icon: UserPlus, badge: partialCounts.new },
+        { key: "agreements", label: "Signed Agreements", icon: FileCheck2 },
       ],
     },
     {
@@ -2036,6 +2039,9 @@ export default function AdminDashboard() {
             )}
           </div>
         )}
+
+        {/* ───────────────── SIGNED AGREEMENTS (Odoo Sign) ───────────────── */}
+        {currentMainTab === "agreements" && <SignedAgreements />}
 
         {/* ───────────────── PARTIAL FORMS PANEL ───────────────── */}
         {currentMainTab === "partialTutors" && (
