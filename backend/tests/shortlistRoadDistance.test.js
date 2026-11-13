@@ -71,7 +71,7 @@ beforeEach(() => {
 
 const shortlist = async () => {
   const { shortlistTutors } = await import(modulePath("utils/pipelineStages.js"));
-  return shortlistTutors(LEAD, { dryRun: true, includePartial: false });
+  return shortlistTutors(LEAD, { dryRun: true, includePartial: false, radiusKm: 10 });
 };
 
 test("'within 10 km' is by road: close as the crow flies but far by road is left out", async () => {

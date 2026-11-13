@@ -1399,9 +1399,10 @@ function previewBody(stage, j) {
     return kv([["Matched", j.matchedCount + " of " + j.candidatesConsidered + " considered"], ["Will save", plural(j.tutorCount, "tutor")]]
       .concat(distanceLine ? [["Distance", esc(distanceLine)]] : [])) +
       (j.tutors && j.tutors.length
-        ? table(["Tutor", "Rank", "Match", "Distance", "Experience"], j.tutors.map((t) => [
+        ? table(["Tutor", "Rank", "Match", "Distance", "Location", "Experience"], j.tutors.map((t) => [
             tutorCell({ name: t.name }, [originLabel(t), t.occupation].filter(Boolean).join(" · ")),
-            esc(t.rank), esc(t.matchPercentage != null ? t.matchPercentage + "%" : "—"), km(t.distanceKm, t.distanceSource), esc(t.experience || "—"),
+            esc(t.rank), esc(t.matchPercentage != null ? t.matchPercentage + "%" : "—"), km(t.distanceKm, t.distanceSource),
+            esc(t.locationTier ? t.locationTier + ". " + (t.locationSource || "") : "—"), esc(t.experience || "—"),
           ]))
         : '<div class="none">No tutor matched this enquiry.</div>');
   }
