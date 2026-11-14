@@ -300,6 +300,8 @@
   .steps li { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 2px 14px; align-items: start; padding-bottom: 18px; }
   .steps li:last-child { padding-bottom: 0; }
   .steps li:not(:last-child)::before { content: ""; position: absolute; left: 12px; top: 28px; bottom: 2px; width: 2px; background: var(--line); }
+  .stars { color: #f59e0b; letter-spacing: 1px; }
+  .fb-line + .fb-line { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
   .steps li.is-done:not(:last-child)::before { background: #b9e2ca; }
   .steps .no { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; font-weight: 600; color: var(--mut); }
   .steps .is-done .no { background: var(--ok-soft); border-color: #b9e2ca; color: var(--ok); }
@@ -1352,6 +1354,38 @@ function stepList(b) {
         why: !top3Ready && !c.invited ? "Invite tutors first." : "",
       };
     })(),
+    (() => {
+      // One line per tutor the parent was asked about: a new tutor after a
+      // change gets their own link, so earlier tutors' answers stay listed.
+      const fb = b.feedback || [];
+      const current = b.assignedTutor ? fb.filter((f) => f.tutorName === b.assignedTutor).at(-1) : null;
+      const line = (f) => "<b>" + esc(f.tutorName) + "</b>: " + (f.submittedAt
+        ? (f.demoHappened === "yes"
+            ? '<span class="stars">' + "★".repeat(f.overall || 0) + "☆".repeat(5 - (f.overall || 0)) + "</span> " + esc(f.overall) + "/5 · " +
+              esc(FEEDBACK_DECISION[f.decision] || f.decision) +
+              (f.liked.length ? '<div class="small mut">Liked: ' + f.liked.map(esc).join(", ") + "</div>" : "") +
+              (f.improve.length ? '<div class="small mut">Could improve: ' + f.improve.map(esc).join(", ") + "</div>" : "")
+            : "says the demo has not happened yet") +
+          (f.comment ? '<div class="small">"' + esc(f.comment) + '"</div>' : "") +
+          '<div class="small mut">Answered ' + esc(when(f.submittedAt)) + "</div>"
+        : f.lastStatus === "Failed" ? "last send failed: " + esc(f.lastFailure || "unknown reason")
+        : f.sentAt ? "link sent " + esc(when(f.sentAt)) + (f.openedAt ? ", opened, not answered yet" : ", not opened yet")
+        : "not sent");
+      return {
+        n: 7, title: "Tutor feedback from the parent", sends: "Sends WhatsApp to the parent",
+        result: fb.length ? fb.map((f) => '<div class="fb-line">' + line(f) + "</div>").join("")
+          : "Not sent. After the demo, send the parent a short form about the tutor confirmed in step 5.",
+        state: current && current.submittedAt ? "done" : "",
+        actions: [{
+          stage: "feedback", label: current && current.sentAt ? "Send again" : "Preview",
+          resend: !!(current && current.sentAt),
+          enabled: !!b.assignedTutor && !!b.phone && !(current && current.submittedAt),
+        }],
+        why: !b.assignedTutor ? "Confirm the tutor chosen for the demo first (step 5)."
+          : !b.phone ? "No phone number."
+          : current && current.submittedAt ? "The parent has answered for " + esc(b.assignedTutor) + ". If they move to another tutor, confirm the new one in step 5 and send again." : "",
+      };
+    })(),
   ];
   return steps.map((s) => ({ ...s, state: s.n === nextStep && s.state !== "failed" ? "next" : s.state }));
 }
@@ -1380,8 +1414,9 @@ function stepSection(b) {
 const STEP_NAMES = {
   reconfirm: "Re-confirm with the parent", shortlist: "Shortlist tutors", invite: "Invite tutors",
   top3: "Send top 3 to the parent", selected: "Confirm to the tutor",
-  verify: "Verification & agreement",
+  verify: "Verification & agreement", feedback: "Tutor feedback from the parent",
 };
+const FEEDBACK_DECISION = { continue: "Wants to continue", another: "Wants a different tutor", unsure: "Not sure yet" };
 
 function kv(pairs) {
   const rows = pairs.filter(([, v]) => v != null && v !== "");
@@ -1390,6 +1425,20 @@ function kv(pairs) {
 
 // Exactly what the server says would go out, for the person about to send it.
 function previewBody(stage, j) {
+  if (stage === "feedback") {
+    return kv([
+      ["To", esc(j.to)], ["Parent", esc(j.parentName)],
+      ["About tutor", esc(j.tutorName) + (j.tutorCode ? " (" + esc(j.tutorCode) + ")" : "")],
+      ["Student", esc(j.studentName)],
+      ["Template", esc(j.templateName) + (j.templateApproved ? "" : ' <span class="status s-wait">Waiting for Meta approval</span>')],
+      ["Form link", esc(j.link)],
+      ["Already sent", j.alreadySentAt ? esc(when(j.alreadySentAt)) : ""],
+    ]) +
+      (j.reason ? '<div class="note">' + esc(j.reason) + "</div>" : "") +
+      (!j.templateApproved ? '<div class="note">Until Meta approves the template, this only reaches a parent who messaged us in the last 24 hours (as plain text with the link).</div>' : "") +
+      '<div class="msg">' + esc(j.messagePreview) + "</div>" +
+      '<div class="small mut" style="margin-top:6px">The form link starts working once the message is sent.</div>';
+  }
   if (stage === "reconfirm") {
     return kv([["To", esc(j.phoneNumber)], ["Template", esc(j.templateName)], ["Odoo lead", esc(j.odooLeadId)],
         ["Reply buttons", (j.buttons || []).map(esc).join(", ")]]) +
@@ -1463,7 +1512,9 @@ function sendLabel(stage, j) {
   if (stage === "verify") return "Send " + plural(j.willSend || 0, "message");
   return "Send to parent";
 }
-const canSend = (stage, j) => stage === "shortlist" ? (j.tutorCount || 0) > 0 : stage === "invite" || stage === "verify" ? (j.willSend || 0) > 0 : true;
+const canSend = (stage, j) => stage === "shortlist" ? (j.tutorCount || 0) > 0
+  : stage === "invite" || stage === "verify" ? (j.willSend || 0) > 0
+  : stage === "feedback" ? j.willSend !== false : true;
 
 function previewBlock(b) {
   const p = previews[idOf(b)];

@@ -218,6 +218,7 @@ export function templateChecklist(env = process.env) {
     { key: "options", use: "Step 4: top 3 list to the parent",
       names: env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME ? [env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME] : TUTOR_OPTIONS_TEMPLATES, anyOf: true, core: true },
     { key: "selected", use: "Step 5: tell the selected tutor", names: [SELECTION_TEMPLATE], core: true },
+    { key: "feedback", use: "Step 7: tutor feedback link to the parent", names: [env.WHATSAPP_FEEDBACK_TEMPLATE || "tutor_feedback_request"] },
     { key: "assigned", use: "Demo assigned to tutor (admin panel)", names: [env.WHATSAPP_ASSIGNMENT_TEMPLATE_NAME || "Demo Assigned To Tutor"] },
     { key: "terms", use: "Terms & Conditions to the parent (admin panel button)", names: [termsTemplateName(env)] },
     { key: "agreement", use: "Tutor agreement after registration", names: [env.WHATSAPP_ONBOARDING_TEMPLATE_NAME || "tutor_agreement"] },

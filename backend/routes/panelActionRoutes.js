@@ -32,6 +32,7 @@ import {
   INVITE_SIZE,
 } from "../utils/pipelineStages.js";
 import { sendVerificationLinks } from "../utils/verificationLinks.js";
+import { sendFeedbackLink } from "../utils/tutorFeedback.js";
 
 const router = express.Router();
 
@@ -43,10 +44,11 @@ export const STAGE_LIST = [
   { key: "top3", label: "Send top 3 to parent", hint: "Offer the best of whoever said yes" },
   { key: "selected", label: "Tell the chosen tutor", hint: "Confirm the parent's pick to that tutor" },
   { key: "verify", label: "Verification & agreement", hint: "Login link to partial tutors, agreement to anyone who has not signed" },
+  { key: "feedback", label: "Send feedback link", hint: "After the demo, ask the parent about the confirmed tutor" },
 ];
 
 /** Shortlisting only saves a record. Every other stage messages someone. */
-const SENDS_A_MESSAGE = new Set(["reconfirm", "invite", "top3", "selected", "verify"]);
+const SENDS_A_MESSAGE = new Set(["reconfirm", "invite", "top3", "selected", "verify", "feedback"]);
 
 const MAX_LIMIT = 50;
 
@@ -124,6 +126,9 @@ router.post("/api/stage/:stage", requireLogin, async (req, res) => {
           group: String(group), dryRun: options.dryRun, resend: options.resend,
           tutorId: tutorId ? String(tutorId) : "", kind: kind ? String(kind) : "",
         });
+        break;
+      case "feedback":
+        result = await sendFeedbackLink(lead, { dryRun: options.dryRun, resend: options.resend });
         break;
       default:
         return res.status(400).json({ message: `Unknown stage "${stage}".` });

@@ -215,7 +215,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
 
     const ids = leads.map((l) => l.requirementId).filter(Boolean);
 
-    const [logs, shortlists, top3s, assignments, reconfirmations, verificationSends] = await Promise.all([
+    const [logs, shortlists, top3s, assignments, reconfirmations, verificationSends, feedbacks] = await Promise.all([
       db.collection("broadcastlogs")
         .find({ requirementId: { $in: ids } }, { projection: BROADCAST_FIELDS }).toArray(),
 
@@ -239,6 +239,10 @@ router.get("/api/board", requireLogin, async (req, res) => {
       db.collection("parent_reconfirmations").find({ requirementId: { $in: ids } }).sort({ sentAt: 1 }).toArray(),
       // Login links and agreement links from the "Verification & agreement" step
       db.collection("tutor_verification_sends").find({ requirementId: { $in: ids } }).sort({ createdAt: 1 }).toArray(),
+      // Step 7: the parent's feedback on each tutor sent for a demo
+      db.collection("tutor_feedbacks").find({ requirementId: { $in: ids } }, {
+        projection: { token: 0, ipAddress: 0, userAgent: 0, parentPhone: 0 },
+      }).sort({ createdAt: 1 }).toArray(),
     ]);
 
     deliveryLookupFailed = false;
@@ -303,6 +307,17 @@ router.get("/api/board", requireLogin, async (req, res) => {
     const assignBy = byReq(assignments);
     const reconfirmBy = byReq(reconfirmations);
     const verifyBy = byReq(verificationSends);
+    const feedbackBy = byReq(feedbacks);
+    const feedbackFor = (requirementId) => (feedbackBy.get(requirementId) || []).map((f) => {
+      const last = (f.sends || []).at(-1) || null;
+      return {
+        tutorName: f.tutorName || "", tutorCode: f.tutorCode || "",
+        sentAt: f.lastSentAt || null, lastStatus: last?.status || "", lastFailure: last?.failureReason || "",
+        openedAt: f.openedAt || null, submittedAt: f.submittedAt || null,
+        demoHappened: f.demoHappened || "", overall: f.overall ?? null, ratings: f.ratings || {},
+        liked: f.liked || [], improve: f.improve || [], decision: f.decision || "", comment: f.comment || "",
+      };
+    });
 
     // One line per tutor: what each was sent, newest attempt of each kind
     const verificationFor = (requirementId) => {
@@ -508,6 +523,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
           : null,
 
         verification: verificationFor(lead.requirementId),
+        feedback: feedbackFor(lead.requirementId),
 
         chosen: lead.assignedTutor
           ? { name: lead.assignedTutor, code: assignment?.tutorCode || "", at: assignment?.resolvedAt || null, choice: assignment?.choice ?? null }
