@@ -34,6 +34,7 @@ const ParentEnquiryForm = lazyPage(() => import("./pages/ParentEnquiryForm"));
 const BlogPage = lazyPage(() => import("./pages/BlogPage"));
 const BlogDetail = lazyPage(() => import("./pages/BlogDetail"));
 const ThankYou = lazyPage(() => import("./pages/ThankYou"));
+const TutorFeedback = lazyPage(() => import("./pages/TutorFeedback"));
 const TutorRegistration = lazyPage(() => import("./pages/TutorRegistration"));
 const PartialTutorForm = lazyPage(() => import("./pages/PartialTutorForm"));
 const JoinCommunity = lazyPage(() => import("./pages/JoinCommunity"));
@@ -107,6 +108,7 @@ export default function App() {
           <Route path="/blogs/:slug" element={<BlogDetail />} />
           <Route path="/parent-enquiry" element={<ParentEnquiryForm />} />
           <Route path="/thank-you" element={<ThankYou />} />
+          <Route path="/tutor-feedback/:token" element={<TutorFeedback />} />
           <Route path="/tutor-verification" element={<TutorRegistration />} />
           <Route path="/partial-verification" element={<PartialTutorForm />} />
           <Route path="/join-community" element={<JoinCommunity />} />
