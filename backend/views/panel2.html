@@ -1373,8 +1373,9 @@ function stepList(b) {
         : "not sent");
       return {
         n: 7, title: "Tutor feedback from the parent", sends: "Sends WhatsApp to the parent",
-        result: fb.length ? fb.map((f) => '<div class="fb-line">' + line(f) + "</div>").join("")
-          : "Not sent. After the demo, send the parent a short form about the tutor confirmed in step 5.",
+        result: (fb.length ? fb.map((f) => '<div class="fb-line">' + line(f) + "</div>").join("")
+          : "Not sent. After the demo, send the parent a short form about the tutor confirmed in step 5.") +
+          '<div class="small" style="margin-top:6px"><a href="' + FEEDBACK_FORM_PREVIEW + '" target="_blank" rel="noopener">See the form parents get</a></div>',
         state: current && current.submittedAt ? "done" : "",
         actions: [{
           stage: "feedback", label: current && current.sentAt ? "Send again" : "Preview",
@@ -1417,6 +1418,8 @@ const STEP_NAMES = {
   verify: "Verification & agreement", feedback: "Tutor feedback from the parent",
 };
 const FEEDBACK_DECISION = { continue: "Wants to continue", another: "Wants a different tutor", unsure: "Not sure yet" };
+// The real form with sample details; nothing entered there is saved
+const FEEDBACK_FORM_PREVIEW = "https://saraswatitutorial.com/tutor-feedback/preview";
 
 function kv(pairs) {
   const rows = pairs.filter(([, v]) => v != null && v !== "");

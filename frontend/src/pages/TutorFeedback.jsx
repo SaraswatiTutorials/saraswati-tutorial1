@@ -136,6 +136,15 @@ function Masthead({ progress }) {
   );
 }
 
+// Shown on /tutor-feedback/preview only, so nobody mistakes it for a real request
+function PreviewNote() {
+  return (
+    <div className="-mt-3 mb-7 rounded-lg border border-dashed border-[#d9c58a] bg-[#fdf8e8] px-3.5 py-2.5 text-[13px] leading-snug text-[#7a5d0a] dark:border-[#6b5a2a] dark:bg-[#2a2415] dark:text-[#e6cf8f]">
+      <b>Preview.</b> This is the form parents receive after a demo, with sample details. Nothing you enter here is saved.
+    </div>
+  );
+}
+
 export default function TutorFeedback() {
   const { token } = useParams();
   const [info, setInfo] = useState(null);
@@ -238,7 +247,15 @@ export default function TutorFeedback() {
               : null}
             Your feedback has reached our team. If you have any questions about {info.studentName ? `${info.studentName}'s` : "your child's"} classes, just reply to our WhatsApp message.
           </p>
-          <p className={`mt-8 text-[13.5px] ${muted}`}>You can close this page.</p>
+          {info.preview ? (
+            <button type="button"
+              onClick={() => { setDone(false); setAnswers({ demoHappened: "", overall: 0, ratings: {}, liked: [], improve: [], decision: "", comment: "" }); window.scrollTo(0, 0); }}
+              className={`mt-8 rounded-lg border ${rule} px-4 py-2.5 text-[14px] font-medium ${ink} hover:bg-[#f1eee7] dark:hover:bg-[#24221f]`}>
+              Try the preview again
+            </button>
+          ) : (
+            <p className={`mt-8 text-[13.5px] ${muted}`}>You can close this page.</p>
+          )}
         </div>
       </Page>
     );
@@ -266,6 +283,7 @@ export default function TutorFeedback() {
       }
     >
       <Masthead progress="Takes about a minute" />
+      {info.preview && <PreviewNote />}
 
       <form id="tutor-feedback" onSubmit={submit} noValidate>
         <div className="pb-7">
