@@ -18,6 +18,11 @@ import { addOdooChatterMessage } from "../utils/odooService.js";
 const router = express.Router();
 const TOKEN = /^[A-Za-z0-9_-]{8,40}$/;
 
+// /tutor-feedback/preview: the real form with made-up details, so the team can
+// see exactly what parents are asked. Answers sent from it are never saved.
+export const PREVIEW_TOKEN = "preview";
+const PREVIEW_DOC = { parentName: "Priya Sharma", studentName: "Aarav", tutorName: "Ravi Kumar", tutorCode: "TUT0000" };
+
 async function extrasFor(doc) {
   const [tutor, lead] = await Promise.all([
     doc.tutorId && mongoose.isValidObjectId(doc.tutorId) ? Tutor.findById(doc.tutorId, { photo: 1 }).lean() : null,
@@ -31,6 +36,9 @@ async function extrasFor(doc) {
 router.get("/:token", async (req, res) => {
   try {
     const { token } = req.params;
+    if (token === PREVIEW_TOKEN) {
+      return res.json({ ...publicView(PREVIEW_DOC, { subjects: "Maths, Science", grade: "8" }), preview: true });
+    }
     if (!TOKEN.test(token)) return res.status(404).json({ message: "This feedback link is not valid." });
     const doc = await TutorFeedback.findOne({ token });
     if (!doc) return res.status(404).json({ message: "This feedback link is not valid." });
@@ -48,8 +56,13 @@ router.get("/:token", async (req, res) => {
 router.post("/:token", async (req, res) => {
   try {
     const { token } = req.params;
-    if (!TOKEN.test(token)) return res.status(404).json({ message: "This feedback link is not valid." });
     const { answers, error } = cleanAnswers(req.body || {});
+    if (token === PREVIEW_TOKEN) {
+      // Checked like a real answer, so the preview shows the same messages, but not saved
+      if (error) return res.status(400).json({ message: error });
+      return res.json({ ok: true, preview: true, message: "Preview only: nothing was saved." });
+    }
+    if (!TOKEN.test(token)) return res.status(404).json({ message: "This feedback link is not valid." });
     if (error) return res.status(400).json({ message: error });
 
     // Only an unanswered link takes answers, so a double tap cannot overwrite them
