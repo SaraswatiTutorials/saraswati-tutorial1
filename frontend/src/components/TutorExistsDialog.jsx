@@ -38,23 +38,23 @@ export default function TutorExistsDialog({ info, phone, onClose }) {
         aria-modal="true"
         aria-labelledby="tutor-exists-title"
         onClick={(e) => e.stopPropagation()}
-        className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:max-w-md sm:rounded-3xl"
+        className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl ring-1 ring-transparent sm:max-w-md sm:rounded-3xl dark:bg-slate-900 dark:ring-slate-700/70"
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer"
         >
           <X className="h-5 w-5" />
         </button>
 
         <div className="px-6 pb-6 pt-7 text-center">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
             <UserCheck className="h-7 w-7" />
           </span>
-          <h2 id="tutor-exists-title" className="mt-4 text-xl font-bold text-slate-900">This tutor already exists</h2>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          <h2 id="tutor-exists-title" className="mt-4 text-xl font-bold text-slate-900 dark:text-white">This tutor already exists</h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
             A tutor with this {onWhat} is already registered with Saraswati Tutorials. {next}
           </p>
 
@@ -70,32 +70,32 @@ export default function TutorExistsDialog({ info, phone, onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="mt-2 h-10 w-full rounded-xl text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800 cursor-pointer"
+            className="mt-2 h-10 w-full rounded-xl text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 cursor-pointer"
           >
             I typed it wrong, go back
           </button>
         </div>
 
-        <div className="border-t border-slate-100 bg-slate-50 px-6 py-5">
-          <p className="text-sm font-bold text-slate-900">Need to change your details?</p>
-          <p className="mt-0.5 text-sm text-slate-600">For any changes to your details, please contact us:</p>
+        <div className="border-t border-slate-100 bg-slate-50 px-6 py-5 dark:border-slate-800 dark:bg-slate-950/50">
+          <p className="text-sm font-bold text-slate-900 dark:text-white">Need to change your details?</p>
+          <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">For any changes to your details, please contact us:</p>
           <ul className="mt-3 space-y-2">
             {TUTOR_SUPPORT.phones.map((p) => (
               <li key={p.tel}>
-                <a href={`tel:${p.tel}`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-indigo-300 hover:text-indigo-700">
+                <a href={`tel:${p.tel}`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-indigo-300 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-500/60 dark:hover:text-indigo-300">
                   <Phone className="h-4 w-4 shrink-0 text-indigo-500" />
                   Call {p.label}
                 </a>
               </li>
             ))}
             <li>
-              <a href={TUTOR_SUPPORT.whatsappLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-emerald-300 hover:text-emerald-700">
+              <a href={TUTOR_SUPPORT.whatsappLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-emerald-500/60 dark:hover:text-emerald-300">
                 <MessageCircle className="h-4 w-4 shrink-0 text-emerald-500" />
                 Chat with us on WhatsApp
               </a>
             </li>
             <li>
-              <a href={`mailto:${TUTOR_SUPPORT.email}`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-indigo-300 hover:text-indigo-700">
+              <a href={`mailto:${TUTOR_SUPPORT.email}`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-indigo-300 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-500/60 dark:hover:text-indigo-300">
                 <Mail className="h-4 w-4 shrink-0 text-indigo-500" />
                 <span className="min-w-0 break-all">{TUTOR_SUPPORT.email}</span>
               </a>

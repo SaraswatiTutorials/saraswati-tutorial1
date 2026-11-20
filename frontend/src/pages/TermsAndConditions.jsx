@@ -547,7 +547,7 @@ export default function TermsConditions() {
             </div>
 
             {/* Bypass Penalty Box */}
-            <div className="bg-rose-50/70 dark:bg-rose-955/30 border border-rose-200 dark:border-rose-900/60 rounded-2xl p-5 space-y-3">
+            <div className="bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-2xl p-5 space-y-3">
               <strong className="text-xs font-black uppercase text-rose-900 dark:text-rose-300 block">
                 No Direct Off-Platform Hiring
               </strong>
@@ -658,7 +658,7 @@ export default function TermsConditions() {
                 id="tnc-decline-btn"
                 onClick={handleDeclineClick}
                 disabled={flow === "submitting"}
-                className="px-6 py-3.5 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-955/30 text-rose-600 dark:text-rose-400 font-black text-xs uppercase tracking-wider hover:bg-rose-100 dark:hover:bg-rose-950/50 transition cursor-pointer"
+                className="px-6 py-3.5 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 font-black text-xs uppercase tracking-wider hover:bg-rose-100 dark:hover:bg-rose-950/50 transition cursor-pointer"
               >
                 Decline
               </button>

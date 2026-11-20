@@ -161,7 +161,7 @@ export default function SiteHeader({ city = "Bangalore", sticky = true, audience
 
   return (
     <header className={`${sticky ? "sticky top-0 z-50" : "relative"} w-full py-3 px-4 sm:px-6 lg:px-8 bg-transparent`}>
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 xl:px-6 py-2.5 xl:py-3.5 bg-white/95 dark:bg-slate-900/95 border border-slate-200/50 dark:border-slate-800/80 rounded-[1.75rem] shadow-[0_8px_30px_rgba(0,0,0,0.05)] dark:shadow-none">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 2xl:gap-4 px-4 xl:px-6 py-2.5 xl:py-3.5 bg-white/95 dark:bg-slate-900/95 border border-slate-200/50 dark:border-slate-800/80 rounded-[1.75rem] shadow-[0_8px_30px_rgba(0,0,0,0.05)] dark:shadow-none">
         <div className="flex items-center gap-2 xl:gap-3 shrink-0">
           <Link to={homePath} className="flex items-center gap-2 xl:gap-3 group shrink-0">
             <motion.div
@@ -192,7 +192,7 @@ export default function SiteHeader({ city = "Bangalore", sticky = true, audience
         </div>
 
         {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-2 xl:gap-3.5 2xl:gap-5 text-xs xl:text-[13px] 2xl:text-[14px] font-bold text-slate-600 xl:flex shrink-0">
+        <nav className="hidden items-center gap-2 2xl:gap-5 text-xs xl:text-[13px] 2xl:text-[14px] font-bold text-slate-600 xl:flex shrink-0">
           {sectionLinks.map((link) => (
             <a
               key={link.id}
@@ -205,7 +205,7 @@ export default function SiteHeader({ city = "Bangalore", sticky = true, audience
           <ResourcesDropdown homePath={homePath} />
         </nav>
 
-        <div className="hidden items-center gap-2 xl:gap-3 xl:flex shrink-0">
+        <div className="hidden items-center gap-2 2xl:gap-3 xl:flex shrink-0">
           {showBookDemo && (
           <MotionLink
             to="/parent-enquiry"
@@ -213,7 +213,7 @@ export default function SiteHeader({ city = "Bangalore", sticky = true, audience
             whileHover={{ scale: 1.05, translateY: -2, boxShadow: "0 10px 20px rgba(37,99,235,0.25)" }}
             whileTap={{ scale: 0.97 }}
             transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            className="whitespace-nowrap flex items-center gap-1.5 xl:gap-2 rounded-xl xl:rounded-[14px] bg-blue-600 px-4 xl:px-5.5 py-2 xl:py-2.5 text-[11px] xl:text-xs font-black text-white shadow-md transition-all duration-300 hover:bg-blue-700 shrink-0"
+            className="whitespace-nowrap flex items-center gap-1.5 xl:gap-2 rounded-xl xl:rounded-[14px] bg-blue-600 px-4 2xl:px-5.5 py-2 xl:py-2.5 text-[11px] xl:text-xs font-black text-white shadow-md transition-all duration-300 hover:bg-blue-700 shrink-0"
           >
             <Calendar className="h-3.5 w-3.5 xl:h-4 xl:w-4 text-white" />
             Book Demo
@@ -225,7 +225,7 @@ export default function SiteHeader({ city = "Bangalore", sticky = true, audience
             whileHover={{ scale: 1.05, translateY: -2, boxShadow: "0 8px 16px rgba(15,23,42,0.06)" }}
             whileTap={{ scale: 0.97 }}
             transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            className="whitespace-nowrap flex items-center gap-1.5 xl:gap-2 rounded-xl xl:rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 xl:px-5 py-2 xl:py-2.5 text-[11px] xl:text-xs font-black text-slate-800 dark:text-slate-100 shadow-sm transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 shrink-0"
+            className="whitespace-nowrap flex items-center gap-1.5 xl:gap-2 rounded-xl xl:rounded-[14px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 xl:px-4 2xl:px-5 py-2 xl:py-2.5 text-[11px] xl:text-xs font-black text-slate-800 dark:text-slate-100 shadow-sm transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 shrink-0"
           >
             <User className="h-3.5 w-3.5 xl:h-4 xl:w-4 text-slate-500 dark:text-slate-400" />
             Become a Tutor
