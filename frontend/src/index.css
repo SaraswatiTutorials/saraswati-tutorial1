@@ -69,109 +69,360 @@ html, body {
   animation: fadeIn 0.25s ease-out forwards;
 }
 
-/* Dashboards (marked data-dashboard) style dark mode with their own dark: classes,
-   and surfaces marked data-own-colors (e.g. the gold and silver plan cards) keep the
-   same colours in both themes, so these site-wide overrides skip them. */
-/* ─── Global Dark Mode Overrides ───────────────────────────────────────────── */
-/* Ensure all body text is legible in dark mode */
-.dark h1:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]), .dark h2:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]), .dark h3:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]), .dark h4:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]), .dark h5:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]), .dark h6:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
+/* ─── Site-wide dark mode fallbacks ────────────────────────────────────────────
+   For elements that were written for light mode only. Anything that sets its own
+   dark: value (dark:text-*, dark:bg-*, dark:border-*) keeps it; dashboards
+   (data-dashboard) and fixed-colour surfaces (data-own-colors) are skipped. */
+.dark h1:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"], .text-transparent, .text-white),
+.dark h2:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"], .text-transparent, .text-white),
+.dark h3:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"], .text-transparent, .text-white),
+.dark h4:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"], .text-transparent, .text-white),
+.dark h5:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"], .text-transparent, .text-white),
+.dark h6:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"], .text-transparent, .text-white) {
   color: #f1f5f9; /* slate-100 */
 }
-.dark p:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
+.dark p:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"], .text-transparent, .text-white) {
   color: #cbd5e1; /* slate-300 */
 }
-.dark span:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
-  color: inherit;
+.dark .text-slate-400:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #64748b !important;
 }
-
-/* Glass card containers - light bg becomes dark glass in dark mode */
-.dark .bg-white\/30:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
-.dark .bg-white\/40:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
-.dark .bg-white\/50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
-.dark .bg-white\/60:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
+.dark .text-slate-500:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #94a3b8 !important;
+}
+.dark .text-slate-600:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #94a3b8 !important;
+}
+.dark .text-slate-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #cbd5e1 !important;
+}
+.dark .text-slate-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #e2e8f0 !important;
+}
+.dark .text-slate-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #f1f5f9 !important;
+}
+.dark .text-slate-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #f8fafc !important;
+}
+.dark .text-black:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #f1f5f9 !important;
+}
+.dark .text-red-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-red-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-red-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-red-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #fca5a5 !important;
+}
+.dark .text-orange-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-orange-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-orange-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-orange-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #fdba74 !important;
+}
+.dark .text-amber-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-amber-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-amber-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-amber-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #fcd34d !important;
+}
+.dark .text-yellow-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-yellow-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-yellow-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-yellow-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #fde047 !important;
+}
+.dark .text-green-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-green-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-green-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-green-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #86efac !important;
+}
+.dark .text-emerald-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-emerald-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-emerald-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-emerald-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #6ee7b7 !important;
+}
+.dark .text-teal-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-teal-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-teal-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-teal-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #5eead4 !important;
+}
+.dark .text-cyan-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-cyan-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-cyan-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-cyan-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #67e8f9 !important;
+}
+.dark .text-sky-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-sky-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-sky-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-sky-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #7dd3fc !important;
+}
+.dark .text-blue-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-blue-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-blue-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-blue-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #93c5fd !important;
+}
+.dark .text-indigo-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-indigo-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-indigo-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-indigo-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #a5b4fc !important;
+}
+.dark .text-violet-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-violet-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-violet-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-violet-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #c4b5fd !important;
+}
+.dark .text-purple-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-purple-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-purple-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-purple-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #d8b4fe !important;
+}
+.dark .text-pink-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-pink-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-pink-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-pink-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #f9a8d4 !important;
+}
+.dark .text-rose-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-rose-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-rose-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark .text-rose-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
+  color: #fda4af !important;
+}
+.dark .bg-white\/30:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-white\/40:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-white\/50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-white\/60:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
   background-color: rgba(30, 41, 59, 0.7) !important; /* slate-800/70 */
 }
-.dark .bg-white\/20:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
+.dark .bg-white\/20:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
   background-color: rgba(30, 41, 59, 0.5) !important;
 }
-.dark .bg-white\/10:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
+.dark .bg-white\/10:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
   background-color: rgba(30, 41, 59, 0.3) !important;
 }
-
-/* Solid white backgrounds become dark */
-.dark .bg-white:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
+.dark .bg-white:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
   background-color: #1e293b !important; /* slate-800 */
 }
-
-/* Borders */
-.dark .border-white\/50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
-.dark .border-white\/60:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
+.dark .bg-slate-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-slate-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(15, 23, 42, 0.6) !important; /* slate-900/60 */
+}
+.dark .bg-slate-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: #334155 !important; /* slate-700 */
+}
+.dark .hover\:bg-slate-50\/50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:hover:bg-"]):hover,
+.dark .hover\:bg-slate-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:hover:bg-"]):hover,
+.dark .hover\:bg-slate-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:hover:bg-"]):hover {
+  background-color: rgba(51, 65, 85, 0.5) !important;
+}
+.dark .bg-red-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-red-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-red-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-red-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(239, 68, 68, 0.14) !important;
+}
+.dark .bg-orange-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-orange-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-orange-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-orange-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(249, 115, 22, 0.14) !important;
+}
+.dark .bg-amber-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-amber-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-amber-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-amber-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(245, 158, 11, 0.14) !important;
+}
+.dark .bg-yellow-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-yellow-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-yellow-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-yellow-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(234, 179, 8, 0.14) !important;
+}
+.dark .bg-green-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-green-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-green-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-green-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(34, 197, 94, 0.14) !important;
+}
+.dark .bg-emerald-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-emerald-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-emerald-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-emerald-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(16, 185, 129, 0.14) !important;
+}
+.dark .bg-teal-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-teal-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-teal-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-teal-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(20, 184, 166, 0.14) !important;
+}
+.dark .bg-cyan-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-cyan-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-cyan-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-cyan-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(6, 182, 212, 0.14) !important;
+}
+.dark .bg-sky-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-sky-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-sky-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-sky-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(14, 165, 233, 0.14) !important;
+}
+.dark .bg-blue-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-blue-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-blue-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-blue-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(59, 130, 246, 0.14) !important;
+}
+.dark .bg-indigo-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-indigo-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-indigo-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-indigo-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(99, 102, 241, 0.14) !important;
+}
+.dark .bg-violet-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-violet-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-violet-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-violet-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(139, 92, 246, 0.14) !important;
+}
+.dark .bg-purple-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-purple-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-purple-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-purple-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(168, 85, 247, 0.14) !important;
+}
+.dark .bg-pink-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-pink-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-pink-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-pink-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(236, 72, 153, 0.14) !important;
+}
+.dark .bg-rose-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-rose-50/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark .bg-rose-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]),
+.dark [class*="bg-rose-100/"]:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
+  background-color: rgba(244, 63, 94, 0.14) !important;
+}
+.dark .border-white\/50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-white\/60:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
   border-color: rgba(71, 85, 105, 0.5) !important; /* slate-600/50 */
 }
-.dark .border-slate-200\/90:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
-  border-color: rgba(51, 65, 85, 0.9) !important; /* slate-700 */
+.dark .border-slate-200\/90:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(51, 65, 85, 0.9) !important;
 }
-.dark .border-slate-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
+.dark .border-slate-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-slate-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
   border-color: #334155 !important; /* slate-700 */
 }
-.dark .border-slate-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
-  border-color: #334155 !important;
-}
-.dark .border-slate-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
+.dark .border-slate-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
   border-color: #475569 !important;
 }
-
-/* Footer */
+.dark .border-red-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-red-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-red-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+.dark .border-orange-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-orange-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-orange-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(249, 115, 22, 0.35) !important;
+}
+.dark .border-amber-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-amber-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-amber-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+.dark .border-yellow-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-yellow-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-yellow-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(234, 179, 8, 0.35) !important;
+}
+.dark .border-green-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-green-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-green-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(34, 197, 94, 0.35) !important;
+}
+.dark .border-emerald-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-emerald-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-emerald-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+.dark .border-teal-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-teal-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-teal-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(20, 184, 166, 0.35) !important;
+}
+.dark .border-cyan-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-cyan-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-cyan-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(6, 182, 212, 0.35) !important;
+}
+.dark .border-sky-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-sky-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-sky-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(14, 165, 233, 0.35) !important;
+}
+.dark .border-blue-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-blue-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-blue-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(59, 130, 246, 0.35) !important;
+}
+.dark .border-indigo-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-indigo-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-indigo-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(99, 102, 241, 0.35) !important;
+}
+.dark .border-violet-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-violet-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-violet-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(139, 92, 246, 0.35) !important;
+}
+.dark .border-purple-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-purple-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-purple-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(168, 85, 247, 0.35) !important;
+}
+.dark .border-pink-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-pink-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-pink-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(236, 72, 153, 0.35) !important;
+}
+.dark .border-rose-100:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-rose-200:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]),
+.dark .border-rose-300:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:border-"]) {
+  border-color: rgba(244, 63, 94, 0.35) !important;
+}
 .dark footer:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
   background-color: rgba(15, 23, 42, 0.8) !important;
   border-color: rgba(51, 65, 85, 0.5) !important;
 }
-.dark footer h5:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
-.dark footer .font-bold:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
+.dark footer h5:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark footer .font-bold:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark footer a:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]),
+.dark footer li:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]) {
   color: #94a3b8 !important; /* slate-400 */
 }
-.dark footer a:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
-.dark footer span:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]),
-.dark footer li:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
-  color: #94a3b8 !important;
-}
-.dark footer a:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]):hover {
+.dark footer a:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:text-"]):hover {
   color: #60a5fa !important;
 }
-
-/* Area pill tags */
-.dark .bg-white\/40:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
-  background-color: rgba(30, 41, 59, 0.7) !important;
-}
-
-/* Blue number badges in subject cards */
-.dark .bg-blue-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
-  background-color: rgba(37, 99, 235, 0.2) !important;
-}
-.dark .bg-indigo-50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
-  background-color: rgba(79, 70, 229, 0.2) !important;
-}
-
-/* FAQ button hover */
-.dark .hover\:bg-slate-50\/50:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]):hover {
-  background-color: rgba(30, 41, 59, 0.5) !important;
-}
-
-/* See More Tutors button */
-.dark .bg-white.border-blue-600:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) {
+.dark .bg-white.border-blue-600:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors], [class*="dark:bg-"]) {
   background-color: transparent !important;
   color: #60a5fa !important;
   border-color: #3b82f6 !important;
 }
 
-/* Process step number */
-.dark .text-slate-800:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #e2e8f0 !important; }
-.dark .text-slate-900:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #f1f5f9 !important; }
-.dark .text-slate-950:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #f8fafc !important; }
-.dark .text-slate-700:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #cbd5e1 !important; }
-.dark .text-slate-600:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #94a3b8 !important; }
-.dark .text-slate-500:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #94a3b8 !important; }
-.dark .text-slate-400:not([data-dashboard] *, [data-dashboard], [data-own-colors] *, [data-own-colors]) { color: #64748b !important; }
 
 
 /* ─── Dashboard theme (admin, tutor, parent) ──────────────────────────────────

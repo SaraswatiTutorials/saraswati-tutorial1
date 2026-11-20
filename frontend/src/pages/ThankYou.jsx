@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { Check } from "lucide-react";
 import { trackLeadConversion } from "../utils/analytics";
 
 const PARENT_WHATSAPP_LINK = "https://wa.me/message/VX2T7QEATZPRL1";
@@ -47,8 +48,8 @@ export default function ThankYou() {
       <div className="relative w-full max-w-lg">
         <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-8 text-center shadow-xl shadow-slate-200/30 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/90 dark:shadow-black/20 sm:p-10">
           {/* Success icon */}
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl font-bold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-            ?
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+            <Check className="h-8 w-8" strokeWidth={2.75} />
           </div>
 
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
