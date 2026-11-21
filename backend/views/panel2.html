@@ -760,6 +760,8 @@ const QUEUES = [
   { module: "mongodb" },
   { module: "odoo" },
   { module: "data" },
+  { group: "Tools" },
+  { module: "demo" },
 ];
 const inQueue = (b, key) => key === "all" ? true : key === "problems" ? PROBLEMS.includes(b.stage) : b.stage === key;
 const queueLabel = (key) => (QUEUES.find((q) => q.key === key) || {}).label || key;
@@ -1744,8 +1746,16 @@ const MODULES = {
     problems: (d) => (d?.summary ? d.summary.bad + d.summary.unknown + (d.database?.connected === false ? 1 : 0) : 0),
   },
 };
+MODULES.demo = {
+  label: "Demo send", icon: "send", url: "/panel2/api/demo/verification", noPeriod: true,
+  title: "Demo: full verification & agreement",
+  lede: "Send a test number exactly what a shortlisted partial tutor gets: the login link to complete full verification, and the agreement to sign.",
+  render: (d) => renderDemo(d),
+  problems: (d) => (d && d.templates && (!d.templates.profile.approved || !d.templates.agreement.approved) ? 1 : 0),
+};
+// The health checks refresh on a timer; the demo page only loads when opened.
 const MODULE_ORDER = ["mongodb", "odoo", "data"];
-for (const key of MODULE_ORDER) Object.assign(MODULES[key], { data: null, error: "", loading: false, loadedAt: 0 });
+for (const key of [...MODULE_ORDER, "demo"]) Object.assign(MODULES[key], { data: null, error: "", loading: false, loadedAt: 0 });
 const isModule = (key) => Object.prototype.hasOwnProperty.call(MODULES, key);
 let shownHtml = "";
 
@@ -1755,6 +1765,7 @@ function setView(next) {
   const onModule = view !== "pipeline";
   el("pipelineView").hidden = onModule;
   el("healthView").hidden = !onModule;
+  el("healthView").querySelector(".filters").hidden = !!(onModule && MODULES[view].noPeriod);
   // The search box looks through enquiries, so it has nothing to do on these pages.
   document.body.classList.toggle("page-health", onModule);
   document.body.classList.remove("detail-open");
@@ -1827,6 +1838,99 @@ function renderHealth() {
     el("healthBody").innerHTML = html;
     shownHtml = html;
   }
+}
+
+/* ---- Demo send ---- */
+
+// What is typed and what came back, kept here so a re-render keeps it.
+const demo = { name: "", phone: "", busy: false, preview: null, result: null, error: "" };
+const okMark = (yes, yesText, noText) => '<span class="status ' + (yes ? "s-ok" : "s-bad") + '">' + esc(yes ? yesText : noText) + "</span>";
+const demoDigits = (v) => { let x = String(v || "").replace(/\D/g, ""); if (x.length === 12 && x.startsWith("91")) x = x.slice(2); if (x.length === 11 && x.startsWith("0")) x = x.slice(1); return x; };
+
+function renderDemo(d) {
+  const t = d.templates || {};
+  const p = demo.preview;
+  const r = demo.result;
+  const samePhone = p && p.phone && p.phone === demoDigits(demo.phone);
+  const canSend = d.sendingEnabled && p && p.ok && samePhone && !demo.busy;
+  const who = (x) => !x ? "" : esc(x.name || "(no name)") + " — " +
+    (x.source === "tutor" ? "registered tutor" + (x.status ? " (" + esc(x.status) + ")" : "") : x.isDemo ? "demo partial tutor" : "partial tutor") +
+    (x.tutorCode ? " · " + esc(x.tutorCode) : "");
+  const kindResult = (k, label) => !k ? "" : "<li>" + esc(label) + ": " +
+    (k.sent ? '<span class="status s-ok">Sent</span>' : '<span class="status s-bad">Not sent</span> ' + esc(k.failureReason || k.reason || "")) + "</li>";
+
+  return '<section class="card" style="padding:18px;margin-bottom:16px">' +
+      kv([
+        ["Login template", esc(t.profile ? t.profile.name : "") + " " + okMark(t.profile && t.profile.approved, "Approved", "Not approved")],
+        ["Agreement template", esc(t.agreement ? t.agreement.name : "") + " " + okMark(t.agreement && t.agreement.approved, "Approved", "Not approved")],
+        ["Sending on this server", okMark(d.sendingEnabled, "On", "Off")],
+      ]) +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0">' +
+        '<label>Name<input class="select" style="width:100%" data-demo="name" placeholder="' + esc(d.defaultName || "Demo Tutor") + '" value="' + esc(demo.name) + '"></label>' +
+        '<label>WhatsApp number<input class="select" style="width:100%" data-demo="phone" inputmode="tel" placeholder="+91 90411 57689" value="' + esc(demo.phone) + '"></label>' +
+      "</div>" +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">' +
+        '<button class="btn btn-primary" data-action="demo-preview"' + (demo.busy ? " disabled" : "") + ">Preview</button>" +
+        '<button class="btn btn-send" data-action="demo-send"' + (canSend ? "" : " disabled") + ">" + (demo.busy ? "Working…" : "Send both messages") + "</button>" +
+        '<span class="mut small">' + (!d.sendingEnabled ? "Real sending is off on this server." : !p ? "Preview first. Nothing is sent until you press Send." : !samePhone ? "The number changed — preview again." : "") + "</span>" +
+      "</div>" +
+      (demo.error ? '<div class="alert" style="margin-top:12px">' + esc(demo.error) + "</div>" : "") +
+    "</section>" +
+
+    (p ? '<section class="card" style="padding:18px;margin-bottom:16px"><h3 style="margin-top:0">Preview for ' + esc(p.phone || demo.phone) + "</h3>" +
+      (p.ok === false ? '<div class="alert">' + esc(p.reason || p.message || "Cannot send.") + "</div>" : "") +
+      kv([
+        ["Person", p.person ? who(p.person) : "<b>New</b> — a demo partial tutor will be made for this number, so the login link works"],
+        ["Name in messages", esc(p.name)],
+        ["Login link", p.loginLink ? '<a href="' + esc(p.loginLink) + '" target="_blank" rel="noopener">' + esc(p.loginLink) + "</a>" : ""],
+        ["Agreement link", p.agreementLink ? '<a href="' + esc(p.agreementLink) + '" target="_blank" rel="noopener">Open</a>' : ""],
+      ]) +
+      (p.messages ? '<div class="sub-h">1. Full verification (button: Login to Tutor Portal)</div><div class="msg">' + esc(p.messages.profile) + "</div>" +
+        '<div class="sub-h">2. Agreement (button: Sign Agreement)</div><div class="msg">' + esc(p.messages.agreement) + "</div>" +
+        '<div class="note" style="margin-top:8px">WhatsApp sends the approved template with its button. If this number has messaged us in the last 24 hours, the text above is sent instead, with the link in it.</div>' : "") +
+      "</section>" : "") +
+
+    (r ? '<section class="card" style="padding:18px;margin-bottom:16px"><h3 style="margin-top:0">Result</h3>' +
+      (r.ok === false && r.reason ? '<div class="alert">' + esc(r.reason) + "</div>" : "") +
+      (r.personId ? "<p>" + (r.created ? "Made a demo partial tutor for " + esc(r.phone) + ". " : "Used " + who(r.person) + ". ") + "</p>" : "") +
+      '<ul class="plain-list">' + kindResult(r.profile, "Login link") + kindResult(r.agreement, "Agreement") + "</ul>" +
+      (r.sent ? '<div class="note">On the phone: tap <b>Login to Tutor Portal</b>, sign in with the number, open <b>Full verification</b> and fill it in; then tap <b>Sign Agreement</b> and sign with the same name and number.</div>' : "") +
+      "</section>" : "") +
+
+    '<section class="card" style="padding:18px"><h3 style="margin-top:0">Recent demo sends</h3>' +
+      ((d.recent || []).length
+        ? table(["Who", "Message", "Result", "When"], d.recent.map((x) => [
+            '<div class="name">' + esc(x.tutorName || "") + '</div><div class="sub">' + esc(x.phone || "") + "</div>",
+            esc(x.kind === "profile" ? "Login link" : "Agreement"),
+            x.status === "Sent" ? '<span class="status s-ok">Sent</span>' : '<span class="status s-bad">Failed</span><div class="err">' + esc(x.failureReason || "") + "</div>",
+            esc(when(x.createdAt)),
+          ]))
+        : '<div class="none">No demo sent yet.</div>') +
+    "</section>";
+}
+
+async function runDemo(send) {
+  if (send && !window.confirm("Send the login link and the agreement to " + demo.phone + " on WhatsApp?")) return;
+  demo.busy = true; demo.error = "";
+  if (!send) demo.result = null;
+  shownHtml = ""; renderHealth();
+  try {
+    const r = await fetch("/panel2/api/demo/verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + TOKEN },
+      body: JSON.stringify({ phone: demo.phone, name: demo.name, dryRun: !send }),
+    });
+    if (r.status === 401) { signOut(); return; }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok && !j.templates) demo.error = j.reason || j.message || "That did not work.";
+    else if (send) { demo.result = j; demo.preview = null; }
+    else demo.preview = j;
+  } catch (err) {
+    demo.error = "Could not reach the server: " + err.message;
+  }
+  demo.busy = false;
+  shownHtml = ""; renderHealth();
+  if (send) loadModule("demo", true);
 }
 
 /* ---- MongoDB module ---- */
@@ -2366,7 +2470,26 @@ el("healthBody").addEventListener("toggle", (e) => {
   if (d.open) openChecks.add(d.dataset.check); else openChecks.delete(d.dataset.check);
 }, true);
 
+el("healthBody").addEventListener("input", (e) => {
+  const f = e.target.closest("[data-demo]");
+  if (!f) return;
+  demo[f.dataset.demo] = f.value;
+  // What is on screen already shows this value: a background refresh must not
+  // redraw the form (and drop the cursor) just because of it.
+  if (MODULES.demo.data) shownHtml = renderDemo(MODULES.demo.data);
+  // A different number needs a new preview before it can be sent
+  const sendBtn = el("healthBody").querySelector('[data-action="demo-send"]');
+  if (sendBtn && f.dataset.demo === "phone") {
+    sendBtn.disabled = !(MODULES.demo.data && MODULES.demo.data.sendingEnabled && demo.preview && demo.preview.ok &&
+      demo.preview.phone === demoDigits(demo.phone) && !demo.busy);
+  }
+});
+
 el("healthBody").addEventListener("click", (e) => {
+  const dp = e.target.closest('[data-action="demo-preview"]');
+  if (dp && !dp.disabled) { runDemo(false); return; }
+  const ds = e.target.closest('[data-action="demo-send"]');
+  if (ds && !ds.disabled) { runDemo(true); return; }
   const b = e.target.closest('[data-action="write-test"]');
   if (b && !b.disabled) runWriteTestNow();
   const o = e.target.closest('[data-action="odoo-recheck"]');

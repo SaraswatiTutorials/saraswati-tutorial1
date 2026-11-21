@@ -74,7 +74,7 @@ const when = (d) => new Date(d).toLocaleString("en-IN", {
  * Works out, sends (unless dryRun) and records the messages for one group.
  * `deps` are the outside world; see defaultDeps for the real ones.
  */
-export async function sendVerificationLinks(lead, { group = "top3", dryRun = true, resend = false, tutorId = "", kind = "" } = {}, deps) {
+export async function sendVerificationLinks(lead, { group = "top3", dryRun = true, resend = false, tutorId = "", kind = "", forceAll = false } = {}, deps) {
   const stage = "verify";
   const requirementId = lead?.requirementId || "";
   const blocked = (reason) => ({ stage, ok: false, blocked: true, reason, dryRun });
@@ -135,8 +135,9 @@ export async function sendVerificationLinks(lead, { group = "top3", dryRun = tru
       if (prev) return { needed: true, willSend: false, reason: `Already sent ${when(prev.at)}` };
       return { needed: true, willSend: true, reason: "" };
     };
-    const profile = decide("profile", !p.fullyVerified, "Fully verified");
-    const agree = decide("agreement", agreement.status !== "signed",
+    // forceAll (the demo page): both messages go whatever the tutor has done
+    const profile = decide("profile", forceAll || !p.fullyVerified, "Fully verified");
+    const agree = decide("agreement", forceAll || agreement.status !== "signed",
       `Signed${agreement.signedAt ? " " + when(agreement.signedAt) : ""}`);
     const gets = [profile.willSend && "login link", agree.willSend && "agreement"].filter(Boolean);
     return {

@@ -516,7 +516,7 @@ export async function shortlistTutors(lead, {
   // this entry).
   const allPartials = includePartial
     ? dedupePartials(
-        await PartialTutor.find({ $or: [{ status: { $ne: "registered" } }, { registeredTutorId: { $ne: null } }] })
+        await PartialTutor.find({ $or: [{ status: { $ne: "registered" } }, { registeredTutorId: { $ne: null } }], isDemo: { $ne: true } })
           .sort({ createdAt: -1 }).lean(),
       )
     : [];

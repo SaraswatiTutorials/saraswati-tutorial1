@@ -32,6 +32,7 @@ import {
   INVITE_SIZE,
 } from "../utils/pipelineStages.js";
 import { sendVerificationLinks } from "../utils/verificationLinks.js";
+import { demoVerification, demoOverview } from "../utils/demoVerification.js";
 import { sendFeedbackLink } from "../utils/tutorFeedback.js";
 
 const router = express.Router();
@@ -140,6 +141,42 @@ router.post("/api/stage/:stage", requireLogin, async (req, res) => {
     res.status(500).json({ stage, ok: false, message: error.message });
   } finally {
     if (!isDryRun) running.delete(lockKey);
+  }
+});
+
+// ── Demo send: the login link + agreement, to a test number ─────────────────
+// GET  /panel2/api/demo/verification  templates approved?, last demo sends
+// POST /panel2/api/demo/verification  body: { phone, name, dryRun }
+// See utils/demoVerification.js. A real send makes a demo partial tutor for a
+// new number, so the same switches as every other send apply.
+router.get("/api/demo/verification", requireLogin, async (req, res) => {
+  try {
+    res.json({ ...(await demoOverview()), sendingEnabled: panelSendingEnabled() && !LOCAL_SAFE_MODE });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+let demoRunning = false;
+router.post("/api/demo/verification", requireLogin, async (req, res) => {
+  const { phone, name, dryRun = true } = req.body || {};
+  const isDryRun = dryRun !== false;
+  if (!isDryRun) {
+    if (LOCAL_SAFE_MODE) return res.status(403).json({ ok: false, reason: "Local safe mode: this server cannot save or send anything." });
+    if (!panelSendingEnabled()) {
+      return res.status(403).json({ ok: false, reason: "Sending is switched off on this server, so nothing was sent. Set PANEL_SENDING_ENABLED=true to allow it." });
+    }
+    if (demoRunning) return res.status(409).json({ ok: false, reason: "A demo is already being sent. Try again in a moment." });
+  }
+  if (!isDryRun) demoRunning = true;
+  try {
+    const result = await demoVerification({ phone, name, dryRun: isDryRun });
+    res.status(result.ok === false && !result.templates ? 400 : 200).json(result);
+  } catch (error) {
+    console.error("[Panel 2] Demo send failed:", error);
+    res.status(500).json({ ok: false, message: error.message });
+  } finally {
+    if (!isDryRun) demoRunning = false;
   }
 });
 
