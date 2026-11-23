@@ -1,15 +1,17 @@
 /**
  * Tutor reply scheduler.
  *
- * The n8n router already records every inbound WhatsApp message in
- * `inbound_messages`, with the sender's number and what they wrote. This reads
- * those rows and marks the matching invitation Interested or Not Interested.
+ * Every incoming WhatsApp message is saved in `inbound_messages` with the
+ * sender's number and what they wrote — by the Odoo inbound sync
+ * (odooInboundSync.js) since n8n was shut down, and by the n8n router before
+ * that. This reads the tutors' rows and marks the matching invitation
+ * Interested or Not Interested.
  *
- * It exists because the handover from the router to WF07.2 kept losing the
- * sender's number: a MongoDB step in the middle replaces the item with its own
- * result, so the phone and the wording never arrived. Rather than keep that
- * fragile, the decision is made here, from the row the router has already
- * written and which is known to be complete.
+ * Which invitation: when the tutor tapped a button, Odoo says which message
+ * the tap answers (replyToOdooMessageId), and that invitation is used — even
+ * if the tutor already answered it, so a changed mind counts. A typed reply
+ * has no such link and goes to the newest unanswered invitation of the last
+ * REPLY_WINDOW_HOURS, as before.
  *
  * Nothing is sent from here. It only records what a tutor answered.
  */
@@ -47,8 +49,8 @@ const STATUS = { interested: "Interested", not_interested: "Not Interested" };
  * Every row is stamped either way, so an unclear message is not re-read
  * forever, and a person can still see it was left alone.
  */
-export async function sweepTutorReplies() {
-  const db = mongoose.connection.db;
+export async function sweepTutorReplies(database) {
+  const db = database || mongoose.connection.db;
   if (!db) return { skipped: "database not connected" };
 
   const pending = await db.collection("inbound_messages")
@@ -73,9 +75,24 @@ export async function sweepTutorReplies() {
       continue;
     }
 
-    // The invitation this is answering: the most recent one still unanswered.
+    // A button tap names the invitation it answers.
+    const replyTo = msg.replyToOdooMessageId;
+    const exact = replyTo
+      ? await db.collection("broadcastlogs").findOne({
+          broadcastType: "requirement",
+          whatsappMessageId: { $in: [Number(replyTo), String(replyTo)] },
+        })
+      : null;
+    if (exact && exact.responseStatus === "Assigned") {
+      await db.collection("inbound_messages").updateOne(
+        { _id: msg._id },
+        { $set: { ...stamp, replyOutcome: "already_assigned", requirementId: exact.requirementId } });
+      continue;
+    }
+
+    // Otherwise the invitation this is answering: the most recent one still unanswered.
     const since = new Date(Date.now() - REPLY_WINDOW_HOURS * 3600000);
-    const invite = await db.collection("broadcastlogs")
+    const invite = exact || await db.collection("broadcastlogs")
       .find({
         broadcastType: "requirement",
         tutorPhone: { $regex: last10 + "$" },

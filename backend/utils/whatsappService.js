@@ -855,14 +855,18 @@ export async function firstApprovedTemplate(names, { isApproved, now = Date.now(
 }
 
 /**
- * Invite templates, newest first. v6 and v4 share the nine-variable order
+ * Invite templates, newest first. v7, v6 and v4 share the nine-variable order
  * built by buildRequirementTemplateVars; v3 has its own (V3 builder).
+ *   tutor_broadcast_v7  display "tutor_broadcast_V7": an exact copy of v6 in
+ *                       the Utility category (v6 is Marketing; an approved
+ *                       template's category cannot be changed). Submitted
+ *                       23 Nov 2026; used as soon as Meta approves it.
  *   tutor_broadcast_v6  display "tutor_broadcast_V6", approved 4 Nov 2026,
  *                       buttons "I'm available" / "I'll pass this time"
  *   tutor_broadcast_v4  buttons "Interested" / "Not Interested"
  *   tutor_requirement_v3 (archived 4 Nov 2026)
  */
-export const REQUIREMENT_TEMPLATES = ["tutor_broadcast_v6", "tutor_broadcast_v4", REQUIREMENT_TEMPLATE_LEGACY];
+export const REQUIREMENT_TEMPLATES = ["tutor_broadcast_v7", "tutor_broadcast_v6", "tutor_broadcast_v4", REQUIREMENT_TEMPLATE_LEGACY];
 export const REQUIREMENT_TEMPLATE_NEW = REQUIREMENT_TEMPLATES[0];
 
 /**

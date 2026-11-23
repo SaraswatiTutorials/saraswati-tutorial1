@@ -446,6 +446,9 @@ router.get("/api/board", requireLogin, async (req, res) => {
               at: reconfirm.sentAt || null,
               sent: reconfirm.sent === true,
               failureReason: reconfirm.failureReason || "",
+              // "Yes,Correct" / "Change some details", from the Odoo inbound sync
+              reply: reconfirm.reply || "",
+              repliedAt: reconfirm.repliedAt || null,
               delivery: delivery.get(Number(reconfirm.messageId))?.state || "",
               deliveryError: delivery.get(Number(reconfirm.messageId))?.reason || "",
             }

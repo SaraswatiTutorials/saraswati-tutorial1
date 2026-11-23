@@ -37,6 +37,7 @@ import agreementRoutes from "./routes/agreementRoutes.js";
 import { startReminderScheduler, startRetryScheduler, startSyncScheduler } from "./utils/reminderScheduler.js";
 import { startTopThreeScheduler } from "./utils/topThreeScheduler.js";
 import { startTutorReplyScheduler } from "./utils/tutorReplyScheduler.js";
+import { startOdooInboundSync } from "./utils/odooInboundSync.js";
 import { sendTutorOptions } from "./utils/tutorOptionsMessage.js";
 import { backfillPartialTutorCodes } from "./utils/tutorCodes.js";
 import { startTutorOdooRetryScheduler } from "./utils/tutorOdooRetry.js";
@@ -198,7 +199,10 @@ if (
         startSyncScheduler();      // Odoo → MongoDB tutor sync (every 15 min)
         // Once tutors have had their window to answer, send the parent the
         // best of whoever said yes — up to three, fewer if fewer replied.
-        // Record what tutors answered, from the rows the n8n router writes.
+        // Incoming WhatsApp messages, read from Odoo every minute and saved
+        // in inbound_messages (this replaced the n8n router, now shut down).
+        startOdooInboundSync();
+        // Record what tutors answered, from those rows.
         startTutorReplyScheduler();
         // Every partial tutor without a tutor ID gets one, oldest first. New
         // sign-ups get theirs when the form is sent; this catches the rest.

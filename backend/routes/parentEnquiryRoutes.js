@@ -1111,6 +1111,9 @@ router.post("/:id/broadcast", verifyToken(["admin"]), async (req, res) => {
           templateLang: "en",
           templateVars: buildVars(tutor.name, lead, firstWard),
           ...(templateId ? { templateId: Number(templateId) } : {}),
+          // Always the invite template with its buttons — never the plain-text
+          // version, even to a tutor who messaged us in the last 24 hours.
+          forceTemplate: true,
         });
 
         await BroadcastLog.findByIdAndUpdate(log._id, {
@@ -1918,12 +1921,24 @@ router.post("/broadcast-logs/:logId/retry", verifyToken(["admin"]), async (req, 
       return res.status(400).json({ message: "No WhatsApp number available for this tutor." });
     }
 
-    const sendResult = await sendWhatsAppToTutor({
-      phoneNumber: whatsappNumber,
-      messageBody: log.message,
-      templateName: log.templateName || undefined,
-      forceTemplate: log.usedTemplate || false,
-    });
+    // An invitation is retried on the current invite template with its
+    // details filled in, never as plain text.
+    const invite = log.broadcastType === "requirement" ? await chooseRequirementTemplate() : null;
+    const sendResult = invite
+      ? await sendWhatsAppToTutor({
+          phoneNumber: whatsappNumber,
+          messageBody: log.message,
+          templateName: invite.templateName,
+          templateLang: "en",
+          templateVars: invite.buildVars(tutor.name, lead, lead.wards?.[0] || {}),
+          forceTemplate: true,
+        })
+      : await sendWhatsAppToTutor({
+          phoneNumber: whatsappNumber,
+          messageBody: log.message,
+          templateName: log.templateName || undefined,
+          forceTemplate: log.usedTemplate || false,
+        });
 
     const updatedLog = await BroadcastLog.findByIdAndUpdate(
       log._id,
@@ -1933,6 +1948,7 @@ router.post("/broadcast-logs/:logId/retry", verifyToken(["admin"]), async (req, 
         retryCount: log.retryCount + 1 + (sendResult.retryCount || 0),
         whatsappMessageId: sendResult.messageId || log.whatsappMessageId,
         lastRetryAt: new Date(),
+        ...(invite ? { usedTemplate: sendResult.usedTemplate || false, templateName: sendResult.usedTemplate ? invite.templateName : "" } : {}),
       },
       { new: true }
     );
@@ -2279,7 +2295,7 @@ async function autoBroadcastTutorsForLead(leadData) {
           continue;
         }
 
-        // v4 once approved, v3 (with v3's variable order) until then.
+        // The first approved invite template (v7, then v6, …).
         const { templateName, buildVars } = await chooseRequirementTemplate();
 
         const sendResult = await sendWhatsAppToTutor({
@@ -2288,6 +2304,8 @@ async function autoBroadcastTutorsForLead(leadData) {
           templateName,
           templateLang: "en",
           templateVars: buildVars(tutor.name, lead, firstWard),
+          // Always the template, never plain text (see above).
+          forceTemplate: true,
         });
 
         await BroadcastLog.findByIdAndUpdate(log._id, {

@@ -48,6 +48,10 @@ const partialTutorSchema = new mongoose.Schema(
     registeredTutorId: { type: mongoose.Schema.Types.ObjectId, ref: "Tutor", default: null },
     registeredAt: { type: Date, default: null },
 
+    // Made by Panel 2's "Demo send" page to show the login + agreement messages
+    // on a test number. Never shortlisted for a real enquiry.
+    isDemo: { type: Boolean, default: false },
+
     // Their agreement in Odoo Sign, copied by utils/agreementSync.js (same
     // shape as Tutor.odooAgreement). Only kept while they have not registered.
     odooAgreement: {
