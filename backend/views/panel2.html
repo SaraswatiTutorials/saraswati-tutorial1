@@ -1280,7 +1280,8 @@ function stepList(b) {
     {
       n: 1, title: "Re-confirm with the parent", sends: "Sends WhatsApp to the parent",
       result: !r ? "Not sent."
-        : r.sent ? "Sent " + esc(when(r.at)) + ". " + esc(deliveryWord(r.delivery)) + ". The parent's reply is not recorded on this board."
+        : r.sent ? "Sent " + esc(when(r.at)) + ". " + esc(deliveryWord(r.delivery)) + ". " +
+          (r.reply ? "Parent replied <b>" + esc(r.reply) + "</b>" + (r.repliedAt ? " " + esc(when(r.repliedAt)) : "") + "." : "No reply from the parent yet.")
         : "Last attempt failed: " + esc(r.failureReason || "unknown reason") + ".",
       state: r && r.sent ? (r.delivery === "error" || r.delivery === "bounced" ? "failed" : "done") : r ? "failed" : "",
       actions: [{ stage: "reconfirm", label: r && r.sent ? "Send again" : "Preview", resend: !!(r && r.sent),

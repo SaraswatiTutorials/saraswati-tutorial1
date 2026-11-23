@@ -929,6 +929,11 @@ export async function inviteTutors(lead, { limit = INVITE_SIZE, dryRun = false, 
       templateName: chosen.templateName,
       templateLang: "en",
       templateVars: chosen.buildVars(tutor.name, lead, ward),
+      // Always the approved invite template, so every tutor gets the same
+      // message with the "I'm available" / "I'll pass" buttons. Without this a
+      // tutor who messaged us in the last 24 hours got the old plain-text
+      // invite instead, with no buttons.
+      forceTemplate: true,
     });
 
     await BroadcastLog.findByIdAndUpdate(log._id, {

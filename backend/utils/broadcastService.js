@@ -158,12 +158,28 @@ class BroadcastService {
         return;
       }
 
-      const sendResult = await sendWhatsAppToTutor({
-        phoneNumber: whatsappNumber,
-        messageBody: log.message,
-        templateName: log.templateName || undefined,
-        forceTemplate: log.usedTemplate || false,
-      });
+      // An invitation is retried on the current invite template with its
+      // details filled in. Before, a failed invite was retried with no
+      // template details at all: plain text inside the 24-hour window, or the
+      // default template with empty slots outside it.
+      const invite = log.broadcastType === "requirement"
+        ? await chooseRequirementTemplate()
+        : null;
+      const sendResult = invite
+        ? await sendWhatsAppToTutor({
+            phoneNumber: whatsappNumber,
+            messageBody: log.message,
+            templateName: invite.templateName,
+            templateLang: "en",
+            templateVars: invite.buildVars(tutor.name, lead, lead.wards?.[0] || {}),
+            forceTemplate: true,
+          })
+        : await sendWhatsAppToTutor({
+            phoneNumber: whatsappNumber,
+            messageBody: log.message,
+            templateName: log.templateName || undefined,
+            forceTemplate: log.usedTemplate || false,
+          });
 
       await BroadcastLog.findByIdAndUpdate(log._id, {
         status: sendResult.success ? "Sent" : "Failed",
@@ -171,6 +187,7 @@ class BroadcastService {
         retryCount: log.retryCount + 1 + (sendResult.retryCount || 0),
         whatsappMessageId: sendResult.messageId || log.whatsappMessageId,
         lastRetryAt: new Date(),
+        ...(invite ? { usedTemplate: sendResult.usedTemplate || false, templateName: sendResult.usedTemplate ? invite.templateName : "" } : {}),
       });
 
       console.log(
@@ -434,6 +451,9 @@ class BroadcastService {
       templateName,
       templateLang: "en",
       templateVars: buildVars(tutor.name, lead, firstWard),
+      // Always the invite template with its buttons, even inside the 24-hour
+      // window (where plain text would otherwise go out instead).
+      forceTemplate: true,
     });
 
     await BroadcastLog.findByIdAndUpdate(log._id, {

@@ -656,7 +656,7 @@ async function invitations(db, { since, now }) {
 
 async function whatsappReplies(db, { since, now }) {
   const coll = db.collection("inbound_messages");
-  // The n8n router writes these, so the time may be a Date or a string;
+  // The Odoo inbound sync writes these (n8n did before), so the time may be a Date or a string;
   // the ObjectId time covers rows with neither.
   const fromId = mongoose.Types.ObjectId.createFromTime(Math.floor(since.getTime() / 1000));
   const filter = {
@@ -690,8 +690,8 @@ async function whatsappReplies(db, { since, now }) {
     },
     {
       key: "no_phone", level: "bad",
-      label: "Saved by n8n without the sender's number",
-      help: "The reply cannot be matched to any tutor. This is the n8n handover problem the reply reader was built around.",
+      label: "Saved without the sender's number",
+      help: "The reply cannot be matched to any tutor. This was the n8n handover problem; the Odoo inbound sync always saves the number.",
       test: (r) => r.replyOutcome === "no_phone",
     },
     {
@@ -708,12 +708,12 @@ async function whatsappReplies(db, { since, now }) {
     },
   ], (r) => ({ ref: r.last10 ? `…${String(r.last10).slice(-4)}` : "(no number)", at: writtenAt(r, "receivedAt") }));
 
-  // Messages n8n saved without deciding who they are from.
+  // Messages saved without deciding who they are from (only n8n left these).
   const unrouted = rows.filter((r) => blank(r.route));
   checks.push({
     key: "no_route", level: "info",
     label: "Saved without a route",
-    help: "n8n did not mark these as from a tutor or a parent, so nothing here reads them.",
+    help: "These were not marked as from a tutor or a parent, so nothing here reads them.",
     count: unrouted.length,
     examples: unrouted.slice(0, EXAMPLES).map((r) => ({ ref: r.last10 ? `…${String(r.last10).slice(-4)}` : "(no number)", name: "", note: snippet(r), at: writtenAt(r, "receivedAt") })),
   });
@@ -862,9 +862,9 @@ export const SOURCES = [
   { key: "sync", label: "Odoo tutor sync", from: "Odoo to this database, on a timer", read: odooTutorSync },
   { key: "shortlists", label: "Shortlists", from: "Panel 2 Shortlist button and the n8n matching workflow", read: shortlists },
   { key: "invites", label: "Invitations to tutors", from: "Panel 2 Invite button, sent through Odoo", read: invitations },
-  { key: "replies", label: "WhatsApp replies", from: "Saved by n8n, tutor replies read by this server", read: whatsappReplies },
+  { key: "replies", label: "WhatsApp replies", from: "Read from Odoo every minute by this server (n8n before 3 Nov), tutor replies marked here", read: whatsappReplies },
   { key: "top3", label: "Top 3 sent to parents", from: "Panel 2 Top 3 button", read: topThree },
-  { key: "choices", label: "Parent's choice", from: "Parent taps Tutor 1, 2 or 3, saved by n8n", read: parentChoices },
+  { key: "choices", label: "Parent's choice", from: "Parent taps Tutor 1, 2 or 3, saved by the Odoo inbound sync", read: parentChoices },
   { key: "reconfirm", label: "Parent reconfirmations", from: "Panel 2 Reconfirm button", read: reconfirmations },
 ];
 

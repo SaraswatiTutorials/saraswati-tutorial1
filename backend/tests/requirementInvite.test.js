@@ -66,18 +66,25 @@ function withTemplateEnv(value, fn) {
   });
 }
 
-test("all approved (4 Nov): invites use v6 with the nine-value order", () =>
+test("all approved: invites use v7 (the Utility copy of v6) with the nine-value order", () =>
   withTemplateEnv(undefined, async () => {
     const c = await chooseRequirementTemplate({ isApproved: async () => true });
+    assert.equal(c.templateName, "tutor_broadcast_v7");
+    assert.equal(c.buildVars, buildRequirementTemplateVars);
+  }));
+
+test("v7 still pending at Meta: v6 is used, same nine-value order", () =>
+  withTemplateEnv(undefined, async () => {
+    const c = await chooseRequirementTemplate({ isApproved: async (n) => n !== "tutor_broadcast_v7" });
     assert.equal(c.templateName, "tutor_broadcast_v6");
     assert.equal(c.buildVars, buildRequirementTemplateVars);
   }));
 
-test("v6 not approved: v4, same nine-value order", () =>
+test("v7 and v6 not approved: v4, same nine-value order", () =>
   withTemplateEnv(undefined, async () => {
     const asked = [];
     const c = await chooseRequirementTemplate({ isApproved: async (n) => { asked.push(n); return n === "tutor_broadcast_v4"; } });
-    assert.deepEqual(asked, ["tutor_broadcast_v6", "tutor_broadcast_v4"]);
+    assert.deepEqual(asked, ["tutor_broadcast_v7", "tutor_broadcast_v6", "tutor_broadcast_v4"]);
     assert.equal(c.templateName, "tutor_broadcast_v4");
     assert.equal(c.buildVars, buildRequirementTemplateVars);
   }));
@@ -89,26 +96,26 @@ test("only v3 approved: v3 with v3's own values", () =>
     assert.equal(c.buildVars, buildRequirementTemplateVarsV3);
   }));
 
-test("Odoo check failing for v6 falls through to the next approved one", () =>
+test("Odoo check failing for v7 falls through to the next approved one", () =>
   withTemplateEnv(undefined, async () => {
     const c = await chooseRequirementTemplate({ isApproved: async (n) => {
-      if (n === "tutor_broadcast_v6") throw new Error("Odoo down");
+      if (n === "tutor_broadcast_v7") throw new Error("Odoo down");
       return true;
     } });
-    assert.equal(c.templateName, "tutor_broadcast_v4");
+    assert.equal(c.templateName, "tutor_broadcast_v6");
   }));
 
-test("env still says v3 but v3 is archived (Render today): v6 is used", () =>
+test("env still says v3 but v3 is archived (Render today): v7 is used", () =>
   withTemplateEnv("tutor_requirement_v3", async () => {
     const c = await chooseRequirementTemplate({ isApproved: async (n) => n !== "tutor_requirement_v3" });
-    assert.equal(c.templateName, "tutor_broadcast_v6");
+    assert.equal(c.templateName, "tutor_broadcast_v7");
     assert.equal(c.buildVars, buildRequirementTemplateVars);
   }));
 
-test("none approved: v6 is returned, so the send reports the failure", () =>
+test("none approved: v7 is returned, so the send reports the failure", () =>
   withTemplateEnv(undefined, async () => {
     const c = await chooseRequirementTemplate({ isApproved: async () => false });
-    assert.equal(c.templateName, "tutor_broadcast_v6");
+    assert.equal(c.templateName, "tutor_broadcast_v7");
   }));
 
 test("the new buttons are read correctly, and the old ones still are", () => {
