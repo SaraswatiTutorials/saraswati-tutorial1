@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-// Dark mode is switched off for the whole site: the theme menu stays, with Dark unavailable.
-// To turn it back on, set this to true and set darkModeEnabled to true in index.html as well.
-// Saved choices are left alone.
-export const DARK_MODE_ENABLED = false;
+// Dark mode is on for the whole site. To switch it off, set this to false and set
+// darkModeEnabled to false in index.html as well. Saved choices are left alone.
+export const DARK_MODE_ENABLED = true;
 
 const ThemeContext = createContext(undefined);
 
