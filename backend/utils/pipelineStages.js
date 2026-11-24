@@ -187,8 +187,10 @@ export function matchParamsFor(lead) {
  * {{8}}, {{10}} — because on a mixed template the free-text slots are
  * numbered among themselves, not by position in the body.
  *
- * Each real send is recorded, so the board can show it and a second press
- * cannot message the parent again without `resend`.
+ * The parent gets this ONCE per enquiry. Each real send is recorded, and once
+ * one has gone out nothing sends it again — not a second press, and not
+ * `resend` (still accepted from older pages, but ignored). A failed attempt
+ * does not count, so a send that never went out can be tried again.
  */
 export async function reconfirmRequirement(lead, { dryRun = false, resend = false } = {}) {
   const stage = "reconfirm";
@@ -199,8 +201,8 @@ export async function reconfirmRequirement(lead, { dryRun = false, resend = fals
   if (!requirementId) return blocked(stage, "This enquiry has no requirement ID.");
   const previous = await db().collection("parent_reconfirmations")
     .find({ requirementId, sent: true }).sort({ sentAt: -1 }).limit(1).next();
-  if (previous && !resend) {
-    return blocked(stage, `The parent was already sent this on ${whenSent(previous.sentAt)}.`);
+  if (previous) {
+    return blocked(stage, `The parent was already sent this on ${whenSent(previous.sentAt)}. It goes once per enquiry.`);
   }
 
   if (!lead.odooLeadId) {

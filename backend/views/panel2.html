@@ -1284,9 +1284,11 @@ function stepList(b) {
           (r.reply ? "Parent replied <b>" + esc(r.reply) + "</b>" + (r.repliedAt ? " " + esc(when(r.repliedAt)) : "") + "." : "No reply from the parent yet.")
         : "Last attempt failed: " + esc(r.failureReason || "unknown reason") + ".",
       state: r && r.sent ? (r.delivery === "error" || r.delivery === "bounced" ? "failed" : "done") : r ? "failed" : "",
-      actions: [{ stage: "reconfirm", label: r && r.sent ? "Send again" : "Preview", resend: !!(r && r.sent),
+      // Once per enquiry: after it has gone out there is no button to send it again.
+      actions: r && r.sent ? [] : [{ stage: "reconfirm", label: r ? "Try again" : "Preview",
         enabled: !!b.hasOdooLead && !!b.phone }],
-      why: !b.hasOdooLead ? "Not synced to Odoo yet, so this cannot be sent." : !b.phone ? "No phone number." : "",
+      why: r && r.sent ? "Sent once already — the re-confirmation goes only once per enquiry."
+        : !b.hasOdooLead ? "Not synced to Odoo yet, so this cannot be sent." : !b.phone ? "No phone number." : "",
     },
     {
       n: 2, title: "Shortlist tutors",
