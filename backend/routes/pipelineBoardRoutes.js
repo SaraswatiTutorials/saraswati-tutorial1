@@ -449,6 +449,10 @@ router.get("/api/board", requireLogin, async (req, res) => {
               // "Yes,Correct" / "Change some details", from the Odoo inbound sync
               reply: reconfirm.reply || "",
               repliedAt: reconfirm.repliedAt || null,
+              // What the parent wrote after "Change some details", oldest first
+              changeRequests: (reconfirm.changeRequests || [])
+                .map((c) => ({ text: c.text || "", at: c.at || null }))
+                .sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0)),
               delivery: delivery.get(Number(reconfirm.messageId))?.state || "",
               deliveryError: delivery.get(Number(reconfirm.messageId))?.reason || "",
             }

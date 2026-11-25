@@ -152,6 +152,15 @@
   .notice.err b { color: var(--bad); }
   .notice.warn { border-left-color: var(--warn-mark); }
 
+  /* The parent's answer to the re-confirmation (step 1) */
+  .answer { margin-top: 8px; padding: 10px 12px; border-radius: 8px; border-left: 3px solid; font-size: 13.5px; line-height: 1.45; }
+  .answer.ok { background: var(--ok-soft); border-left-color: var(--ok-mark); color: var(--ok); }
+  .answer.change { background: var(--warn-soft); border-left-color: var(--warn-mark); color: var(--warn); }
+  .answer b { font-weight: 700; }
+  .answer ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink); }
+  .answer li { margin: 3px 0; }
+  .answer .when { color: var(--mut); font-size: 12px; }
+
   .modes { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin-bottom: 16px; font-size: 13.5px; color: var(--mut); }
   .modes > span { padding: 0 14px; border-left: 1px solid var(--line); white-space: nowrap; }
   .modes > span:first-child { padding-left: 0; border-left: 0; }
@@ -1260,6 +1269,22 @@ function verificationPanel(b) {
     ]));
 }
 
+// The parent's answer to the re-confirmation: go ahead, or what to change.
+function reconfirmAnswerBlock(r) {
+  if (!r || !r.sent || !r.reply) return "";
+  if (r.reply === "Yes,Correct") {
+    return '<div class="answer ok">✅ Parent replied <b>Yes, Correct</b>' + (r.repliedAt ? ' <span class="when">' + esc(when(r.repliedAt)) + "</span>" : "") +
+      "<br>The details are confirmed — you can go ahead with <b>Shortlist tutors</b> (step 2).</div>";
+  }
+  const asks = r.changeRequests || [];
+  return '<div class="answer change">✏️ Parent replied <b>Change some details</b>' + (r.repliedAt ? ' <span class="when">' + esc(when(r.repliedAt)) + "</span>" : "") +
+    (asks.length
+      ? "<br>What the parent wants changed:<ul>" +
+        asks.map((c) => "<li>" + esc(c.text) + (c.at ? ' <span class="when">' + esc(when(c.at)) + "</span>" : "") + "</li>").join("") + "</ul>"
+      : "<br>Waiting for the parent to write what they want changed.") +
+    '<div style="margin-top:6px">Update the enquiry with <b>Edit details</b> in the admin panel before shortlisting tutors.</div></div>';
+}
+
 // The steps, each saying what has happened and what can be pressed.
 function stepList(b) {
   const c = b.counts;
@@ -1281,7 +1306,7 @@ function stepList(b) {
       n: 1, title: "Re-confirm with the parent", sends: "Sends WhatsApp to the parent",
       result: !r ? "Not sent."
         : r.sent ? "Sent " + esc(when(r.at)) + ". " + esc(deliveryWord(r.delivery)) + ". " +
-          (r.reply ? "Parent replied <b>" + esc(r.reply) + "</b>" + (r.repliedAt ? " " + esc(when(r.repliedAt)) : "") + "." : "No reply from the parent yet.")
+          (r.reply ? reconfirmAnswerBlock(r) : "No reply from the parent yet.")
         : "Last attempt failed: " + esc(r.failureReason || "unknown reason") + ".",
       state: r && r.sent ? (r.delivery === "error" || r.delivery === "bounced" ? "failed" : "done") : r ? "failed" : "",
       // Once per enquiry: after it has gone out there is no button to send it again.
@@ -1299,7 +1324,9 @@ function stepList(b) {
         : "Not shortlisted.",
       state: b.shortlisted ? "done" : "",
       actions: [{ stage: "shortlist", label: b.shortlisted ? "Redo" : "Preview", enabled: !b.assignedTutor }],
-      why: b.stage === "manual" ? c.interested + " said yes but not on this shortlist, so they cannot be offered." : "",
+      why: b.stage === "manual" ? c.interested + " said yes but not on this shortlist, so they cannot be offered."
+        : r && r.reply === "Change some details" && !b.shortlisted ? "The parent asked to change some details (step 1). Update the enquiry first, so tutors are matched on the right details."
+        : "",
     },
     {
       n: 3, title: "Invite tutors", sends: "Sends WhatsApp to tutors",

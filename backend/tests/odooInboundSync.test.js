@@ -179,3 +179,51 @@ test("a failure stops the run at that message, so it is tried again next time", 
   assert.equal(w.state.cursor, 3840);
   assert.equal(calls, 2);
 });
+
+// After "Change some details": what the parent writes next is shown in Panel 2.
+function changeWorld({ reply = "Change some details", messages }) {
+  const reconf = { _id: "rc1", requirementId: "REQ-00429", leadId: "lead429", phone: `+91${PARENT}`, messageId: 5000, sent: true, reply };
+  const w = world({ messages, reconfirms: [reconf], people: { [PARENT]: { senderType: "parent", parentEnquiryId: "lead429", requirementId: "REQ-00429" } } });
+  w.state.changes = [];
+  w.deps.findChangePending = async ({ last10 }) => (reconf.reply === "Change some details" && reconf.phone.endsWith(last10) ? reconf : null);
+  w.deps.saveChangeRequest = async (c) => { w.state.changes.push(c); };
+  return w;
+}
+
+test("after 'Change some details', the parent's next messages are saved as what to change", async () => {
+  const w = changeWorld({
+    messages: [
+      msg(4001, "<p>Location is 2b, Tower 2, SNN Clermont, Nagavara 560045</p>", { phone: PARENT }),
+      msg(4002, "<p>Tutor gender is male</p>", { phone: PARENT }),
+    ],
+  });
+  const r = await syncInboundMessages(w.deps);
+  assert.equal(r.changeRequests, 2);
+  assert.deepEqual(w.state.changes.map((c) => [c.id, c.text, c.inboundOdooMessageId]), [
+    ["rc1", "Location is 2b, Tower 2, SNN Clermont, Nagavara 560045", 4001],
+    ["rc1", "Tutor gender is male", 4002],
+  ]);
+  assert.equal(w.state.inbound[0].requirementId, "REQ-00429");
+  assert.equal(w.state.inbound[0].replyOutcome, "change_request_recorded");
+});
+
+test("text written as a reply to the re-confirmation itself is also what to change", async () => {
+  const w = changeWorld({ reply: "", messages: [msg(4003, "<p>Class is 8 not 7</p>", { phone: PARENT, replyTo: 5000 })] });
+  const r = await syncInboundMessages(w.deps);
+  assert.equal(r.changeRequests, 1);
+  assert.equal(w.state.changes[0].text, "Class is 8 not 7");
+});
+
+test("after 'Yes,Correct', a later message is not treated as a change; a person reads it", async () => {
+  const w = changeWorld({ reply: "Yes,Correct", messages: [msg(4004, "<p>Thank you</p>", { phone: PARENT })] });
+  const r = await syncInboundMessages(w.deps);
+  assert.equal(r.changeRequests, 0);
+  assert.equal(w.state.inbound[0].replyOutcome, "left_for_a_person");
+});
+
+test("a preview records no change request", async () => {
+  const w = changeWorld({ messages: [msg(4005, "<p>Tutor gender is male</p>", { phone: PARENT })] });
+  const r = await syncInboundMessages(w.deps, { dryRun: true });
+  assert.equal(r.changeRequests, 1);
+  assert.equal(w.state.changes.length, 0);
+});
