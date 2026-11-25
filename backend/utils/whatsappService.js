@@ -482,8 +482,14 @@ async function sendTemplateMessage(uid, phoneNumber, templateName, templateLang,
         [[templateId]], { fields: ["variable_ids"] });
       const vars = await callOdooMethod(uid, "whatsapp.template.variable", "read",
         [tpl?.variable_ids || []], { fields: ["name", "field_type", "line_type"] });
+      // Numbered in placeholder order ({{1}}, {{2}} … {{10}}). Odoo lists the
+      // variables sorted as text, so {{10}} comes first; counting along that
+      // list put every value of a ten-variable template one line out
+      // (checked against Odoo's own preview on 25 Nov 2026).
+      const num = (v) => Number(/\d+/.exec(v.name)?.[0] || 0);
       const slots = new Map(
         vars.filter((v) => v.line_type === "body" && v.field_type === "free_text")
+          .sort((a, b) => num(a) - num(b))
           .map((v, idx) => [v.name, idx + 1]),
       );
       for (const [placeholder, val] of entries) {
