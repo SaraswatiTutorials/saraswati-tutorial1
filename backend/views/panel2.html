@@ -160,6 +160,8 @@
   .answer ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink); }
   .answer li { margin: 3px 0; }
   .answer .when { color: var(--mut); font-size: 12px; }
+  /* Steps 2 and 3 done by the automatic run */
+  .auto-done { display: inline-block; margin-top: 6px; padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12.5px; font-weight: 600; }
 
   .modes { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin-bottom: 16px; font-size: 13.5px; color: var(--mut); }
   .modes > span { padding: 0 14px; border-left: 1px solid var(--line); white-space: nowrap; }
@@ -1336,7 +1338,8 @@ function stepList(b) {
       result: b.shortlisted
         ? plural(b.shortlisted.count, "tutor") + " saved" +
           (b.shortlisted.consideredCount != null ? " from " + b.shortlisted.consideredCount + " considered" : "") +
-          (b.shortlisted.at ? ", " + esc(when(b.shortlisted.at)) : "") + "."
+          (b.shortlisted.at ? ", " + esc(when(b.shortlisted.at)) : "") + "." +
+          (b.shortlisted.auto ? "<br><span class=\"auto-done\">🤖 Done automatically by the system after the parent confirmed</span>" : "")
         : "Not shortlisted.",
       state: b.shortlisted ? "done" : "",
       actions: [{ stage: "shortlist", label: b.shortlisted ? "Redo" : "Preview", enabled: !b.assignedTutor }],
@@ -1348,7 +1351,8 @@ function stepList(b) {
       n: 3, title: "Invite tutors", sends: "Sends WhatsApp to tutors",
       result: c.invited
         ? plural(c.invited, "tutor") + " invited, " + c.delivered + " delivered" + (c.undelivered ? ", " + c.undelivered + " not delivered" : "") +
-          ". " + c.interested + " said yes, " + c.notInterested + " declined, " + c.waiting + " no reply."
+          ". " + c.interested + " said yes, " + c.notInterested + " declined, " + c.waiting + " no reply." +
+          (c.autoInvited ? "<br><span class=\"auto-done\">🤖 " + (c.autoInvited === c.invited ? "All " + plural(c.invited, "invitation") : plural(c.autoInvited, "invitation") + " of " + c.invited) + " sent automatically by the system after the parent confirmed</span>" : "")
         : "Nobody invited.",
       state: b.stage === "undelivered" || b.stage === "no_replies" ? "failed" : c.invited ? "done" : "",
       actions: [{ stage: "invite", label: c.invited ? "Invite more" : "Preview", enabled: !!b.shortlisted && !b.assignedTutor }],

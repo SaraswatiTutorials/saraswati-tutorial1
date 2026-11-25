@@ -36,7 +36,7 @@ test("Yes,Correct: shortlists 20, then invites the top 10, and records it", asyn
   const r = await auto.autoShortlistAndInvite("rc1", w.deps);
   assert.equal(r.status, "done");
   assert.deepEqual(w.calls.shortlist, [{ limit: 20 }]);
-  assert.deepEqual(w.calls.invite, [{ limit: 10 }]);
+  assert.deepEqual(w.calls.invite, [{ limit: 10, adminName: "Automatic (parent confirmed)" }]);
   assert.equal(w.rc.autoRun.shortlisted, 20);
   assert.equal(w.rc.autoRun.invited, 10);
 });
@@ -108,4 +108,18 @@ test("an error is recorded on the row, not thrown", async () => {
   const r = await auto.autoShortlistAndInvite("rc1", w.deps);
   assert.equal(r.status, "failed");
   assert.equal(w.rc.autoRun.reason, "Odoo down");
+});
+
+test("never repeats: a later tap, a re-run or a restart finds the run already recorded", async () => {
+  const w = world({ autoRun: { status: "done", shortlisted: 20, invited: 10 } }); // recorded on the row, survives restarts
+  for (let i = 0; i < 3; i++) {
+    const r = await auto.autoShortlistAndInvite("rc1", w.deps);
+    assert.equal(r.ran, false);
+  }
+  assert.equal(w.calls.shortlist.length + w.calls.invite.length, 0);
+});
+
+test("the automatic shortlist and invitations are labelled as done by the system", () => {
+  assert.equal(auto.AUTO_BY, "Automatic (parent confirmed)");
+  assert.equal(auto.AUTO_SHORTLIST_SOURCE, "automatic: parent confirmed");
 });

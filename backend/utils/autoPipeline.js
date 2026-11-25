@@ -25,6 +25,10 @@
  */
 import { SHORTLIST_SIZE, INVITE_SIZE } from "./pipelineStages.js";
 
+/** Recorded on what the automatic run makes, so Panel 2 can say the system did it. */
+export const AUTO_BY = "Automatic (parent confirmed)";
+export const AUTO_SHORTLIST_SOURCE = "automatic: parent confirmed";
+
 export function autoInviteEnabled(env = process.env) {
   return String(env.AUTO_INVITE_ON_CONFIRM || "on").toLowerCase() !== "off";
 }
@@ -73,7 +77,7 @@ export async function autoShortlistAndInvite(reconfirmId, deps) {
     if (!d.sendingEnabled()) {
       return finish("held", "Shortlist made. Invitations were not sent because Panel 2 sending is off on this server (PANEL_SENDING_ENABLED). Press Invite tutors to send them.");
     }
-    const inv = await d.invite(lead, { limit: INVITE_SIZE });
+    const inv = await d.invite(lead, { limit: INVITE_SIZE, adminName: AUTO_BY });
     if (inv.blocked) return finish("stopped", inv.reason || "Invitations could not be sent.");
     run.invited = inv.sent || 0;
     run.inviteFailed = (inv.results || []).filter((r) => !r.sent).length;
@@ -107,7 +111,7 @@ async function defaultDeps() {
         .find({ requirementId, "tutors.0": { $exists: true } }).sort({ matchedAt: -1 }).limit(1).next();
       return s ? (s.tutors || []).length : 0;
     },
-    shortlist: (lead, opts) => stages.shortlistTutors(lead, { ...opts, source: "automatic: parent confirmed" }),
+    shortlist: (lead, opts) => stages.shortlistTutors(lead, { ...opts, source: AUTO_SHORTLIST_SOURCE }),
     alreadyInvited: async (requirementId) => !!(await db.collection("broadcastlogs").findOne(
       { requirementId, broadcastType: "requirement", status: { $ne: "Failed" } }, { projection: { _id: 1 } })),
     sendingEnabled: () => stages.panelSendingEnabled(),
