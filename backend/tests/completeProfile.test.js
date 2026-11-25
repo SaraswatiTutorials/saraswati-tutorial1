@@ -52,7 +52,7 @@ before(async () => {
   mock.module(modulePath("utils/odooService.js"), {
     namedExports: {
       updateLead: noop, syncAttendanceLogToOdoo: noop, syncLeadAttendanceSummaryToOdoo: noop,
-      deleteOdooAttendanceLog: noop, listOdooTutorCodes: async () => { throw new Error("must not reach Odoo"); },
+      deleteOdooAttendanceLog: noop, setMasterTutorPhoto: async () => ({ updated: false, reason: "test" }), listOdooTutorCodes: async () => { throw new Error("must not reach Odoo"); },
     },
   });
   mock.module(modulePath("utils/whatsappService.js"), { namedExports: { sendWhatsAppToTutor: noop } });

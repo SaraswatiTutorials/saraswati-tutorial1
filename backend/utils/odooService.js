@@ -1459,6 +1459,109 @@ export async function upsertMasterTutor(data, options = {}) {
 
 
 /* ============================================================================
+   TUTOR PROFILE PHOTO → ODOO master_tutors.profile_photo
+============================================================================ */
+
+const last10Digits = (v) => {
+  const d = String(v || "").replace(/\D/g, "");
+  return d.length >= 10 ? d.slice(-10) : "";
+};
+
+/**
+ * Which Odoo Master Tutors record is this tutor's own, or why none is safe.
+ * `records` are { id, tutor_id, mobile, whatsapp } rows from Odoo.
+ *
+ * A photo must never land on another tutor's record, so a record counts only
+ * when its tutor code or its phone number matches this tutor, and nothing on
+ * it contradicts them (a different tutor code, or a different phone with no
+ * code match). Every way of finding the record must agree on the same one.
+ */
+export function pickOwnMasterTutor(records, { odooId, tutorCode, phone, name }) {
+  const code = String(tutorCode || "").trim().toUpperCase();
+  const tel = last10Digits(phone);
+  const phonesOf = (r) => [last10Digits(r.mobile), last10Digits(r.whatsapp)].filter(Boolean);
+  const codeOf = (r) => String(r.tutor_id || "").trim().toUpperCase();
+  const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z]/g, "");
+  const nameKey = norm(name);
+  // Same phone AND same full name: the same person, even when Odoo renumbered
+  // their code (e.g. website "TUT-050", Odoo "TUT0076").
+  const samePerson = (r) => nameKey && tel && phonesOf(r).includes(tel) && norm(r.name) === nameKey;
+
+  const candidates = new Set();
+  const numericId = parseInt(odooId, 10);
+  for (const r of records) {
+    if ((Number.isInteger(numericId) && r.id === numericId)
+      || (code && codeOf(r) === code)
+      || (tel && phonesOf(r).includes(tel))) candidates.add(r);
+  }
+  const owned = [...candidates].filter((r) => {
+    if (samePerson(r)) return true;
+    const codeMatch = code && codeOf(r) === code;
+    const phoneMatch = tel && phonesOf(r).includes(tel);
+    if (!codeMatch && !phoneMatch) return false;                 // e.g. a stale Odoo id only
+    if (code && codeOf(r) && codeOf(r) !== code) return false;   // record belongs to another code
+    if (!codeMatch && tel && phonesOf(r).length && !phoneMatch) return false;
+    return true;
+  });
+  const conflicting = [...candidates].filter((r) => !owned.includes(r));
+  if (owned.length === 1 && conflicting.length === 0) return { record: owned[0], reason: "" };
+  if (owned.length > 1) return { record: null, reason: `matches ${owned.length} Odoo records (#${owned.map((r) => r.id).join(", #")})` };
+  if (conflicting.length) return { record: null, reason: `Odoo record #${conflicting.map((r) => r.id).join(", #")} does not match this tutor's code or phone` };
+  return { record: null, reason: "no Odoo tutor record" };
+}
+
+/**
+ * Copies a tutor's profile photo (a Cloudinary URL) onto their own Odoo
+ * Master Tutors record, so every tutor shows their picture in Odoo.
+ * Only a record that pickOwnMasterTutor accepts is written. With
+ * overwrite: false a record that already has a photo is left as it is.
+ * Returns { updated, odooId, reason }.
+ */
+export async function setMasterTutorPhoto({ odooId, tutorCode, phone, name, photoUrl, overwrite = true }) {
+  if (!/^https?:\/\//.test(String(photoUrl || ""))) {
+    return { updated: false, odooId: null, reason: "no photo" };
+  }
+  if (!String(tutorCode || "").trim() && !last10Digits(phone)) {
+    return { updated: false, odooId: null, reason: "no tutor code or phone to confirm the Odoo record by" };
+  }
+
+  const uid = await callOdoo("common", "authenticate", [_DB, _USERNAME, _PASSWORD, {}]);
+  if (!uid) throw new Error("Odoo login failed");
+
+  const numericId = parseInt(odooId, 10);
+  const code = String(tutorCode || "").trim();
+  const tel = last10Digits(phone);
+  const leaves = [];
+  if (Number.isInteger(numericId) && numericId > 0) leaves.push(["id", "=", numericId]);
+  if (code) leaves.push(["tutor_id", "=ilike", code]);
+  if (tel) leaves.push(["mobile", "like", tel], ["whatsapp", "like", tel]);
+  const domain = [...Array(leaves.length - 1).fill("|"), ...leaves];
+  const records = await callOdoo("object", "execute_kw", [
+    _DB, uid, _PASSWORD, "master_tutors", "search_read", [domain],
+    { fields: ["id", "name", "tutor_id", "mobile", "whatsapp", "profile_photo"], context: { bin_size: true } },
+  ]);
+
+  const { record, reason } = pickOwnMasterTutor(records || [], { odooId, tutorCode, phone, name });
+  if (!record) return { updated: false, odooId: null, reason };
+  if (!overwrite && record.profile_photo) {
+    return { updated: false, odooId: record.id, reason: "Odoo record already has a photo" };
+  }
+  const recordId = record.id;
+
+  const response = await fetch(photoUrl, { signal: AbortSignal.timeout(15000) });
+  if (!response.ok) throw new Error(`photo unreachable (${response.status})`);
+  const type = (response.headers.get("content-type") || "").split(";")[0].trim();
+  if (type && !type.startsWith("image/")) throw new Error(`photo is ${type}, not a picture`);
+  const base64 = Buffer.from(await response.arrayBuffer()).toString("base64");
+
+  await callOdoo("object", "execute_kw", [
+    _DB, uid, _PASSWORD, "master_tutors", "write", [[recordId], { profile_photo: base64 }],
+  ]);
+  return { updated: true, odooId: recordId, reason: "" };
+}
+
+
+/* ============================================================================
    TUTOR PERFORMANCE STATS
 ============================================================================ */
 

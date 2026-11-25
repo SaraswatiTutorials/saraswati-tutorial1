@@ -465,6 +465,23 @@ const parentEnquirySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    // The last "demo assigned" WhatsApp an admin sent by hand from the admin
+    // panel (Search Tutor → Assign Demo), per recipient, and who sent it.
+    demoNoticeTutorSentAt: {
+      type: Date,
+      default: null,
+    },
+
+    demoNoticeParentSentAt: {
+      type: Date,
+      default: null,
+    },
+
+    demoNoticeSentBy: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

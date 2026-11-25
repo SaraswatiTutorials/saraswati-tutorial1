@@ -13,7 +13,7 @@ import TutorRegistrationDraft from "../models/TutorRegistrationDraft.js";
 import Enquiry from "../models/Enquiry.js";
 import Booking from "../models/Booking.js";
 import BroadcastLog from "../models/BroadcastLog.js";
-import { buildTutorOptions, sendTutorOptions, buildTutorCard, TUTOR_CARD_TEMPLATE } from "../utils/tutorOptionsMessage.js";
+import { buildTutorOptions, sendTutorOptions, prepareTutorCards, sendTutorCards, chooseCardTemplate } from "../utils/tutorOptionsMessage.js";
 import { WAIT_HOURS } from "../utils/topThreeScheduler.js";
 import {
   sendWhatsAppToTutor,
@@ -37,6 +37,8 @@ import { notifyAdminOfNewEnquiry } from "../utils/adminAlerts.js";
 import { parseEnquiryDetails, deriveEnquiryFields, joinStudentNames } from "../utils/enquiryDetails.js";
 import Assignment from "../models/Assignment.js";
 import { termsTemplateName } from "../utils/termsTemplate.js";
+import { buildDemoNotices } from "../utils/demoNotice.js";
+import { sendFeedbackLink } from "../utils/tutorFeedback.js";
 
 
 const router = express.Router();
@@ -1286,6 +1288,156 @@ router.post("/:id/assign-tutor", verifyToken(["admin"]), async (req, res) => {
 });
 
 // =============================================================
+// POST send the "demo assigned" WhatsApp templates, by hand
+// POST /api/parent-enquiries/:id/send-demo-assigned
+//
+// Pressed by an admin in the main admin panel: Search Tutor → Assign Demo.
+// Assigning (above) messages nobody; this is the deliberate, separate send.
+// Body: { tutorId, demoDate, demoTime, toTutor = true, toParent = true, dryRun? }
+// The tutor must already be the one assigned to this enquiry, and a real demo
+// date and time are required, so nobody is told of a demo that isn't fixed.
+// =============================================================
+router.post("/:id/send-demo-assigned", verifyToken(["admin"]), async (req, res) => {
+  try {
+    const { tutorId, toTutor = true, toParent = true, dryRun = false } = req.body || {};
+    if (!tutorId) return res.status(400).json({ message: "tutorId is required." });
+    if (!toTutor && !toParent) {
+      return res.status(400).json({ message: "Choose the tutor, the parent, or both." });
+    }
+
+    const lead = await ParentEnquiry.findById(req.params.id);
+    if (!lead) return res.status(404).json({ message: "Lead not found." });
+
+    const tutor = await Tutor.findById(tutorId);
+    if (!tutor) return res.status(404).json({ message: "Tutor not found." });
+
+    if (String(lead.assignedTutorId || "") !== String(tutor._id)) {
+      return res.status(409).json({
+        message: `Assign ${tutor.name} to this enquiry first; it is with ${lead.assignedTutor || "no tutor"}.`,
+      });
+    }
+
+    const demoDate = String(req.body?.demoDate || lead.demoDate || "").trim();
+    const demoTime = String(req.body?.demoTime || lead.demoTime || "").trim();
+    if (!demoDate || !demoTime) {
+      return res.status(400).json({ message: "Pick the demo date and time before sending." });
+    }
+
+    const notices = buildDemoNotices(lead, tutor, demoDate, demoTime);
+    const tutorPhone = tutor.whatsapp || tutor.phone || "";
+    const parentPhone = String(lead.phone || "").trim();
+
+    const plan = [];
+    if (toTutor) plan.push({ who: "tutor", phoneNumber: tutorPhone, ...notices.tutor });
+    if (toParent) plan.push({ who: "parent", phoneNumber: parentPhone, ...notices.parent });
+
+    if (dryRun) {
+      return res.json({ message: "Dry run - nothing was sent", dryRun: true, slot: notices.slot, plan });
+    }
+
+    const results = {};
+
+    // The parent first gets the assigned tutor's profile card (photo header,
+    // the tutor's details), then the demo date and time.
+    if (toParent && parentPhone) {
+      try {
+        const card = await sendTutorCards(lead, [{ ...tutor.toObject(), distanceKm: null }]);
+        const r = card.results?.[0];
+        results.profileCard = {
+          sent: !!r?.sent,
+          templateName: card.templateName,
+          failureReason: r?.sent ? "" : (r?.failureReason || "not sent"),
+        };
+      } catch (err) {
+        results.profileCard = { sent: false, failureReason: err.message };
+      }
+    }
+
+    for (const p of plan) {
+      if (!p.phoneNumber) {
+        results[p.who] = { sent: false, failureReason: `No WhatsApp number for the ${p.who}` };
+        continue;
+      }
+      const r = await sendWhatsAppToTutor({
+        phoneNumber: p.phoneNumber,
+        messageBody: p.messageBody,
+        templateName: p.templateName,
+        templateVars: p.templateVars,
+        forceTemplate: true, // always the approved template, as the admin chose
+      });
+      results[p.who] = {
+        sent: r.success,
+        templateName: p.templateName,
+        failureReason: r.success ? "" : (r.failureReason === "Template Deleted or Inactive"
+          ? `The "${p.templateName}" template isn't approved in Odoo.`
+          : (r.failureReason || "unknown reason")),
+      };
+    }
+
+    const now = new Date();
+    const by = req.user?.email || "";
+    if (results.tutor?.sent) lead.demoNoticeTutorSentAt = now;
+    if (results.parent?.sent) lead.demoNoticeParentSentAt = now;
+    if (results.tutor?.sent || results.parent?.sent) {
+      lead.demoNoticeSentBy = by;
+      await lead.save({ validateBeforeSave: false });
+
+      if (lead.odooLeadId) {
+        const who = [results.tutor?.sent && "tutor", results.parent?.sent && "parent"].filter(Boolean).join(" and ");
+        addOdooChatterMessage(
+          lead.odooLeadId,
+          `Demo assigned message sent to the ${who} on WhatsApp (${tutor.name}, ${notices.slot})${by ? ` by ${by}` : ""}.`,
+        ).catch((err) => console.error(`[Demo Notice] Odoo note failed for ${lead.requirementId}:`, err.message));
+      }
+    }
+
+    const anyFailed = Object.values(results).some((r) => !r.sent);
+    res.status(anyFailed && !Object.values(results).some((r) => r.sent) ? 502 : 200).json({
+      message: anyFailed ? "Some messages were not sent" : "Demo assigned messages sent",
+      slot: notices.slot,
+      results,
+      demoNoticeTutorSentAt: lead.demoNoticeTutorSentAt,
+      demoNoticeParentSentAt: lead.demoNoticeParentSentAt,
+    });
+  } catch (error) {
+    console.error("Send demo assigned error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// =============================================================
+// POST send the parent the Tutor Feedback template about the tutor who went
+// for the demo, by hand from the admin panel ("Demo assign" on the enquiry).
+// POST /api/parent-enquiries/:id/send-feedback
+//
+// Body: { tutorId?, tutorName, dryRun = true, resend = false }
+// The admin writes the tutor's name; tutorId is sent when it matches a
+// registered tutor. Same template, link and rules as Panel 2 step 7
+// (utils/tutorFeedback.js): dryRun shows what would go, a link already sent
+// needs resend, and a parent who has answered is never asked again.
+// =============================================================
+router.post("/:id/send-feedback", verifyToken(["admin"]), async (req, res) => {
+  try {
+    const { tutorId = null, tutorName = "", dryRun = true, resend = false } = req.body || {};
+    if (!tutorId && !String(tutorName).trim()) {
+      return res.status(400).json({ message: "Write the name of the tutor who went for the demo." });
+    }
+    const lead = await ParentEnquiry.findById(req.params.id);
+    if (!lead) return res.status(404).json({ message: "Lead not found." });
+
+    const result = await sendFeedbackLink(lead, { dryRun, resend, tutorId, tutorName });
+    if (result.blocked) return res.status(409).json({ ...result, message: result.reason });
+    if (!dryRun && !result.sent && result.willSend !== false) {
+      return res.status(502).json({ ...result, message: `Feedback template not sent: ${result.failureReason || "unknown reason"}` });
+    }
+    res.json({ ...result, message: result.sent ? "Feedback template sent to the parent" : (result.reason || "Not sent") });
+  } catch (error) {
+    console.error("Send feedback error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// =============================================================
 // POST remove the assigned tutor from a student (messages nobody)
 // POST /api/parent-enquiries/:id/unassign-tutor
 // =============================================================
@@ -1570,38 +1722,11 @@ router.post("/:id/send-tutor-cards", verifyToken(["admin"]), async (req, res) =>
       return res.status(400).json({ message: "No phone number on this lead." });
     }
 
-    const offered = tutors.slice(0, 3);
-    // Same template and wording as the automatic send (tutorOptionsMessage.js).
-    const templateName =
-      process.env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || TUTOR_CARD_TEMPLATE;
-
-    // The caller may pass a bare name and code; the rest comes from the
-    // tutor's own record when it is not supplied.
-    const codes = offered.map((t) => t?.tutorCode).filter(Boolean);
-    const stored = codes.length
-      ? await Tutor.find({ tutorCode: { $in: codes } })
-          .select("tutorCode name photo experience")
-          .lean()
-      : [];
-    const byCode = new Map(stored.map((t) => [t.tutorCode, t]));
-
-    const cards = offered.map((t, idx) => {
-      const record = byCode.get(t?.tutorCode) || {};
-      // The subject is deliberately absent: a tutor is matched on distance,
-      // experience and occupation, so showing it would mislead the parent.
-      const { templateVars, messageBody } = buildTutorCard({
-        name: t?.name || record.name || "",
-        experience: t?.experience || record.experience || "",
-        distanceKm: t?.distanceKm,
-      }, idx + 1, offered.length);
-      return {
-        position: idx + 1,
-        tutorCode: t?.tutorCode || "",
-        name: t?.name || record.name || "",
-        templateVars,
-        messageBody,
-      };
-    });
+    // Same template, photo and wording as the automatic send
+    // (tutorOptionsMessage.js). The caller may pass a bare name and code; the
+    // rest comes from the tutor's own record.
+    // The Tutor Profile Card once Meta approves it, Tutor Option Card2 until then.
+    const templateName = await chooseCardTemplate();
 
     if (dryRun) {
       return res.json({
@@ -1610,34 +1735,14 @@ router.post("/:id/send-tutor-cards", verifyToken(["admin"]), async (req, res) =>
         dryRun: true,
         phoneNumber,
         templateName,
-        cards,
+        cards: await prepareTutorCards(tutors, { templateName }),
       });
     }
 
-    // One send per card. Cards carry no profile picture (removed 4 Nov 2026),
-    // so every tutor gets one, photo or not.
-    const results = [];
-    for (const card of cards) {
-      const sendResult = await sendWhatsAppToTutor({
-        phoneNumber,
-        messageBody: card.messageBody,
-        templateName,
-        templateVars: card.templateVars,
-      });
-
-      results.push({
-        position: card.position,
-        name: card.name,
-        sent: sendResult.success,
-        skipped: false,
-        messageId: sendResult.messageId || null,
-        failureReason: sendResult.failureReason || "",
-      });
-    }
-
+    const { results } = await sendTutorCards(lead, tutors, { templateName });
     const sentCount = results.filter((r) => r.sent).length;
     res.json({
-      message: `${sentCount} of ${cards.length} tutor card(s) sent to the parent`,
+      message: `${sentCount} of ${results.length} tutor card(s) sent to the parent`,
       sent: sentCount > 0,
       dryRun: false,
       templateName,

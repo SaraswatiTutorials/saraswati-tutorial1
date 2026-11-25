@@ -121,3 +121,23 @@ test("the form page never sees phone numbers or full names", () => {
   assert.ok(!JSON.stringify(v).includes("9811111111"));
   assert.equal(v.options.decisions.length, 3);
 });
+
+// Admin panel "Demo assign": the admin writes the tutor who went for the demo.
+test("admin-typed tutor: sent about that tutor even with no tutor on the enquiry", async () => {
+  const w = world({ tutor: null });
+  const lead = { ...LEAD, assignedTutor: "", assignedTutorId: null };
+  const r = await fb.sendFeedbackLink(lead, { dryRun: false, tutorName: "  Niraj Kumar Singh " }, w.deps);
+  assert.equal(r.sent, true);
+  assert.equal(w.sent[0].templateName, "tutor_feedback_request");
+  assert.equal(w.sent[0].templateVars["{{2}}"], "Niraj Kumar Singh");
+  assert.equal(w.created[0].tutorName, "Niraj Kumar Singh");
+  assert.equal(w.created[0].tutorId, null);
+});
+
+test("admin-picked registered tutor wins over the enquiry's assigned tutor", async () => {
+  const w = world({ tutor: { id: "t9", source: "tutor", name: "Asha Rao", tutorCode: "TUT0099" } });
+  const r = await fb.sendFeedbackLink(LEAD, { dryRun: true, tutorId: "t9", tutorName: "Asha Rao" }, w.deps);
+  assert.equal(r.tutorName, "Asha Rao");
+  assert.equal(r.tutorCode, "TUT0099");
+  assert.equal(w.sent.length, 0); // dry run
+});

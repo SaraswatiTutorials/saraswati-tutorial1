@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-// Dark mode is on for the whole site. To switch it off, set this to false and set
-// darkModeEnabled to false in index.html as well. Saved choices are left alone.
+// Dark mode is available, but the site opens in light mode until a visitor picks
+// Dark (or System) from the theme menu. To remove dark mode entirely, set this to
+// false and set darkModeEnabled to false in index.html as well.
 export const DARK_MODE_ENABLED = true;
 
 const ThemeContext = createContext(undefined);
@@ -9,9 +10,9 @@ const ThemeContext = createContext(undefined);
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
     try {
-      return localStorage.getItem("theme") || "system";
+      return localStorage.getItem("theme") || "light";
     } catch {
-      return "system";
+      return "light";
     }
   });
 

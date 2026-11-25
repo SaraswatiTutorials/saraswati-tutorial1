@@ -78,7 +78,7 @@ before(() => {
   mock.module(modulePath("utils/tutorOptionsMessage.js"), {
     namedExports: {
       buildTutorOptions: () => ({}), sendTutorOptions: noop,
-      buildTutorCard: () => ({ templateVars: {}, messageBody: "" }), TUTOR_CARD_TEMPLATE: "tutor_option_card_1",
+      prepareTutorCards: async () => [], sendTutorCards: async () => ({ sent: 0, results: [] }), chooseCardTemplate: async () => "tutor_profile_card",
     },
   });
   mock.module(modulePath("utils/topThreeScheduler.js"), { namedExports: { WAIT_HOURS: 7 } });
