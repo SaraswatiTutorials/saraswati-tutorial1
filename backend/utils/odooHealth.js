@@ -21,7 +21,7 @@
 
 import { getOdooCalls, maskText } from "./odooCallLog.js";
 import { REQUIREMENT_TEMPLATES, templateLookupDomain, toOdooDatetime } from "./whatsappService.js";
-import { TUTOR_OPTIONS_TEMPLATES, TUTOR_CARD_TEMPLATE } from "./tutorOptionsMessage.js";
+import { TUTOR_OPTIONS_TEMPLATES, TUTOR_CARD_TEMPLATES } from "./tutorOptionsMessage.js";
 import { RECONFIRM_TEMPLATE, SELECTION_TEMPLATE } from "./pipelineStages.js";
 import { termsTemplateName } from "./termsTemplate.js";
 
@@ -214,7 +214,7 @@ export function templateChecklist(env = process.env) {
   return [
     { key: "reconfirm", use: "Step 1: reconfirm with the parent", names: [RECONFIRM_TEMPLATE], core: true },
     { key: "invite", use: "Step 3: invite tutors", names: [...new Set([pinnedInvite, ...REQUIREMENT_TEMPLATES].filter(Boolean))], anyOf: true, core: true },
-    { key: "cards", use: "Step 4: tutor cards to the parent", names: [env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME || TUTOR_CARD_TEMPLATE], core: true },
+    { key: "cards", use: "Step 4: tutor profile cards to the parent (photo header)", names: env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME ? [env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME] : TUTOR_CARD_TEMPLATES, anyOf: true, core: true },
     { key: "options", use: "Step 4: top 3 list to the parent",
       names: env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME ? [env.WHATSAPP_TUTOR_OPTIONS_TEMPLATE_NAME] : TUTOR_OPTIONS_TEMPLATES, anyOf: true, core: true },
     { key: "selected", use: "Step 5: tell the selected tutor", names: [SELECTION_TEMPLATE], core: true },

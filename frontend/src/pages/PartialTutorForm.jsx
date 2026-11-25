@@ -155,7 +155,11 @@ function BenefitList() {
 export default function PartialTutorForm() {
   const selectedCity = localStorage.getItem("userLocation") === "Mumbai" ? "Mumbai" : "Bangalore";
 
-  const [form, setForm] = useState(initialForm);
+  // The tutor sign-in page passes ?phone=9876543210 when that number had no account
+  const [form, setForm] = useState(() => {
+    const phone = new URLSearchParams(window.location.search).get("phone") || "";
+    return /^\d{10}$/.test(phone) ? { ...initialForm, whatsapp: phone } : initialForm;
+  });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");

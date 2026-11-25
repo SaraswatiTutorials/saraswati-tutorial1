@@ -122,25 +122,28 @@ const when = (d) => new Date(d).toLocaleString("en-IN", {
 });
 
 /**
- * Panel 2 step 7. Works out (and, unless dryRun, sends) the feedback link for
- * the tutor assigned to this enquiry. `resend` sends a link that was already
- * sent once; a link the parent has answered is never sent again.
+ * Panel 2 step 7, and the admin panel's "Demo assign" button. Works out (and,
+ * unless dryRun, sends) the feedback link for a tutor: the one named by
+ * `tutorId` / `tutorName` (the admin panel, where the admin writes the tutor's
+ * name), else the tutor assigned to this enquiry. `resend` sends a link that
+ * was already sent once; a link the parent has answered is never sent again.
  */
-export async function sendFeedbackLink(lead, { dryRun = true, resend = false } = {}, deps) {
+export async function sendFeedbackLink(lead, { dryRun = true, resend = false, tutorId = null, tutorName: typedName = "" } = {}, deps) {
   const stage = "feedback";
   const requirementId = lead?.requirementId || "";
   const blocked = (reason) => ({ stage, ok: false, blocked: true, reason, dryRun });
   if (!lead) return blocked("No enquiry.");
-  if (!lead.assignedTutorId && !lead.assignedTutor) {
+  const named = !!(tutorId || String(typedName || "").trim());
+  if (!named && !lead.assignedTutorId && !lead.assignedTutor) {
     return blocked("No tutor is confirmed on this enquiry yet. Confirm the tutor chosen for the demo first (step 5).");
   }
   const phone = String(lead.phone || "").trim();
   if (!phone) return blocked("This parent has no phone number.");
 
   const d = deps || (await defaultDeps());
-  const tutor = await d.findTutor(lead.assignedTutorId);
-  const tutorName = tutor?.name || lead.assignedTutor || "";
-  if (!tutorName) return blocked("The confirmed tutor could not be found.");
+  const tutor = await d.findTutor(named ? tutorId : lead.assignedTutorId);
+  const tutorName = tutor?.name || (named ? String(typedName || "").trim() : lead.assignedTutor) || "";
+  if (!tutorName) return blocked(named ? "That tutor could not be found." : "The confirmed tutor could not be found.");
 
   const studentName = lead.wards?.[0]?.studentName || "";
   const parentName = lead.parentName || "";

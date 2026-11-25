@@ -14,6 +14,7 @@ import Attendance from "../models/Attendance.js";
 import BroadcastLog from "../models/BroadcastLog.js";
 import { STILL_NEEDED, knownFromPartial, validateCompletion, registrationFromPartial } from "../utils/profileCompletion.js";
 import { phonePattern } from "../utils/loginMatch.js";
+import { setMasterTutorPhoto } from "../utils/odooService.js";
 
 // Profile photos and assignment records for the parent and tutor portals
 const router = express.Router();
@@ -64,6 +65,20 @@ router.post("/tutor/photo", verifyToken(["tutor"]), receivePhoto, async (req, re
     record.photo = await storePhoto(req.file, "saraswati-tutors/profile");
     await record.save({ validateBeforeSave: false });
     res.json({ success: true, photo: record.photo });
+
+    // Copy the new picture onto their Odoo Master Tutors record, in the
+    // background: the upload has already worked whatever Odoo does.
+    setImmediate(() => {
+      setMasterTutorPhoto({
+        odooId: record.odooLeadId,
+        tutorCode: record.tutorCode,
+        phone: record.whatsapp || record.phone,
+        name: record.name,
+        photoUrl: record.photo,
+      })
+        .then((r) => { if (!r.updated) console.log(`[Tutor Photo] Not copied to Odoo for ${record.tutorCode || record._id}: ${r.reason}`); })
+        .catch((err) => console.error(`[Tutor Photo] Odoo copy failed for ${record.tutorCode || record._id}:`, err.message));
+    });
   } catch (error) {
     console.error("Tutor photo upload error:", error);
     res.status(500).json({ message: "Couldn't upload the photo. Please try again." });

@@ -45,7 +45,7 @@ before(async () => {
   mock.module(modulePath("utils/odooService.js"), {
     namedExports: {
       updateLead: noop, syncAttendanceLogToOdoo: noop, syncLeadAttendanceSummaryToOdoo: noop,
-      deleteOdooAttendanceLog: noop, listOdooTutorCodes: async () => { throw new Error("must not reach Odoo"); },
+      deleteOdooAttendanceLog: noop, setMasterTutorPhoto: async () => ({ updated: false, reason: "test" }), listOdooTutorCodes: async () => { throw new Error("must not reach Odoo"); },
     },
   });
   for (const m of ["ParentEnquiry", "Attendance", "Assignment", "BroadcastLog"]) {

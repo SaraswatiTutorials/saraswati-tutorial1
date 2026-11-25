@@ -361,7 +361,9 @@ async function sendFreeformMessage(uid, channelId, messageBody) {
  * Returns the ir.attachment id that the WhatsApp composer expects.
  */
 async function createHeaderAttachment(uid, imageUrl) {
-  const res = await fetch(imageUrl);
+  // A photo link that never answers must not hold up the send: after 15
+  // seconds this fails, and the tutor card is retried with the logo.
+  const res = await fetch(imageUrl, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) {
     throw new Error(`header image unreachable: ${imageUrl} returned ${res.status}`);
   }

@@ -19,7 +19,14 @@ export default function TeacherLogin() {
   const [identifier, setIdentifier] = useState(location.state?.identifier || linkId);
   const [error, setError] = useState(location.state?.message || "");
   const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const navigate = useNavigate();
+
+  // The sign-up form gets the mobile number pre-filled when one was typed here
+  const typedPhone = identifier.replace(/\D/g, "").slice(-10);
+  const signUpHref = /^\d{10}$/.test(typedPhone) && !/^tut/i.test(identifier.trim())
+    ? `/partial-verification?phone=${typedPhone}`
+    : "/partial-verification";
 
   // Already signed in: go straight to the dashboard (not after a sign-out or expired session)
   useEffect(() => {
@@ -38,6 +45,7 @@ export default function TeacherLogin() {
       return;
     }
     setError("");
+    setNotFound(false);
     setLoading(true);
 
     try {
@@ -50,6 +58,8 @@ export default function TeacherLogin() {
       const data = await res.json();
 
       if (!res.ok) {
+        // No tutor with this code or number: offer the short sign-up form
+        setNotFound(res.status === 401);
         setError(data.message || "Authentication failed");
         setLoading(false);
         return;
@@ -79,8 +89,8 @@ export default function TeacherLogin() {
       footer={
         <div className="space-y-2">
           <p>
-            Not registered yet?{" "}
-            <a href="/tutor-verification" className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">Become a tutor</a>
+            New tutor?{" "}
+            <a href={signUpHref} className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">Sign up</a>
           </p>
           <p>
             Are you a parent?{" "}
@@ -107,13 +117,27 @@ export default function TeacherLogin() {
               onChange={(e) => {
                 setIdentifier(e.target.value);
                 if (error) setError("");
+                if (notFound) setNotFound(false);
               }}
               className="h-full min-w-0 flex-1 bg-transparent px-3 text-base font-medium text-slate-900 placeholder:text-sm placeholder:text-slate-400 focus:outline-none dark:text-white"
             />
           </div>
         </div>
 
-        {error && (
+        {error && notFound && (
+          <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+            <p className="font-semibold">We couldn't find a tutor with this code or number.</p>
+            <p className="mt-1">Check it and try again, or sign up as a new tutor. It takes about a minute.</p>
+            <a
+              href={signUpHref}
+              className="mt-3 inline-flex h-10 items-center gap-1.5 rounded-lg bg-amber-600 px-4 text-sm font-semibold text-white transition hover:bg-amber-700"
+            >
+              Sign up as a tutor <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
+        )}
+
+        {error && !notFound && (
           <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
             {error}
           </p>
