@@ -1269,12 +1269,28 @@ function verificationPanel(b) {
     ]));
 }
 
+// What the automatic shortlist + top-10 invite did after "Yes, Correct".
+function autoRunText(a) {
+  if (!a) return "The details are confirmed — you can go ahead with <b>Shortlist tutors</b> (step 2).";
+  const at = a.at ? ' <span class="when">' + esc(when(a.at)) + "</span>" : "";
+  const listed = a.shortlistReused ? "Used the existing shortlist of " + plural(a.shortlisted, "tutor")
+    : "Automatically shortlisted " + plural(a.shortlisted, "tutor");
+  if (a.status === "running") return "⏳ Automatic shortlist and invitations are running…";
+  if (a.status === "done" && a.invited) {
+    return "🤖 " + listed + " and invited the top " + plural(a.invited, "tutor") + at +
+      (a.inviteFailed ? " · " + plural(a.inviteFailed, "invitation") + " failed (press Invite tutors to retry)" : "") + ".";
+  }
+  if (a.status === "done" || a.status === "held") return "🤖 " + (a.shortlisted ? listed + ". " : "") + esc(a.reason) + at;
+  return "⚠️ The automatic shortlist/invite did not finish: " + esc(a.reason || a.status) + at +
+    "<br>You can go ahead with <b>Shortlist tutors</b> (step 2) by hand.";
+}
+
 // The parent's answer to the re-confirmation: go ahead, or what to change.
 function reconfirmAnswerBlock(r) {
   if (!r || !r.sent || !r.reply) return "";
   if (r.reply === "Yes,Correct") {
     return '<div class="answer ok">✅ Parent replied <b>Yes, Correct</b>' + (r.repliedAt ? ' <span class="when">' + esc(when(r.repliedAt)) + "</span>" : "") +
-      "<br>The details are confirmed — you can go ahead with <b>Shortlist tutors</b> (step 2).</div>";
+      "<br>" + autoRunText(r.autoRun) + "</div>";
   }
   const asks = r.changeRequests || [];
   return '<div class="answer change">✏️ Parent replied <b>Change some details</b>' + (r.repliedAt ? ' <span class="when">' + esc(when(r.repliedAt)) + "</span>" : "") +

@@ -479,6 +479,7 @@ function shortlistScore(score, params) {
 
 export async function shortlistTutors(lead, {
   limit = SHORTLIST_SIZE, dryRun = false, includePartial = true, radiusKm = SHORTLIST_RADIUS_KM,
+  source = "panel 2 shortlist button",
 } = {}) {
   const stage = "shortlist";
   const requirementId = lead?.requirementId || "";
@@ -673,7 +674,7 @@ export async function shortlistTutors(lead, {
     candidatesConsidered: candidates.length,
     radiusKm,
     distanceMode: distanceModeOf(tutors),
-    source: "panel 2 shortlist button",
+    source,
     matchedAt: new Date(),
   });
 

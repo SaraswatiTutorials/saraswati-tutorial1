@@ -227,3 +227,39 @@ test("a preview records no change request", async () => {
   assert.equal(r.changeRequests, 1);
   assert.equal(w.state.changes.length, 0);
 });
+
+// "Yes,Correct" starts the automatic shortlist + top-10 invite (autoPipeline.js)
+function confirmWorld(text, { replyTo = 5000 } = {}) {
+  const reconf = { _id: "rc9", requirementId: "REQ-00500", leadId: "l500", phone: `+91${PARENT}`, messageId: 5000, sent: true };
+  const w = world({ messages: [msg(4100, `<p>${text}</p>`, { phone: PARENT, replyTo })], reconfirms: [reconf] });
+  w.state.started = [];
+  w.deps.onConfirmed = async (rc) => { w.state.started.push(rc.id); return { ran: true, status: "done" }; };
+  return w;
+}
+
+test("'Yes,Correct' starts the automatic shortlist and invitations, once", async () => {
+  const w = confirmWorld("Yes,Correct");
+  const r = await syncInboundMessages(w.deps);
+  assert.deepEqual(w.state.started, ["rc9"]);
+  assert.equal(r.autoRuns.length, 1);
+});
+
+test("'Change some details' does not start them", async () => {
+  const w = confirmWorld("Change some details");
+  await syncInboundMessages(w.deps);
+  assert.deepEqual(w.state.started, []);
+});
+
+test("a preview never starts them", async () => {
+  const w = confirmWorld("Yes,Correct");
+  await syncInboundMessages(w.deps, { dryRun: true });
+  assert.deepEqual(w.state.started, []);
+});
+
+test("a failure in the automatic run does not stop the sync", async () => {
+  const w = confirmWorld("Yes,Correct");
+  w.deps.onConfirmed = async () => { throw new Error("boom"); };
+  const r = await syncInboundMessages(w.deps);
+  assert.equal(r.saved, 1);
+  assert.equal(w.state.cursor, 4100);
+});

@@ -450,6 +450,18 @@ router.get("/api/board", requireLogin, async (req, res) => {
               reply: reconfirm.reply || "",
               repliedAt: reconfirm.repliedAt || null,
               // What the parent wrote after "Change some details", oldest first
+              // Automatic shortlist + top-10 invite after "Yes,Correct" (autoPipeline.js)
+              autoRun: reconfirm.autoRun
+                ? {
+                    status: reconfirm.autoRun.status || "",
+                    at: reconfirm.autoRun.finishedAt || reconfirm.autoRun.startedAt || null,
+                    shortlisted: reconfirm.autoRun.shortlisted || 0,
+                    shortlistReused: !!reconfirm.autoRun.shortlistReused,
+                    invited: reconfirm.autoRun.invited || 0,
+                    inviteFailed: reconfirm.autoRun.inviteFailed || 0,
+                    reason: reconfirm.autoRun.reason || "",
+                  }
+                : null,
               changeRequests: (reconfirm.changeRequests || [])
                 .map((c) => ({ text: c.text || "", at: c.at || null }))
                 .sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0)),
