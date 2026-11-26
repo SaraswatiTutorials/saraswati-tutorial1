@@ -1407,7 +1407,7 @@ router.post("/:id/send-demo-assigned", verifyToken(["admin"]), async (req, res) 
 
 // =============================================================
 // POST send the parent the Tutor Feedback template about the tutor who went
-// for the demo, by hand from the admin panel ("Demo assign" on the enquiry).
+// for the demo, by hand from the admin panel ("Send feedback form" on the enquiry, or Search Tutor → Send Feedback Form).
 // POST /api/parent-enquiries/:id/send-feedback
 //
 // Body: { tutorId?, tutorName, dryRun = true, resend = false }
