@@ -1,4 +1,4 @@
-// POST /:id/send-feedback from the admin panel ("Demo assign" on a parent
+// POST /:id/send-feedback from the admin panel ("Send feedback form" on a parent
 // enquiry): the admin writes the tutor who went for the demo and the parent
 // gets the Tutor Feedback template. Every model and outside service is
 // mocked; nothing can reach Odoo, WhatsApp, MongoDB or the network.

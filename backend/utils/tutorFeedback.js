@@ -122,7 +122,7 @@ const when = (d) => new Date(d).toLocaleString("en-IN", {
 });
 
 /**
- * Panel 2 step 7, and the admin panel's "Demo assign" button. Works out (and,
+ * Panel 2 step 7, and the admin panel's "Send feedback form" button. Works out (and,
  * unless dryRun, sends) the feedback link for a tutor: the one named by
  * `tutorId` / `tutorName` (the admin panel, where the admin writes the tutor's
  * name), else the tutor assigned to this enquiry. `resend` sends a link that

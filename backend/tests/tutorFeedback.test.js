@@ -122,7 +122,7 @@ test("the form page never sees phone numbers or full names", () => {
   assert.equal(v.options.decisions.length, 3);
 });
 
-// Admin panel "Demo assign": the admin writes the tutor who went for the demo.
+// Admin panel "Send feedback form": the admin writes the tutor who went for the demo.
 test("admin-typed tutor: sent about that tutor even with no tutor on the enquiry", async () => {
   const w = world({ tutor: null });
   const lead = { ...LEAD, assignedTutor: "", assignedTutorId: null };

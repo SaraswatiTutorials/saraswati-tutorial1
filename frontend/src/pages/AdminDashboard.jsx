@@ -1042,8 +1042,8 @@ export default function AdminDashboard() {
     }
   };
 
-  // Assigns the tutor, then — only if the admin ticked it in the Assign Demo
-  // modal — sends the "demo assigned" WhatsApp template to the tutor and/or parent.
+  // Assigns the tutor, then — if the admin left it ticked in the Assign Demo
+  // modal — sends the parent the Tutor Feedback form template about this tutor.
   const handleAssignTutor = async (tutorId, demoDate, demoTime, sendTo = {}) => {
     const leadId = matchingLeadId;
     if (!leadId) return;
@@ -1061,28 +1061,19 @@ export default function AdminDashboard() {
       if (res.ok) {
         const data = await res.json();
         let msg;
-        if (sendTo.tutor || sendTo.parent) {
-          const sendRes = await fetch(`${API_BASE}/parent-enquiries/${leadId}/send-demo-assigned`, {
+        if (sendTo.feedback) {
+          // Same send as the "Send feedback form" button: a link already
+          // sent for this tutor is not sent twice, and a parent who has
+          // answered is never asked again (the server decides both).
+          const fbRes = await fetch(`${API_BASE}/parent-enquiries/${leadId}/send-feedback`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ tutorId, demoDate, demoTime, toTutor: !!sendTo.tutor, toParent: !!sendTo.parent }),
+            body: JSON.stringify({ tutorId, tutorName: sendTo.tutorName || "", dryRun: false }),
           });
-          const sendData = await sendRes.json().catch(() => ({}));
-          const line = (who, r) => r
-            ? (r.sent ? `✅ Demo assigned template sent to the ${who}.` : `❌ Not sent to the ${who}: ${r.failureReason}`)
-            : "";
-          msg = sendData.results
-            ? [
-                "✅ Tutor assigned.",
-                sendData.results.profileCard
-                  ? (sendData.results.profileCard.sent
-                    ? "✅ Tutor profile card (with photo) sent to the parent."
-                    : `❌ Tutor profile card not sent to the parent: ${sendData.results.profileCard.failureReason}`)
-                  : "",
-                line("tutor", sendData.results.tutor),
-                line("parent", sendData.results.parent),
-              ].filter(Boolean).join("\n")
-            : `✅ Tutor assigned, but the demo template was not sent: ${sendData.message || "please try again."}`;
+          const fb = await fbRes.json().catch(() => ({}));
+          msg = fbRes.ok && fb.sent
+            ? `✅ Tutor assigned.\n✅ Feedback form template sent to the parent about ${fb.tutorName || "this tutor"}.`
+            : `✅ Tutor assigned.\n❌ Feedback form not sent to the parent: ${fb.message || fb.reason || "please try again."}`;
         } else {
           // Assigning on its own only records it; nobody is messaged.
           msg = data.parentDetailsSent
@@ -1183,9 +1174,8 @@ export default function AdminDashboard() {
   const [assignDemoDate, setAssignDemoDate] = useState("");
   const [assignDemoTime, setAssignDemoTime] = useState("");
   const [assignModalTutorName, setAssignModalTutorName] = useState("");
-  const [sendDemoToTutor, setSendDemoToTutor] = useState(true);
-  const [sendDemoToParent, setSendDemoToParent] = useState(true);
-  // The enquiry whose own "Demo assign" button was pressed (its modal is open)
+  const [sendFeedbackToParent, setSendFeedbackToParent] = useState(true);
+  // The enquiry whose own "Send feedback form" button was pressed (its modal is open)
   const [demoAssignLead, setDemoAssignLead] = useState(null);
 
   const fetchMatchingTutors = async (leadId) => {
@@ -2933,7 +2923,7 @@ export default function AdminDashboard() {
                               onClick={toggleMatching}
                             />
                             <IconAction
-                              label="Demo assign"
+                              label="Send feedback form"
                               icon={Calendar}
                               tone="amber"
                               onClick={() => setDemoAssignLead(p)}
@@ -3575,12 +3565,11 @@ export default function AdminDashboard() {
                                               setAssignModalTutorName(t.name || "");
                                               setAssignDemoDate("");
                                               setAssignDemoTime("");
-                                              setSendDemoToTutor(true);
-                                              setSendDemoToParent(true);
+                                              setSendFeedbackToParent(true);
                                             }}
                                             className="px-3 py-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-xl transition cursor-pointer"
                                           >
-                                            Assign Demo
+                                            Send Feedback Form
                                           </button>
                                         </div>
                                       </div>
@@ -4437,7 +4426,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Demo assign on a parent enquiry: Tutor Feedback template to the parent */}
+        {/* "Send feedback form" on a parent enquiry: Tutor Feedback template to the parent */}
         {demoAssignLead && (
           <DemoAssignModal
             lead={demoAssignLead}
@@ -4451,14 +4440,14 @@ export default function AdminDashboard() {
         {assignModalTutorId && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-slideFade">
             <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 shadow-2xl">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-1">Assign Demo</h3>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-1">Send Feedback Form</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mb-5">
                 {assignModalTutorName ? <><span className="text-slate-700 dark:text-slate-200">{assignModalTutorName}</span> for {parentEnquiries.find((p) => p._id === matchingLeadId)?.parentName || "this parent"}. </> : null}
-                Tick who should get the &quot;demo assigned&quot; WhatsApp template. Untick both to only record the assignment.
+                The parent gets the Tutor Feedback form about this tutor on WhatsApp. Untick it to only record the assignment.
               </p>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Demo Date {sendDemoToTutor || sendDemoToParent ? <span className="text-rose-500">*</span> : <span className="text-slate-400 font-semibold">(optional)</span>}</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Demo Date <span className="text-slate-400 font-semibold">(optional)</span></label>
                   <input
                     type="date"
                     value={assignDemoDate}
@@ -4467,7 +4456,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Demo Time {sendDemoToTutor || sendDemoToParent ? <span className="text-rose-500">*</span> : <span className="text-slate-400 font-semibold">(optional)</span>}</label>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Demo Time <span className="text-slate-400 font-semibold">(optional)</span></label>
                   <input
                     type="time"
                     value={assignDemoTime}
@@ -4475,15 +4464,10 @@ export default function AdminDashboard() {
                     className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                   />
                 </div>
-                <div className="space-y-2 rounded-2xl border border-slate-200 dark:border-slate-700 p-3">
-                  <span className="block text-xs font-bold text-slate-700 dark:text-slate-300">Send &quot;Demo Assigned&quot; WhatsApp template to</span>
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 p-3">
                   <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
-                    <input type="checkbox" checked={sendDemoToTutor} onChange={(e) => setSendDemoToTutor(e.target.checked)} className="h-4 w-4 accent-indigo-600" />
-                    Tutor
-                  </label>
-                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
-                    <input type="checkbox" checked={sendDemoToParent} onChange={(e) => setSendDemoToParent(e.target.checked)} className="h-4 w-4 accent-indigo-600" />
-                    Parent <span className="text-xs font-semibold text-slate-400">(tutor profile card with photo + demo time)</span>
+                    <input type="checkbox" checked={sendFeedbackToParent} onChange={(e) => setSendFeedbackToParent(e.target.checked)} className="h-4 w-4 accent-indigo-600" />
+                    Feedback form to parent <span className="text-xs font-semibold text-slate-400">(Tutor Feedback template)</span>
                   </label>
                 </div>
               </div>
@@ -4495,14 +4479,15 @@ export default function AdminDashboard() {
                   Cancel
                 </button>
                 <button
-                  disabled={(sendDemoToTutor || sendDemoToParent) && (!assignDemoDate || !assignDemoTime)}
                   onClick={() => {
-                    handleAssignTutor(assignModalTutorId, assignDemoDate, assignDemoTime, { tutor: sendDemoToTutor, parent: sendDemoToParent });
+                    handleAssignTutor(assignModalTutorId, assignDemoDate, assignDemoTime, {
+                      feedback: sendFeedbackToParent, tutorName: assignModalTutorName,
+                    });
                     setAssignModalTutorId(null);
                   }}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold rounded-xl transition cursor-pointer text-white shadow-sm"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-xs font-bold rounded-xl transition cursor-pointer text-white shadow-sm"
                 >
-                  {sendDemoToTutor || sendDemoToParent ? "Assign & Send Template" : "Assign Only"}
+                  {sendFeedbackToParent ? "Assign & Send Feedback Form" : "Assign Only"}
                 </button>
               </div>
             </div>
@@ -6309,7 +6294,7 @@ const ICON_ACTION_TONES = {
   dark: "bg-slate-900 text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white",
 };
 
-// "Demo assign" on a parent enquiry: the admin writes the name of the tutor
+// "Send feedback form" on a parent enquiry: the admin writes the name of the tutor
 // who went for the demo, and the parent gets the Tutor Feedback template
 // (tutor_feedback_request, with its Give Feedback link) about that tutor.
 // The server checks first (dry run), then sends after the admin confirms.
@@ -6374,7 +6359,7 @@ function DemoAssignModal({ lead, tutors, onClose, onSent }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-slideFade" onClick={onClose}>
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
-        <h3 className="mb-1 text-lg font-bold text-slate-800 dark:text-white">Demo Assign · Tutor Feedback</h3>
+        <h3 className="mb-1 text-lg font-bold text-slate-800 dark:text-white">Send Feedback Form</h3>
         <p className="mb-5 text-xs font-semibold text-slate-500 dark:text-slate-400">
           {lead.parentName || "Parent"}{lead.requirementId ? ` · ${lead.requirementId}` : ""}{lead.phone ? ` · ${lead.phone}` : ""}
         </p>
