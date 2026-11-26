@@ -160,13 +160,13 @@ function locationOf(t) {
   return String(t?.city || "").trim();
 }
 
-/** "Yes (KA50EB8431)", "Yes", "No" or "" — as on the office's card. */
-function vehicleOf(t) {
-  if (t?.hasVehicle === "yes") {
-    const number = String(t?.vehicleNumber || "").trim();
-    return number ? `Yes (${number})` : "Yes";
-  }
-  return t?.hasVehicle === "no" ? "No" : "";
+/**
+ * "Yes (KA50EB8431)" when the tutor has a vehicle and its number is on file;
+ * otherwise "Paid" (no vehicle, or no vehicle number) — the owner's wording.
+ */
+export function vehicleOf(t) {
+  const number = String(t?.vehicleNumber || "").trim();
+  return String(t?.hasVehicle || "").toLowerCase() === "yes" && number ? `Yes (${number})` : "Paid";
 }
 
 /**

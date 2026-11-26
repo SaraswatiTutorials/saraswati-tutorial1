@@ -144,3 +144,14 @@ test("location: area, else the first three places without the city repeated", as
     "Brookefield, Kundalahalli, AECS Layout");
   assert.equal(tutorDetails({ locations: [], city: "Bangalore" }).Location, "Bangalore");
 });
+
+test("vehicle on the card: 'Yes (number)' with a vehicle, otherwise 'Paid'", async () => {
+  const { buildTutorCard, vehicleOf } = await import("../utils/tutorOptionsMessage.js");
+  assert.equal(vehicleOf({ hasVehicle: "yes", vehicleNumber: "KA50EB8431" }), "Yes (KA50EB8431)");
+  assert.equal(vehicleOf({ hasVehicle: "no" }), "Paid");
+  assert.equal(vehicleOf({ hasVehicle: "yes", vehicleNumber: "" }), "Paid", "no vehicle number on file");
+  assert.equal(vehicleOf({}), "Paid", "not filled in");
+  const { templateVars, messageBody } = buildTutorCard({ ...niraj, hasVehicle: "no", vehicleNumber: "" }, 1, 3);
+  assert.equal(templateVars["{{8}}"], "Paid");
+  assert.match(messageBody, /Vehicle: Paid/);
+});
