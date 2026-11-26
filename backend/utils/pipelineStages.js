@@ -479,6 +479,7 @@ function shortlistScore(score, params) {
 
 export async function shortlistTutors(lead, {
   limit = SHORTLIST_SIZE, dryRun = false, includePartial = true, radiusKm = SHORTLIST_RADIUS_KM,
+  source = "panel 2 shortlist button",
 } = {}) {
   const stage = "shortlist";
   const requirementId = lead?.requirementId || "";
@@ -673,7 +674,7 @@ export async function shortlistTutors(lead, {
     candidatesConsidered: candidates.length,
     radiusKm,
     distanceMode: distanceModeOf(tutors),
-    source: "panel 2 shortlist button",
+    source,
     matchedAt: new Date(),
   });
 
@@ -801,7 +802,7 @@ async function findCandidate(row) {
  * almost no approved tutor is, so it finds nobody. Here an approved tutor who
  * is not blocked is invited whether or not anyone ticked that box.
  */
-export async function inviteTutors(lead, { limit = INVITE_SIZE, dryRun = false, resend = false } = {}) {
+export async function inviteTutors(lead, { limit = INVITE_SIZE, dryRun = false, resend = false, adminName = "Panel 2" } = {}) {
   const stage = "invite";
   const requirementId = lead?.requirementId || "";
   if (!requirementId) return blocked(stage, "This enquiry has no requirement ID.");
@@ -917,7 +918,7 @@ export async function inviteTutors(lead, { limit = INVITE_SIZE, dryRun = false, 
       type: "whatsapp",
       message: messageBody,
       status: "Sending",
-      adminName: "Panel 2",
+      adminName, // "Panel 2" for the button; autoPipeline.js names itself
       adminEmail: "",
       distanceKm: p.distanceKm,
       distanceSource: p.distanceSource || "",

@@ -31,6 +31,7 @@ import { LOCAL_SAFE_MODE } from "../utils/localSafeMode.js";
 import { buildDataHealth, MAX_HOURS } from "../utils/dataHealth.js";
 import { buildMongoHealth } from "../utils/mongoHealth.js";
 import { buildOdooHealth } from "../utils/odooHealth.js";
+import { AUTO_BY, AUTO_SHORTLIST_SOURCE } from "../utils/autoPipeline.js";
 
 // What WhatsApp actually did with each message, read from Odoo. Our own logs
 // only record that a message was handed to Odoo; Meta can still refuse it,
@@ -389,6 +390,8 @@ router.get("/api/board", requireLogin, async (req, res) => {
           reply: l.responseStatus || "No Response",
           repliedAt: l.respondedAt || null,
           sentAt: l.time || l.createdAt || null,
+          // Sent by the automatic run after the parent said "Yes,Correct"
+          auto: l.adminName === AUTO_BY,
           failureReason: l.failureReason || "",
           delivery: delivery.get(Number(l.whatsappMessageId))?.state || "",
           deliveryError: delivery.get(Number(l.whatsappMessageId))?.reason || "",
@@ -449,6 +452,22 @@ router.get("/api/board", requireLogin, async (req, res) => {
               // "Yes,Correct" / "Change some details", from the Odoo inbound sync
               reply: reconfirm.reply || "",
               repliedAt: reconfirm.repliedAt || null,
+              // What the parent wrote after "Change some details", oldest first
+              // Automatic shortlist + top-10 invite after "Yes,Correct" (autoPipeline.js)
+              autoRun: reconfirm.autoRun
+                ? {
+                    status: reconfirm.autoRun.status || "",
+                    at: reconfirm.autoRun.finishedAt || reconfirm.autoRun.startedAt || null,
+                    shortlisted: reconfirm.autoRun.shortlisted || 0,
+                    shortlistReused: !!reconfirm.autoRun.shortlistReused,
+                    invited: reconfirm.autoRun.invited || 0,
+                    inviteFailed: reconfirm.autoRun.inviteFailed || 0,
+                    reason: reconfirm.autoRun.reason || "",
+                  }
+                : null,
+              changeRequests: (reconfirm.changeRequests || [])
+                .map((c) => ({ text: c.text || "", at: c.at || null }))
+                .sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0)),
               delivery: delivery.get(Number(reconfirm.messageId))?.state || "",
               deliveryError: delivery.get(Number(reconfirm.messageId))?.reason || "",
             }
@@ -485,6 +504,8 @@ router.get("/api/board", requireLogin, async (req, res) => {
               radiusKm: shortlist.radiusKm ?? null,
               distanceMode: shortlist.distanceMode || "",
               at: shortlist.matchedAt || null,
+              // Made by the automatic run after the parent said "Yes,Correct"
+              auto: shortlist.source === AUTO_SHORTLIST_SOURCE,
               tutors: (shortlist.tutors || []).map((t) => ({
                 rank: t.rank, name: t.name, code: t.tutorCode, score: t.score,
                 distanceKm: t.distanceKm, distanceSource: t.distanceSource || "", experience: t.experience || "",
@@ -499,6 +520,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
         invited,
         counts: {
           invited: invited.length,
+          autoInvited: invited.filter((t) => t.auto).length,
           interested: interested.length,
           notInterested: invited.filter((t) => t.reply === "Not Interested").length,
           waiting: invited.filter((t) => t.reply === "No Response").length,

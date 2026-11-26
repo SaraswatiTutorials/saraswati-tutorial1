@@ -7,6 +7,7 @@
  *   node scripts/createTutorProfileTemplate.js            show what exists, change nothing
  *   node scripts/createTutorProfileTemplate.js --create   create it as a draft
  *   node scripts/createTutorProfileTemplate.js --submit   submit the draft to Meta for approval
+ * Add --v2 to work on "Tutor Profile Card v2" (option number + spacing).
  *
  * A template that already exists is never changed.
  * The code that fills it: utils/tutorOptionsMessage.js (buildTutorCard).
@@ -19,11 +20,43 @@ const URL_ = clean(process.env.ODOO_JSONRPC_URL) || `${clean(process.env.ODOO_CO
 const DB = clean(process.env.ODOO_DB), USER = clean(process.env.ODOO_USERNAME), PASS = clean(process.env.ODOO_PASSWORD);
 const CREATE = process.argv.includes("--create");
 const SUBMIT = process.argv.includes("--submit");
+const V2 = process.argv.includes("--v2");
 
 // Sample header picture Meta reviews; every real send carries the tutor's own photo.
 const SAMPLE_HEADER = "https://saraswatitutorial.com/logo.png";
 
-export const SPEC = {
+/**
+ * v2 (25 Nov 2026): "Tutor Option 1 of 3" at the top like the old option
+ * card, a blank line between the details so they read easily, and the old
+ * card's closing line. {{1}} option number, {{2}} how many options,
+ * {{3}}–{{10}} the details.
+ */
+export const SPEC_V2 = {
+  name: "Tutor Profile Card v2",
+  template_name: "tutor_profile_card_v2",
+  body:
+    "*Tutor Option {{1}} of {{2}}*\n\n" +
+    "Dear Parent,\n" +
+    "Please find the details of the tutor assigned for your Ward.\n\n" +
+    "*Tutor Details:*\n\n" +
+    "Full Name: {{3}}\n\n" +
+    "Qualification: {{4}}\n\n" +
+    "*Teaching Experience: {{5}}*\n\n" +
+    "*Subjects Expertise: {{6}}*\n\n" +
+    "Location: {{7}}\n\n" +
+    "Vehicle: {{8}}\n\n" +
+    "Occupation: {{9}}\n\n" +
+    "Language of instruction: {{10}}\n\n" +
+    "*This tutor has been shortlisted for your registered tuition requirement.*\n\n" +
+    "_Saraswati Tutorials_",
+  demo: [
+    "1", "3",
+    "Niraj Kumar Singh", "Graduated", "15 yrs", "Maths, English, Science, Hindi, Computer",
+    "Marathahalli", "Yes (KA50EB8431)", "Lead Engineer in MNC", "English",
+  ],
+};
+
+export const SPEC_V1 = {
   name: "Tutor Profile Card",
   template_name: "tutor_profile_card",
   body:
@@ -44,6 +77,8 @@ export const SPEC = {
     "Marathahalli", "Yes (KA50EB8431)", "Lead Engineer in MNC", "English",
   ],
 };
+
+const SPEC = V2 ? SPEC_V2 : SPEC_V1;
 
 async function rpc(service, method, args) {
   const r = await fetch(URL_, { method: "POST", headers: { "Content-Type": "application/json" },

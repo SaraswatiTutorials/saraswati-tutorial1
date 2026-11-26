@@ -20,11 +20,18 @@
  *     `tutor_assignments`, which Panel 2 shows at step 5. Nothing is sent and
  *     nobody is assigned: confirming the tutor stays a button in Panel 2.
  *   • the re-confirmation ("Yes,Correct" / "Change some details"): saved on
- *     the `parent_reconfirmations` row Panel 2 shows at step 1.
+ *     the `parent_reconfirmations` row Panel 2 shows at step 1. "Yes,Correct"
+ *     then shortlists and invites the top 10 tutors on its own
+ *     (autoPipeline.js; the only thing here that can lead to a send). After
+ *     "Change some details", what the parent writes next (within 14 days) is
+ *     added to that row's `changeRequests`, so Panel 2 shows what they want
+ *     changed.
  *   • anything else: saved with route "tutor", "parent" or "human_support"
  *     depending on who the number belongs to, for a person to read.
  *
- * Nothing here sends a WhatsApp message. Templates and sending are untouched.
+ * Nothing in this file sends a WhatsApp message itself; the one exception is
+ * the automatic invite after "Yes,Correct", done by autoPipeline.js under
+ * Panel 2's own sending switch (PANEL_SENDING_ENABLED).
  * Each Odoo message is saved once (by its Odoo id and its WhatsApp id), so a
  * re-run, a restart or a revived n8n cannot count a reply twice.
  */
@@ -100,7 +107,12 @@ export async function planMessage(m, deps, now = new Date()) {
     tutorId: "",
     replyToOdooMessageId: replyTo || null,
   };
-  const plan = { row, choice: null, reconfirm: null, what: "" };
+  const plan = { row, choice: null, reconfirm: null, changeRequest: null, what: "" };
+  const asChangeRequest = (reconf) => {
+    plan.changeRequest = { id: reconf._id, text, at: row.receivedAt, inboundOdooMessageId: m.id };
+    Object.assign(row, { replyAppliedAt: now, replyIntent: "change_details_text", replyOutcome: "change_request_recorded" });
+    plan.what = `details the parent wants changed on ${reconf.requirementId}`;
+  };
 
   // 1. A reply to an invitation: the tutor reply sweep marks it.
   const invite = replyTo ? await deps.findInvite(replyTo) : null;
@@ -171,11 +183,27 @@ export async function planMessage(m, deps, now = new Date()) {
       plan.reconfirm = { id: reconf._id, reply: answer, repliedAt: row.receivedAt, inboundOdooMessageId: m.id };
       Object.assign(row, { replyAppliedAt: now, replyIntent: answer === "Yes,Correct" ? "confirmed" : "change_details", replyOutcome: "reconfirm_recorded" });
       plan.what = `parent re-confirmation "${answer}" for ${reconf.requirementId}`;
+    } else if (text) {
+      // Written in reply to the re-confirmation itself: what they want changed.
+      asChangeRequest(reconf);
     } else {
       Object.assign(row, { replyAppliedAt: now, replyIntent: "unclear", replyOutcome: "left_for_a_person" });
       plan.what = `parent message on ${reconf.requirementId} re-confirmation, left for a person`;
     }
     return plan;
+  }
+
+  // 3b. Written after tapping "Change some details": what they want changed.
+  if (text && num.length === 10) {
+    const pending = deps.findChangePending ? await deps.findChangePending({ last10: num, days: PARENT_MATCH_DAYS }) : null;
+    if (pending) {
+      Object.assign(row, {
+        route: "parent", senderType: "parent",
+        requirementId: pending.requirementId || "", parentEnquiryId: pending.leadId ? String(pending.leadId) : "",
+      });
+      asChangeRequest(pending);
+      return plan;
+    }
   }
 
   // 4. Anything else: who is it from?
@@ -208,7 +236,7 @@ export async function syncInboundMessages(deps, { dryRun = false, limit = BATCH 
   if (cursor == null) cursor = await d.startCursor();
 
   const messages = await d.fetchInbound(cursor || 0, limit);
-  const out = { ok: true, dryRun, from: cursor || 0, read: messages.length, saved: 0, skipped: 0, choices: 0, reconfirms: 0, items: [] };
+  const out = { ok: true, dryRun, from: cursor || 0, read: messages.length, saved: 0, skipped: 0, choices: 0, reconfirms: 0, changeRequests: 0, autoRuns: [], items: [] };
   let lastDone = cursor || 0;
 
   for (const m of messages) {
@@ -223,11 +251,22 @@ export async function syncInboundMessages(deps, { dryRun = false, limit = BATCH 
       await d.saveInbound(plan.row);
       if (plan.choice) await d.saveChoice(plan.choice);
       if (plan.reconfirm) await d.saveReconfirmReply(plan.reconfirm);
+      if (plan.changeRequest) await d.saveChangeRequest(plan.changeRequest);
       await d.setCursor(m.id);
+      // "Yes,Correct": shortlist and invite the top 10 on their own (autoPipeline.js)
+      if (plan.reconfirm?.reply === "Yes,Correct" && d.onConfirmed) {
+        try {
+          const auto = await d.onConfirmed(plan.reconfirm);
+          if (auto) out.autoRuns.push({ requirementId: plan.row.requirementId, ...auto });
+        } catch (err) {
+          console.error(`[InboundSync] Automatic shortlist/invite failed for ${plan.row.requirementId}:`, err.message);
+        }
+      }
     }
     out.saved += 1;
     if (plan.choice) out.choices += 1;
     if (plan.reconfirm) out.reconfirms += 1;
+    if (plan.changeRequest) out.changeRequests += 1;
     lastDone = m.id;
   }
   // A first run with nothing new still records where it starts from.
@@ -315,6 +354,20 @@ export async function defaultDeps() {
     saveReconfirmReply: ({ id, reply, repliedAt, inboundOdooMessageId }) => coll("parent_reconfirmations").updateOne(
       { _id: id }, { $set: { reply, repliedAt, replyOdooMessageId: inboundOdooMessageId } },
     ),
+    // The parent's newest re-confirmation answered "Change some details" lately
+    findChangePending: ({ last10: num, days }) => coll("parent_reconfirmations")
+      .find({ sent: true, reply: "Change some details", phone: endsWith(num), repliedAt: { $gte: since(days) } })
+      .sort({ repliedAt: -1 }).limit(1).next(),
+    // Added once per Odoo message, however often the sync runs
+    saveChangeRequest: ({ id, text, at, inboundOdooMessageId }) => coll("parent_reconfirmations").updateOne(
+      { _id: id, "changeRequests.odooMessageId": { $ne: inboundOdooMessageId } },
+      { $push: { changeRequests: { text, at, odooMessageId: inboundOdooMessageId } } },
+    ),
+    // Parent tapped "Yes,Correct": shortlist + invite the top 10 automatically
+    async onConfirmed({ id }) {
+      const { autoShortlistAndInvite } = await import("./autoPipeline.js");
+      return autoShortlistAndInvite(id);
+    },
   };
 }
 
@@ -334,7 +387,7 @@ export function startOdooInboundSync() {
       const r = await syncInboundMessages();
       if (r.saved) {
         console.log(`[InboundSync] Saved ${r.saved} message(s) from Odoo (#${r.from}→#${r.to}); ` +
-          `${r.choices} parent choice(s), ${r.reconfirms} re-confirmation(s).`);
+          `${r.choices} parent choice(s), ${r.reconfirms} re-confirmation(s), ${r.changeRequests} change request(s).`);
         const { sweepTutorReplies } = await import("./tutorReplyScheduler.js");
         await sweepTutorReplies();
       }

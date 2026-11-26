@@ -1,7 +1,8 @@
-// Tutor cards to the parent: the "Tutor Profile Card" template with the
-// tutor's profile photo as the header (sent by the code), the details laid out
-// like the office's card, and every tutor gets one. A student is shown as
-// "Tutor". WhatsApp is mocked: nothing is sent.
+// Tutor cards to the parent: the "Tutor Profile Card v2" template with the
+// tutor's profile photo as the header (sent by the code), "Tutor Option n of
+// total" at the top, the details laid out like the office's card with a blank
+// line between them, and every tutor gets one. A student is shown as "Tutor".
+// WhatsApp is mocked: nothing is sent.
 import { test, mock, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
@@ -38,34 +39,50 @@ const niraj = {
   languages: ["English"], photo: "https://example.test/niraj.jpg",
 };
 
-test("every tutor gets a profile card with a picture: their photo, else the logo", async () => {
+test("every tutor gets a v2 card: photo (else logo) and Tutor Option 1/2/3 of 3", async () => {
   const { sendTutorCards, DEFAULT_CARD_PHOTO } = await import("../utils/tutorOptionsMessage.js");
   const r = await sendTutorCards(lead, tutors, noProfiles);
   assert.equal(r.sent, 3);
-  assert.equal(r.templateName, "tutor_profile_card");
+  assert.equal(r.templateName, "tutor_profile_card_v2");
   assert.deepEqual(sent.map((s) => s.headerImageUrl), ["https://example.test/a.jpg", DEFAULT_CARD_PHOTO, DEFAULT_CARD_PHOTO]);
+  assert.deepEqual(sent.map((s) => [s.templateVars["{{1}}"], s.templateVars["{{2}}"]]), [["1", "3"], ["2", "3"], ["3", "3"]]);
   for (const s of sent) {
-    assert.equal(s.templateName, "tutor_profile_card");
+    assert.equal(s.templateName, "tutor_profile_card_v2");
     assert.equal(s.forceTemplate, true);
   }
 });
 
-test("profile card fills {{1}}–{{8}} like the office's card", async () => {
+test("v2 card: {{1}}/{{2}} option number, {{3}}–{{10}} the details, spaced out", async () => {
   const { buildTutorCard } = await import("../utils/tutorOptionsMessage.js");
-  const { templateVars, messageBody, headerImageUrl } = buildTutorCard(niraj, 1, 1);
+  const { templateVars, messageBody, headerImageUrl } = buildTutorCard(niraj, 2, 3);
   assert.deepEqual(templateVars, {
-    "{{1}}": "Niraj Kumar Singh",
-    "{{2}}": "Graduated",
-    "{{3}}": "15yrs",
-    "{{4}}": "Maths, English, Science, Hindi, Computer",
-    "{{5}}": "Marathahalli",
-    "{{6}}": "Yes (KA50EB8431)",
-    "{{7}}": "Lead Engineer in MNC",
-    "{{8}}": "English",
+    "{{1}}": "2",
+    "{{2}}": "3",
+    "{{3}}": "Niraj Kumar Singh",
+    "{{4}}": "Graduated",
+    "{{5}}": "15yrs",
+    "{{6}}": "Maths, English, Science, Hindi, Computer",
+    "{{7}}": "Marathahalli",
+    "{{8}}": "Yes (KA50EB8431)",
+    "{{9}}": "Lead Engineer in MNC",
+    "{{10}}": "English",
   });
   assert.equal(headerImageUrl, "https://example.test/niraj.jpg");
-  assert.match(messageBody, /^Dear Parent,\nPlease find the details of the tutor assigned for your Ward\.\n\n\*Tutor Details:\*\n\nFull Name: Niraj Kumar Singh\n/);
+  assert.match(messageBody, /^\*Tutor Option 2 of 3\*\n\nDear Parent,/);
+  assert.match(messageBody, /Full Name: Niraj Kumar Singh\n\nQualification: Graduated\n\n\*Teaching Experience: 15yrs\*\n\n/);
+  assert.match(messageBody, /This tutor has been shortlisted for your registered tuition requirement/);
   for (const v of Object.values(templateVars)) assert.ok(!v.includes("\n"));
+});
+
+test("while v2 awaits Meta, the approved v1 card fills its eight {{1}}–{{8}}", async () => {
+  approved = (names) => names[1];
+  const { sendTutorCards } = await import("../utils/tutorOptionsMessage.js");
+  const r = await sendTutorCards(lead, [niraj], noProfiles);
+  assert.equal(r.templateName, "tutor_profile_card");
+  assert.equal(Object.keys(sent[0].templateVars).length, 8);
+  assert.equal(sent[0].templateVars["{{1}}"], "Niraj Kumar Singh");
+  assert.equal(sent[0].templateVars["{{6}}"], "Yes (KA50EB8431)");
+  assert.equal(sent[0].templateVars["{{8}}"], "English");
 });
 
 test("a student is shown as Tutor", async () => {
@@ -74,12 +91,12 @@ test("a student is shown as Tutor", async () => {
   assert.equal(displayOccupation("college student"), "Tutor");
   assert.equal(displayOccupation("School Teacher"), "School Teacher");
   const { templateVars, messageBody } = buildTutorCard({ name: "Asha", occupation: "Student" }, 1, 1);
-  assert.equal(templateVars["{{7}}"], "Tutor");
+  assert.equal(templateVars["{{9}}"], "Tutor");
   assert.doesNotMatch(messageBody, /Student/);
 });
 
-test("until Meta approves the profile card, Tutor Option Card2 goes instead", async () => {
-  approved = (names) => names[1];
+test("if neither profile card were approved, Tutor Option Card2 (if restored) goes instead", async () => {
+  approved = (names) => names[2];
   const { sendTutorCards } = await import("../utils/tutorOptionsMessage.js");
   const r = await sendTutorCards(lead, [{ ...niraj, distanceKm: 2, occupation: "Student" }], noProfiles);
   assert.equal(r.templateName, "tutor_option_card2");
@@ -95,9 +112,9 @@ test("stored profile fills what the caller left out", async () => {
     loadProfiles: async () => new Map([["TUT0001", { qualification: "M.Sc", occupation: "Student", photo: "https://example.test/p.jpg" }]]),
   });
   assert.equal(sent[0].headerImageUrl, "https://example.test/p.jpg");
-  assert.equal(sent[0].templateVars["{{1}}"], "Tutor A");
-  assert.equal(sent[0].templateVars["{{2}}"], "M.Sc");
-  assert.equal(sent[0].templateVars["{{7}}"], "Tutor");
+  assert.equal(sent[0].templateVars["{{3}}"], "Tutor A");
+  assert.equal(sent[0].templateVars["{{4}}"], "M.Sc");
+  assert.equal(sent[0].templateVars["{{9}}"], "Tutor");
 });
 
 test("header photo: JPG/PNG as is, WEBP asked for as JPG, a PDF or nothing gets the logo", async () => {
@@ -126,4 +143,15 @@ test("location: area, else the first three places without the city repeated", as
   assert.equal(tutorDetails({ locations: ["Brookefield, Bangalore", "Kundalahalli, Bangalore", "AECS Layout, Bangalore", "Whitefield, Bangalore"] }).Location,
     "Brookefield, Kundalahalli, AECS Layout");
   assert.equal(tutorDetails({ locations: [], city: "Bangalore" }).Location, "Bangalore");
+});
+
+test("vehicle on the card: 'Yes (number)' with a vehicle, otherwise 'Paid'", async () => {
+  const { buildTutorCard, vehicleOf } = await import("../utils/tutorOptionsMessage.js");
+  assert.equal(vehicleOf({ hasVehicle: "yes", vehicleNumber: "KA50EB8431" }), "Yes (KA50EB8431)");
+  assert.equal(vehicleOf({ hasVehicle: "no" }), "Paid");
+  assert.equal(vehicleOf({ hasVehicle: "yes", vehicleNumber: "" }), "Paid", "no vehicle number on file");
+  assert.equal(vehicleOf({}), "Paid", "not filled in");
+  const { templateVars, messageBody } = buildTutorCard({ ...niraj, hasVehicle: "no", vehicleNumber: "" }, 1, 3);
+  assert.equal(templateVars["{{8}}"], "Paid");
+  assert.match(messageBody, /Vehicle: Paid/);
 });

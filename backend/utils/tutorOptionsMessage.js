@@ -75,11 +75,17 @@ export function buildTutorOptions(lead, tutors) {
 }
 
 /**
- * Odoo templates for the tutor cards, preferred first. Both have an image
+ * Odoo templates for the tutor cards, preferred first. All have an image
  * header, which the code fills with the tutor's profile photo on every send
  * (headerImageUrl), the same way the photo cards always worked.
  *
- * "tutor_profile_card" (Tutor Profile Card, created 25 Nov 2026 from the
+ * "tutor_profile_card_v2" (Tutor Profile Card v2, #146, 25 Nov 2026; ten
+ * variables): "Tutor Option {{1}} of {{2}}" at the top like the old option
+ * card, a blank line between the details, and the old card's closing line
+ * "This tutor has been shortlisted for your registered tuition requirement."
+ *   {{3}} Full Name … {{10}} Language of instruction
+ *
+ * "tutor_profile_card" (Tutor Profile Card, #145, approved 25 Nov 2026 from the
  * office's design; eight variables):
  *   Dear Parent, / Please find the details of the tutor assigned for your Ward.
  *   *Tutor Details:* / Full Name: {{1}} / Qualification: {{2}} /
@@ -92,10 +98,11 @@ export function buildTutorOptions(lead, tutors) {
  *   Here is Tutor Option {{1}} ... *Tutor Details:* {{2}} /
  *   Experience: {{3}} / Distance from your location: {{4}}
  */
+export const TUTOR_PROFILE_TEMPLATE_V2 = "tutor_profile_card_v2";
 export const TUTOR_PROFILE_TEMPLATE = "tutor_profile_card";
 export const TUTOR_OPTION_CARD_FALLBACK = "tutor_option_card2";
-export const TUTOR_CARD_TEMPLATES = [TUTOR_PROFILE_TEMPLATE, TUTOR_OPTION_CARD_FALLBACK];
-export const TUTOR_CARD_TEMPLATE = TUTOR_PROFILE_TEMPLATE;
+export const TUTOR_CARD_TEMPLATES = [TUTOR_PROFILE_TEMPLATE_V2, TUTOR_PROFILE_TEMPLATE, TUTOR_OPTION_CARD_FALLBACK];
+export const TUTOR_CARD_TEMPLATE = TUTOR_PROFILE_TEMPLATE_V2;
 
 /**
  * Header picture for a tutor with no profile photo on file. An image-header
@@ -153,13 +160,13 @@ function locationOf(t) {
   return String(t?.city || "").trim();
 }
 
-/** "Yes (KA50EB8431)", "Yes", "No" or "" — as on the office's card. */
-function vehicleOf(t) {
-  if (t?.hasVehicle === "yes") {
-    const number = String(t?.vehicleNumber || "").trim();
-    return number ? `Yes (${number})` : "Yes";
-  }
-  return t?.hasVehicle === "no" ? "No" : "";
+/**
+ * "Yes (KA50EB8431)" when the tutor has a vehicle and its number is on file;
+ * otherwise "Paid" (no vehicle, or no vehicle number) — the owner's wording.
+ */
+export function vehicleOf(t) {
+  const number = String(t?.vehicleNumber || "").trim();
+  return String(t?.hasVehicle || "").toLowerCase() === "yes" && number ? `Yes (${number})` : "Paid";
 }
 
 /**
@@ -183,23 +190,47 @@ export function tutorDetails(t) {
  * `templateName` picks which template's variables to fill (see
  * TUTOR_CARD_TEMPLATES); the profile card is the default.
  */
-export function buildTutorCard(t, position, total, templateName = TUTOR_PROFILE_TEMPLATE) {
+export function buildTutorCard(t, position, total, templateName = TUTOR_PROFILE_TEMPLATE_V2) {
   const d = tutorDetails(t);
   const headerImageUrl = cardPhotoUrl(t?.photo);
+  const dash = (v) => v || "—";
 
-  // Same layout as the template (shown in dry runs).
+  // Same layout as the v2 template (shown in dry runs).
   const messageBody =
+    `*Tutor Option ${position} of ${total}*\n\n` +
     `Dear Parent,\nPlease find the details of the tutor assigned for your Ward.\n\n` +
     `*Tutor Details:*\n\n` +
-    `Full Name: ${d["Full Name"]}\n` +
-    `Qualification: ${d.Qualification}\n` +
-    `*Teaching Experience: ${d["Teaching Experience"]}*\n` +
-    `*Subjects Expertise: ${d["Subjects Expertise"]}*\n` +
-    `Location: ${d.Location}\n` +
-    `Vehicle: ${d.Vehicle}\n` +
-    `Occupation: ${d.Occupation}\n` +
-    `Language of instruction: ${d["Language of instruction"]}\n\n` +
+    `Full Name: ${dash(d["Full Name"])}\n\n` +
+    `Qualification: ${dash(d.Qualification)}\n\n` +
+    `*Teaching Experience: ${dash(d["Teaching Experience"])}*\n\n` +
+    `*Subjects Expertise: ${dash(d["Subjects Expertise"])}*\n\n` +
+    `Location: ${dash(d.Location)}\n\n` +
+    `Vehicle: ${dash(d.Vehicle)}\n\n` +
+    `Occupation: ${dash(d.Occupation)}\n\n` +
+    `Language of instruction: ${dash(d["Language of instruction"])}\n\n` +
+    `*This tutor has been shortlisted for your registered tuition requirement.*\n\n` +
     `_Saraswati Tutorials_`;
+
+  if (templateName === TUTOR_PROFILE_TEMPLATE_V2) {
+    return {
+      templateName,
+      // Keyed by placeholder; Odoo's free_text_n fills {{n}}.
+      templateVars: {
+        "{{1}}": String(position),
+        "{{2}}": String(total),
+        "{{3}}": d["Full Name"],
+        "{{4}}": d.Qualification,
+        "{{5}}": d["Teaching Experience"],
+        "{{6}}": d["Subjects Expertise"],
+        "{{7}}": d.Location,
+        "{{8}}": d.Vehicle,
+        "{{9}}": d.Occupation,
+        "{{10}}": d["Language of instruction"],
+      },
+      headerImageUrl,
+      messageBody,
+    };
+  }
 
   if (templateName === TUTOR_OPTION_CARD_FALLBACK) {
     const distance = t?.distanceKm != null ? `${t.distanceKm} km` : "";
@@ -275,7 +306,7 @@ export async function chooseCardTemplate() {
 }
 
 /** The cards for up to three tutors, with their stored profiles filled in. */
-export async function prepareTutorCards(tutors, { loadProfiles = loadTutorProfiles, templateName = TUTOR_PROFILE_TEMPLATE } = {}) {
+export async function prepareTutorCards(tutors, { loadProfiles = loadTutorProfiles, templateName = TUTOR_PROFILE_TEMPLATE_V2 } = {}) {
   const offered = (tutors || []).slice(0, 3);
   let profiles = new Map();
   try {
