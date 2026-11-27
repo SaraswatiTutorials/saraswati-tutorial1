@@ -20,18 +20,20 @@
  *     `tutor_assignments`, which Panel 2 shows at step 5. Nothing is sent and
  *     nobody is assigned: confirming the tutor stays a button in Panel 2.
  *   • the re-confirmation ("Yes,Correct" / "Change some details"): saved on
- *     the `parent_reconfirmations` row Panel 2 shows at step 1. "Yes,Correct"
- *     then shortlists and invites the top 10 tutors on its own
- *     (autoPipeline.js; the only thing here that can lead to a send). After
- *     "Change some details", what the parent writes next (within 14 days) is
- *     added to that row's `changeRequests`, so Panel 2 shows what they want
- *     changed.
+ *     the `parent_reconfirmations` row Panel 2 shows at step 1. The parent
+ *     then gets the matching automatic template once (reconfirmReply.js):
+ *     "Auto_Demo Booked Confirmation" or "Auto_Change Requirement Details".
+ *     "Yes,Correct" also shortlists and invites the top 10 tutors on its own
+ *     (autoPipeline.js). After "Change some details", what the parent writes
+ *     next (within 14 days) is added to that row's `changeRequests`, so
+ *     Panel 2 shows what they want changed.
  *   • anything else: saved with route "tutor", "parent" or "human_support"
  *     depending on who the number belongs to, for a person to read.
  *
- * Nothing in this file sends a WhatsApp message itself; the one exception is
- * the automatic invite after "Yes,Correct", done by autoPipeline.js under
- * Panel 2's own sending switch (PANEL_SENDING_ENABLED).
+ * Nothing in this file sends a WhatsApp message itself; the exceptions are
+ * the parent's automatic reply (reconfirmReply.js) and the automatic invite
+ * after "Yes,Correct" (autoPipeline.js), both under Panel 2's own sending
+ * switch (PANEL_SENDING_ENABLED).
  * Each Odoo message is saved once (by its Odoo id and its WhatsApp id), so a
  * re-run, a restart or a revived n8n cannot count a reply twice.
  */
@@ -236,7 +238,7 @@ export async function syncInboundMessages(deps, { dryRun = false, limit = BATCH 
   if (cursor == null) cursor = await d.startCursor();
 
   const messages = await d.fetchInbound(cursor || 0, limit);
-  const out = { ok: true, dryRun, from: cursor || 0, read: messages.length, saved: 0, skipped: 0, choices: 0, reconfirms: 0, changeRequests: 0, autoRuns: [], items: [] };
+  const out = { ok: true, dryRun, from: cursor || 0, read: messages.length, saved: 0, skipped: 0, choices: 0, reconfirms: 0, changeRequests: 0, autoRuns: [], autoReplies: [], items: [] };
   let lastDone = cursor || 0;
 
   for (const m of messages) {
@@ -253,6 +255,17 @@ export async function syncInboundMessages(deps, { dryRun = false, limit = BATCH 
       if (plan.reconfirm) await d.saveReconfirmReply(plan.reconfirm);
       if (plan.changeRequest) await d.saveChangeRequest(plan.changeRequest);
       await d.setCursor(m.id);
+      // The parent's automatic reply: "Auto_Demo Booked Confirmation" after
+      // "Yes,Correct", "Auto_Change Requirement Details" after "Change some
+      // details" (reconfirmReply.js; once per answer)
+      if (plan.reconfirm && d.onReconfirmAnswer) {
+        try {
+          const reply = await d.onReconfirmAnswer(plan.reconfirm);
+          if (reply) out.autoReplies.push({ requirementId: plan.row.requirementId, ...reply });
+        } catch (err) {
+          console.error(`[InboundSync] Automatic reply to the parent failed for ${plan.row.requirementId}:`, err.message);
+        }
+      }
       // "Yes,Correct": shortlist and invite the top 10 on their own (autoPipeline.js)
       if (plan.reconfirm?.reply === "Yes,Correct" && d.onConfirmed) {
         try {
@@ -363,6 +376,11 @@ export async function defaultDeps() {
       { _id: id, "changeRequests.odooMessageId": { $ne: inboundOdooMessageId } },
       { $push: { changeRequests: { text, at, odooMessageId: inboundOdooMessageId } } },
     ),
+    // Parent answered the re-confirmation: send them the matching template
+    async onReconfirmAnswer({ id }) {
+      const { sendReconfirmReply } = await import("./reconfirmReply.js");
+      return sendReconfirmReply(id);
+    },
     // Parent tapped "Yes,Correct": shortlist + invite the top 10 automatically
     async onConfirmed({ id }) {
       const { autoShortlistAndInvite } = await import("./autoPipeline.js");

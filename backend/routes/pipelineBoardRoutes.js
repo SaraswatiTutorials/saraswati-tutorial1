@@ -452,7 +452,15 @@ router.get("/api/board", requireLogin, async (req, res) => {
               // "Yes,Correct" / "Change some details", from the Odoo inbound sync
               reply: reconfirm.reply || "",
               repliedAt: reconfirm.repliedAt || null,
-              // What the parent wrote after "Change some details", oldest first
+              // The parent's automatic reply template (reconfirmReply.js):
+              // demoBooked after "Yes,Correct", changeDetails after "Change some details"
+              autoReplies: Object.fromEntries(Object.entries(reconfirm.autoReplies || {}).map(([k, v]) => [k, {
+                status: v?.status || "",
+                label: v?.label || "",
+                templateName: v?.templateName || "",
+                at: v?.at || v?.startedAt || null,
+                reason: v?.reason || "",
+              }])),
               // Automatic shortlist + top-10 invite after "Yes,Correct" (autoPipeline.js)
               autoRun: reconfirm.autoRun
                 ? {
@@ -465,6 +473,7 @@ router.get("/api/board", requireLogin, async (req, res) => {
                     reason: reconfirm.autoRun.reason || "",
                   }
                 : null,
+              // What the parent wrote after "Change some details", oldest first
               changeRequests: (reconfirm.changeRequests || [])
                 .map((c) => ({ text: c.text || "", at: c.at || null }))
                 .sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0)),

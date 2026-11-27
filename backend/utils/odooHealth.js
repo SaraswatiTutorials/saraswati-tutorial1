@@ -24,6 +24,7 @@ import { REQUIREMENT_TEMPLATES, templateLookupDomain, toOdooDatetime } from "./w
 import { TUTOR_OPTIONS_TEMPLATES, TUTOR_CARD_TEMPLATES } from "./tutorOptionsMessage.js";
 import { RECONFIRM_TEMPLATE, SELECTION_TEMPLATE } from "./pipelineStages.js";
 import { termsTemplateName } from "./termsTemplate.js";
+import { DEMO_BOOKED_TEMPLATE, CHANGE_DETAILS_TEMPLATE } from "./reconfirmReply.js";
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -213,6 +214,8 @@ export function templateChecklist(env = process.env) {
   const pinnedInvite = env.WHATSAPP_REQUIREMENT_TEMPLATE_NAME || "";
   return [
     { key: "reconfirm", use: "Step 1: reconfirm with the parent", names: [RECONFIRM_TEMPLATE], core: true },
+    { key: "demoBooked", use: "Step 1: automatic reply when the parent taps Yes,Correct", names: [DEMO_BOOKED_TEMPLATE] },
+    { key: "changeDetails", use: "Step 1: automatic reply when the parent taps Change some details", names: [CHANGE_DETAILS_TEMPLATE] },
     { key: "invite", use: "Step 3: invite tutors", names: [...new Set([pinnedInvite, ...REQUIREMENT_TEMPLATES].filter(Boolean))], anyOf: true, core: true },
     { key: "cards", use: "Step 4: tutor profile cards to the parent (photo header)", names: env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME ? [env.WHATSAPP_TUTOR_CARD_TEMPLATE_NAME] : TUTOR_CARD_TEMPLATES, anyOf: true, core: true },
     { key: "options", use: "Step 4: top 3 list to the parent",

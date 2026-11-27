@@ -1287,15 +1287,29 @@ function autoRunText(a) {
     "<br>You can go ahead with <b>Shortlist tutors</b> (step 2) by hand.";
 }
 
+// The automatic template sent to the parent after their answer (reconfirmReply.js).
+function autoReplyText(a, label) {
+  if (!a) return "";
+  const at = a.at ? ' <span class="when">' + esc(when(a.at)) + "</span>" : "";
+  const name = "<b>" + esc(a.label || label) + "</b>";
+  if (a.status === "sent") return "<br>📨 " + name + " template sent to the parent automatically" + at + ".";
+  if (a.status === "sending") return "<br>⏳ Sending " + name + " to the parent…";
+  if (a.status === "held") return "<br>⏸️ " + name + " not sent: " + esc(a.reason) + at;
+  return "<br>⚠️ " + name + " was not sent to the parent: " + esc(a.reason || a.status) + at;
+}
+
 // The parent's answer to the re-confirmation: go ahead, or what to change.
 function reconfirmAnswerBlock(r) {
   if (!r || !r.sent || !r.reply) return "";
+  const replies = r.autoReplies || {};
   if (r.reply === "Yes,Correct") {
     return '<div class="answer ok">✅ Parent replied <b>Yes, Correct</b>' + (r.repliedAt ? ' <span class="when">' + esc(when(r.repliedAt)) + "</span>" : "") +
+      autoReplyText(replies.demoBooked, "Demo Booked Confirmation") +
       "<br>" + autoRunText(r.autoRun) + "</div>";
   }
   const asks = r.changeRequests || [];
   return '<div class="answer change">✏️ Parent replied <b>Change some details</b>' + (r.repliedAt ? ' <span class="when">' + esc(when(r.repliedAt)) + "</span>" : "") +
+    autoReplyText(replies.changeDetails, "Change Requirement Details") +
     (asks.length
       ? "<br>What the parent wants changed:<ul>" +
         asks.map((c) => "<li>" + esc(c.text) + (c.at ? ' <span class="when">' + esc(when(c.at)) + "</span>" : "") + "</li>").join("") + "</ul>"
