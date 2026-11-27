@@ -263,3 +263,55 @@ test("a failure in the automatic run does not stop the sync", async () => {
   assert.equal(r.saved, 1);
   assert.equal(w.state.cursor, 4100);
 });
+
+// ---- The parent's automatic reply (reconfirmReply.js) ---------------------
+
+function replyWorld(text) {
+  const w = confirmWorld(text);
+  w.state.replied = [];
+  w.deps.onReconfirmAnswer = async (rc) => { w.state.replied.push(rc.reply); return { key: "k", sent: true, status: "sent" }; };
+  return w;
+}
+
+test("'Yes,Correct' sends the parent's automatic reply, before the shortlist", async () => {
+  const w = replyWorld("Yes,Correct");
+  const order = [];
+  const reply = w.deps.onReconfirmAnswer;
+  w.deps.onReconfirmAnswer = async (rc) => { order.push("reply"); return reply(rc); };
+  const started = w.deps.onConfirmed;
+  w.deps.onConfirmed = async (rc) => { order.push("shortlist"); return started(rc); };
+  const r = await syncInboundMessages(w.deps);
+  assert.deepEqual(w.state.replied, ["Yes,Correct"]);
+  assert.deepEqual(order, ["reply", "shortlist"]);
+  assert.equal(r.autoReplies.length, 1);
+});
+
+test("'Change some details' also sends the parent's automatic reply", async () => {
+  const w = replyWorld("Change some details");
+  await syncInboundMessages(w.deps);
+  assert.deepEqual(w.state.replied, ["Change some details"]);
+});
+
+test("a preview never sends the automatic reply", async () => {
+  const w = replyWorld("Yes,Correct");
+  await syncInboundMessages(w.deps, { dryRun: true });
+  assert.deepEqual(w.state.replied, []);
+});
+
+test("a failed automatic reply does not stop the shortlist or the sync", async () => {
+  const w = replyWorld("Yes,Correct");
+  w.deps.onReconfirmAnswer = async () => { throw new Error("boom"); };
+  const r = await syncInboundMessages(w.deps);
+  assert.deepEqual(w.state.started, ["rc9"]);
+  assert.equal(w.state.cursor, 4100);
+  assert.equal(r.saved, 1);
+});
+
+test("a typed message after 'Change some details' sends no automatic reply", async () => {
+  const w = replyWorld("Please change the timing to 6pm");
+  w.state.changes = [];
+  w.deps.saveChangeRequest = async (c) => { w.state.changes.push(c.text); };
+  await syncInboundMessages(w.deps);
+  assert.deepEqual(w.state.changes, ["Please change the timing to 6pm"]);
+  assert.deepEqual(w.state.replied, []);
+});
