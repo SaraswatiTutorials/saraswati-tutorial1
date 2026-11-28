@@ -29,11 +29,9 @@ import {
   Laptop,
   Home,
   Video,
-  Users,
   Smile,
   Compass,
   TrendingUp,
-  RefreshCw,
   MessageSquare
 } from "lucide-react";
 import "@fontsource-variable/plus-jakarta-sans";
@@ -117,10 +115,11 @@ const initialForm = {
   houseDetails: "",
   latitude: null,
   longitude: null,
-  preferredGender: "",
+  // "Any" (stored as "Flexible") is the recommended choice, so it starts selected
+  preferredGender: "Flexible",
   preferredMode: "",
-  // No timing is pre-selected: the parent must choose "Fixed Timing" or "Flexible"
-  classTimingType: "",
+  // Classes always have a fixed time; the parent picks the start time on step 3
+  classTimingType: "Fixed Timing",
   classTimingSlot: "",
   preferredDays: [],
   preferredTime: "",
@@ -197,30 +196,26 @@ const getCurriculumOptions = (classGrade) => {
   return ["CBSE", "ICSE", "IGCSE", "IB", "NIOS", "ISC", "State Board", "Other"];
 };
 
+// Subject chips. `value` is what gets saved; it keeps the full names tutor profiles
+// and earlier enquiries use (e.g. "Mathematics"), so tutor matching still lines up.
 const subjectOptions = [
-  "Mathematics",
-  "Science",
-  "Physics",
-  "Chemistry",
-  "Biology",
-  "English",
-  "Hindi",
-  "Kannada",
-  "Sanskrit",
-  "Social Studies",
-  "History",
-  "Geography",
-  "Economics",
-  "Political Science",
-  "Accountancy",
-  "Business Studies",
-  "Computer Science",
-  "Informatics Practices",
-  "Programming",
-  "Statistics",
-  "French",
-  "German",
-  "Spoken English",
+  { label: "Maths", value: "Mathematics" },
+  { label: "Science", value: "Science" },
+  { label: "Physics", value: "Physics" },
+  { label: "Chemistry", value: "Chemistry" },
+  { label: "Biology", value: "Biology" },
+  { label: "Social", value: "Social Studies" },
+  { label: "EVS", value: "EVS" },
+  { label: "English", value: "English" },
+  { label: "Hindi", value: "Hindi" },
+  { label: "Tamil", value: "Tamil" },
+  { label: "Kannada", value: "Kannada" },
+  { label: "Marathi", value: "Marathi" },
+  { label: "Telugu", value: "Telugu" },
+  { label: "French", value: "French" },
+  { label: "Sanskrit", value: "Sanskrit" },
+  { label: "Computers", value: "Computer Science" },
+  { label: "Accounts", value: "Accountancy" },
 ];
 
 const preferredModeOptions = [
@@ -289,8 +284,6 @@ const formatSlotLabel = (start, hours) => {
 
 // Error for the step 3 class timing choice, or "" when it is complete
 const getTimingError = (form) => {
-  if (!form.classTimingType) return "Please choose a class timing: a fixed time or flexible.";
-  if (form.classTimingType !== "Fixed Timing") return "";
   if (!form.startTime) return "Please pick a class start time.";
   if (!calculateDuration(form.startTime, form.endTime)) {
     return "The class must end before midnight. Please pick an earlier start time.";
@@ -688,8 +681,9 @@ export default function ParentEnquiryForm() {
         // Drafts saved before the timing had to be chosen carry pre-filled
         // defaults (marked by classTimingMode); drop them so the parent picks one.
         const { classTimingMode, ...savedForm } = saved.form;
-        const timingReset = classTimingMode
-          ? { classTimingType: "", classTimingSlot: "", startTime: "", endTime: "", classDuration: "" }
+        // Flexible timing is no longer offered, so a draft that chose it starts with no time picked.
+        const timingReset = classTimingMode || savedForm.classTimingType !== "Fixed Timing"
+          ? { classTimingType: "Fixed Timing", classTimingSlot: "", startTime: "", endTime: "", classDuration: "" }
           : {};
         const wards = Array.isArray(savedForm.wards)
           ? savedForm.wards.map((w) => ({ ...w, classGrade: normalizeClassGrade(w?.classGrade) }))
@@ -1597,7 +1591,7 @@ export default function ParentEnquiryForm() {
                   <button
                     type="button"
                     onClick={addWard}
-                    className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-slate-300 transition hover:-translate-y-0.5 hover:bg-black cursor-pointer active:scale-95 flex items-center gap-2"
+                    className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-slate-300 dark:shadow-none transition hover:-translate-y-0.5 hover:bg-black dark:bg-blue-600 dark:hover:bg-blue-500 cursor-pointer active:scale-95 flex items-center gap-2"
                   >
                     <User className="h-4.5 w-4.5" /> + Add Another Student
                   </button>
@@ -1678,7 +1672,7 @@ export default function ParentEnquiryForm() {
                           )}
 
                           <SubjectsMultiSelect
-                            label={requiredLabel("Subjects Required")}
+                            label={requiredLabel("Subjects Needed")}
                             options={subjectOptions}
                             selectedValues={ward.subjectsNeeded}
                             onChange={(newValues) => {
@@ -1715,9 +1709,7 @@ export default function ParentEnquiryForm() {
                                 [`wards.${index}.subjectsNeeded`]: "",
                               }));
                             }}
-                            placeholder="Select subjects"
                             error={errors[`wards.${index}.subjectsNeeded`]}
-                            icon={BookOpen}
                           />
 
 
@@ -1767,39 +1759,39 @@ export default function ParentEnquiryForm() {
                   </AnimatePresence>
                 </motion.div>
 
-                {/* Preferred Gender Selector Sliding Tabs */}
+                {/* Preferred tutor gender: "Any" is stored as "Flexible" (what the backend and Odoo expect) */}
                 <motion.div variants={itemVariants} className="space-y-3 rounded-[2.2rem] border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md p-5 shadow-sm dark:shadow-none md:p-7">
-                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-200">
-                    {requiredLabel("Preferred Gender of Tutor")}
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-400">
+                    {requiredLabel("Tutor Gender Preference")}
                   </label>
-                  <div className="relative flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1.5 border border-slate-200/50 dark:border-slate-700">
+                  <div className="grid grid-cols-3 gap-3 pt-2">
                     {[
-                      { id: "Male", label: "Male Tutor", icon: User },
-                      { id: "Female", label: "Female Tutor", icon: User },
-                      { id: "Flexible", label: "Flexible", icon: Users }
+                      { id: "Flexible", label: "Any", emoji: "🤝", recommended: true },
+                      { id: "Male", label: "Male", emoji: "👨‍🏫" },
+                      { id: "Female", label: "Female", emoji: "👩‍🏫" },
                     ].map((gender) => {
                       const isSelected = form.preferredGender === gender.id;
-                      const GenderIcon = gender.icon;
                       return (
                         <button
                           type="button"
                           key={gender.id}
+                          aria-pressed={isSelected}
                           onClick={() => {
                             setForm(prev => ({ ...prev, preferredGender: gender.id }));
                             setErrors(prev => ({ ...prev, preferredGender: "" }));
                           }}
-                          className={`relative flex flex-1 items-center justify-center gap-2 py-3 px-3 text-xs font-extrabold rounded-xl transition-all duration-300 cursor-pointer z-10 ${
-                            isSelected ? "text-white" : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                          className={`relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border px-3 py-5 text-sm font-bold transition-all duration-200 cursor-pointer ${
+                            isSelected
+                              ? "border-blue-600 bg-blue-50 text-blue-700 ring-2 ring-blue-500/20 dark:border-blue-500 dark:bg-blue-950/40 dark:text-blue-300"
+                              : "border-slate-200 bg-slate-50/60 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300 dark:hover:border-slate-600"
                           }`}
                         >
-                          {isSelected && (
-                            <motion.div
-                              layoutId="activeGenderBg"
-                              className="absolute inset-0 bg-slate-900 dark:bg-blue-600 rounded-xl -z-10 shadow-sm"
-                              transition={{ type: "spring", stiffness: 350, damping: 28 }}
-                            />
+                          {gender.recommended && (
+                            <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-blue-700 px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm">
+                              Recommended
+                            </span>
                           )}
-                          <GenderIcon className="h-4 w-4" />
+                          <span className="text-2xl leading-none" aria-hidden="true">{gender.emoji}</span>
                           <span>{gender.label}</span>
                         </button>
                       );
@@ -1909,7 +1901,7 @@ export default function ParentEnquiryForm() {
                             <div className={`p-4 rounded-2xl ${
                               form.planType === 'foundation' ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200' :
                               form.planType === 'advance' ? 'bg-amber-100 text-amber-700' :
-                              'bg-slate-900 text-white'
+                              'bg-slate-900 text-white dark:bg-slate-700 dark:ring-1 dark:ring-amber-300/40'
                             }`}>
                               {form.planType === 'elite' ? <Award className="h-8 w-8" /> : <Star className="h-8 w-8" />}
                             </div>
@@ -2441,7 +2433,7 @@ export default function ParentEnquiryForm() {
                                   type="button"
                                   onClick={() => handleChoosePlan(activePlanData)}
                                   disabled={!selectedOption}
-                                  className="w-full flex h-10 items-center justify-center gap-2 rounded-xl font-black text-xs transition-all duration-300 bg-slate-900 text-white hover:bg-black active:scale-[0.98] shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  className="w-full flex h-10 items-center justify-center gap-2 rounded-xl font-black text-xs transition-all duration-300 bg-slate-900 text-white hover:bg-black dark:bg-blue-600 dark:hover:bg-blue-500 dark:ring-1 dark:ring-blue-400/40 active:scale-[0.98] shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                   Choose This Plan
                                 </button>
@@ -2460,7 +2452,6 @@ export default function ParentEnquiryForm() {
                 {/* Class Timing: shown once a plan is chosen, so the time ranges match its hours per class */}
                 {form.planType && (() => {
                   const hours = form.hoursPerDay || 1.5;
-                  const isFixed = form.classTimingType === "Fixed Timing";
                   const customOpen = showCustomTime || (!!form.startTime && !PRESET_START_TIMES.includes(form.startTime));
                   const chosenDays = dayOptions
                     .filter((day) => form.preferredDays.includes(day))
@@ -2468,15 +2459,11 @@ export default function ParentEnquiryForm() {
                     .join(", ");
                   const timingError = getTimingError(form);
 
-                  const chooseTimingType = (type) => {
-                    setForm((prev) => ({ ...prev, classTimingType: type }));
-                    setErrors((prev) => ({ ...prev, classTiming: "" }));
-                  };
                   const chooseStart = (start) => {
                     setForm((prev) =>
                       start
-                        ? { ...prev, ...getFixedTimingFields(start, prev.hoursPerDay) }
-                        : { ...prev, startTime: "", endTime: "", classTimingSlot: "", classDuration: "" }
+                        ? { ...prev, classTimingType: "Fixed Timing", ...getFixedTimingFields(start, prev.hoursPerDay) }
+                        : { ...prev, classTimingType: "Fixed Timing", startTime: "", endTime: "", classTimingSlot: "", classDuration: "" }
                     );
                     setErrors((prev) => ({ ...prev, classTiming: "" }));
                   };
@@ -2497,135 +2484,71 @@ export default function ParentEnquiryForm() {
                           {hours} Hr per class
                         </span>
                       </div>
-                      <p className="mt-1.5 text-xs font-medium text-slate-400">
-                        When should classes happen? Choose one option.
-                      </p>
 
-                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        {[
-                          {
-                            id: "Fixed Timing",
-                            title: "Fixed time",
-                            desc: "Same time for every class. Pick it below.",
-                            icon: Clock,
-                          },
-                          {
-                            id: "Flexible",
-                            title: "Flexible",
-                            desc: "Any time works. The tutor will agree a time with you.",
-                            icon: RefreshCw,
-                          },
-                        ].map((option) => {
-                          const isSelected = form.classTimingType === option.id;
-                          const OptionIcon = option.icon;
-                          return (
-                            <button
-                              type="button"
-                              key={option.id}
-                              onClick={() => chooseTimingType(option.id)}
-                              aria-pressed={isSelected}
-                              className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition-all duration-300 cursor-pointer ${
-                                isSelected
-                                  ? "border-blue-600 bg-blue-50/40 dark:bg-blue-950/30 ring-2 ring-blue-500/15 shadow-md"
-                                  : "border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 hover:border-slate-300 dark:hover:border-slate-600"
-                              }`}
-                            >
-                              <div className={`p-2.5 rounded-xl shrink-0 transition-colors ${
-                                isSelected ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300"
-                              }`}>
-                                <OptionIcon className="h-5 w-5" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-black text-slate-800 dark:text-slate-100">{option.title}</p>
-                                <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">{option.desc}</p>
-                              </div>
-                              <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
-                                isSelected ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 dark:border-slate-600"
-                              }`}>
-                                {isSelected && <Check className="h-3 w-3" strokeWidth={4} />}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <AnimatePresence initial={false}>
-                        {isFixed && (
-                          <motion.div
-                            key="fixed-times"
-                            variants={wardVariants}
-                            initial="hidden"
-                            animate="visible"
-                            exit="exit"
-                            className="overflow-hidden"
-                          >
-                            <div className="mt-5 space-y-4">
-                              {TIMING_GROUPS.map((group) => (
-                                <div key={group.label}>
-                                  <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-400">
-                                    {group.label}
-                                  </p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {group.starts.map((start) => {
-                                      const active = !customOpen && form.startTime === start;
-                                      return (
-                                        <button
-                                          type="button"
-                                          key={start}
-                                          onClick={() => {
-                                            setShowCustomTime(false);
-                                            chooseStart(start);
-                                          }}
-                                          className={`rounded-xl border px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
-                                            active
-                                              ? "bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02]"
-                                              : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                          }`}
-                                        >
-                                          {formatSlotLabel(start, hours)}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              ))}
-
-                              <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
-                                {customOpen ? (
-                                  <div className="flex flex-wrap items-end gap-3">
-                                    <div>
-                                      <label htmlFor="customStartTime" className="mb-1 block text-xs font-bold text-slate-600 dark:text-slate-300">
-                                        Other start time
-                                      </label>
-                                      <input
-                                        id="customStartTime"
-                                        type="time"
-                                        step="900"
-                                        value={form.startTime || ""}
-                                        onChange={(e) => chooseStart(e.target.value)}
-                                        className="rounded-xl border border-slate-300 dark:border-slate-600 p-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                      />
-                                    </div>
-                                    {form.startTime && form.endTime && (
-                                      <p className="pb-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                        Ends at {formatTime12Hr(form.endTime)} ({hours} Hr)
-                                      </p>
-                                    )}
-                                  </div>
-                                ) : (
+                      <div className="mt-5 space-y-4">
+                        {TIMING_GROUPS.map((group) => (
+                          <div key={group.label}>
+                            <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                              {group.label}
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {group.starts.map((start) => {
+                                const active = !customOpen && form.startTime === start;
+                                return (
                                   <button
                                     type="button"
-                                    onClick={() => setShowCustomTime(true)}
-                                    className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                                    key={start}
+                                    onClick={() => {
+                                      setShowCustomTime(false);
+                                      chooseStart(start);
+                                    }}
+                                    className={`rounded-xl border px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
+                                      active
+                                        ? "bg-blue-600 text-white border-blue-600 shadow-sm scale-[1.02]"
+                                        : "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                    }`}
                                   >
-                                    + None of these? Enter another time
+                                    {formatSlotLabel(start, hours)}
                                   </button>
-                                )}
-                              </div>
+                                );
+                              })}
                             </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                          </div>
+                        ))}
+
+                        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                          {customOpen ? (
+                            <div className="flex flex-wrap items-end gap-3">
+                              <div>
+                                <label htmlFor="customStartTime" className="mb-1 block text-xs font-bold text-slate-600 dark:text-slate-300">
+                                  Other start time
+                                </label>
+                                <input
+                                  id="customStartTime"
+                                  type="time"
+                                  step="900"
+                                  value={form.startTime || ""}
+                                  onChange={(e) => chooseStart(e.target.value)}
+                                  className="rounded-xl border border-slate-300 dark:border-slate-600 p-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                />
+                              </div>
+                              {form.startTime && form.endTime && (
+                                <p className="pb-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                  Ends at {formatTime12Hr(form.endTime)} ({hours} Hr)
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setShowCustomTime(true)}
+                              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                            >
+                              + None of these? Enter another time
+                            </button>
+                          )}
+                        </div>
+                      </div>
 
                       {/* Live summary of the schedule, so the choice is always visible before submitting */}
                       <div
@@ -2645,17 +2568,10 @@ export default function ParentEnquiryForm() {
                           <p className="mt-1 text-sm font-black">
                             {chosenDays || "Days not selected yet"}
                             {" · "}
-                            {!form.classTimingType
-                              ? "Timing not chosen yet"
-                              : isFixed
-                                ? form.startTime && form.endTime
-                                  ? `${formatTime12Hr(form.startTime)} – ${formatTime12Hr(form.endTime)}`
-                                  : "Start time not picked yet"
-                                : "Flexible timing"}
+                            {form.startTime && form.endTime
+                              ? `${formatTime12Hr(form.startTime)} – ${formatTime12Hr(form.endTime)}`
+                              : "Start time not picked yet"}
                           </p>
-                          {form.classTimingType === "Flexible" && (
-                            <p className="mt-1 font-medium">The tutor will confirm a suitable time with you before the first class.</p>
-                          )}
                         </div>
                       </div>
 
@@ -2732,7 +2648,7 @@ export default function ParentEnquiryForm() {
               <button
                 type="button"
                 onClick={nextStep}
-                className="rounded-2xl bg-slate-900 px-8 py-4 text-sm font-black text-white shadow-lg shadow-slate-900/10 hover:bg-black transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                className="rounded-2xl bg-slate-900 px-8 py-4 text-sm font-black text-white shadow-lg shadow-slate-900/10 hover:bg-black dark:bg-blue-600 dark:hover:bg-blue-500 dark:shadow-blue-900/30 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
               >
                 Continue <ArrowRight className="h-4 w-4" />
               </button>
@@ -2741,7 +2657,7 @@ export default function ParentEnquiryForm() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="rounded-2xl bg-slate-900 px-9 py-4 text-sm font-black text-white shadow-lg shadow-slate-900/10 hover:bg-black transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                className="rounded-2xl bg-slate-900 px-9 py-4 text-sm font-black text-white shadow-lg shadow-slate-900/10 hover:bg-black dark:bg-blue-600 dark:hover:bg-blue-500 dark:shadow-blue-900/30 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {submitting ? (
                   "Submitting..."
@@ -2954,106 +2870,112 @@ function SubjectsMultiSelect({
   options,
   selectedValues = [],
   onChange,
-  placeholder = "Select subjects",
   error,
-  icon: Icon,
 }) {
-  const [open, setOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const [othersOpen, setOthersOpen] = useState(false);
+  const [otherText, setOtherText] = useState("");
+  const knownValues = options.map((o) => o.value);
+  // Subjects typed in through "+ Others" (or saved earlier under a name not in the list)
+  const customValues = selectedValues.filter((v) => !knownValues.includes(v));
 
   const handleToggle = (value) => {
-    const exists = selectedValues.includes(value);
-    if (exists) {
+    if (selectedValues.includes(value)) {
       onChange(selectedValues.filter((v) => v !== value));
     } else {
       onChange([...selectedValues, value]);
     }
   };
 
-  const handleRemove = (value, e) => {
-    e.stopPropagation();
-    onChange(selectedValues.filter((v) => v !== value));
+  const addOther = () => {
+    const name = otherText.trim().replace(/\s+/g, " ");
+    if (!name) return;
+    const match = options.find(
+      (o) => o.label.toLowerCase() === name.toLowerCase() || o.value.toLowerCase() === name.toLowerCase()
+    );
+    const value = match ? match.value : name;
+    if (!selectedValues.some((v) => v.toLowerCase() === value.toLowerCase())) {
+      onChange([...selectedValues, value]);
+    }
+    setOtherText("");
+    setOthersOpen(false);
   };
 
+  const chipBase =
+    "rounded-xl border px-4 py-2 text-sm font-bold transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
+  const chipOff =
+    "border-indigo-200 bg-white text-slate-600 hover:border-blue-400 hover:text-blue-700 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-blue-400 dark:hover:text-white";
+  const chipOn = "border-blue-700 bg-blue-700 text-white shadow-sm dark:border-blue-500 dark:bg-blue-600";
+
   return (
-    <div className="relative" ref={dropdownRef}>
-      <label className="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-200">
+    <div className="md:col-span-2">
+      <label className="mb-2.5 block text-sm font-bold text-slate-700 dark:text-slate-200">
         {label}
       </label>
-      <div className="relative">
-        {Icon && (
-          <div className="absolute left-4.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10">
-            <Icon className="h-5 w-5" />
-          </div>
-        )}
-        <div
-          onClick={() => setOpen(!open)}
-          className={`min-h-14 w-full rounded-3xl border bg-white/60 backdrop-blur-sm px-4 py-2.5 text-left text-sm font-semibold outline-none transition-all duration-300 flex flex-wrap items-center justify-between gap-1.5 cursor-pointer focus-within:ring-4 focus-within:bg-white focus-within:border-blue-600 ${
-            Icon ? "pl-12" : "pl-5"
-          } ${
-            error
-              ? "border-red-400 focus-within:ring-red-100"
-              : "border-slate-200 focus-within:ring-blue-100"
-          }`}
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => {
+          const checked = selectedValues.includes(option.value);
+          return (
+            <button
+              type="button"
+              key={option.value}
+              aria-pressed={checked}
+              onClick={() => handleToggle(option.value)}
+              className={`${chipBase} ${checked ? chipOn : chipOff}`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+
+        {customValues.map((value) => (
+          <button
+            type="button"
+            key={value}
+            aria-pressed="true"
+            onClick={() => handleToggle(value)}
+            title="Remove"
+            className={`${chipBase} ${chipOn} inline-flex items-center gap-1.5`}
+          >
+            {value}
+            <span aria-hidden="true" className="text-xs opacity-80">✕</span>
+          </button>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => setOthersOpen((o) => !o)}
+          aria-expanded={othersOpen}
+          className={`${chipBase} border-dashed border-indigo-300 bg-transparent text-slate-500 hover:border-blue-400 hover:text-blue-700 dark:border-slate-500 dark:text-slate-300 dark:hover:text-white`}
         >
-          <div className="flex flex-wrap gap-1.5 flex-1 mr-2">
-            {selectedValues.length === 0 ? (
-              <span className="text-slate-400 py-1">{placeholder}</span>
-            ) : (
-              selectedValues.map((value) => (
-                <span
-                  key={value}
-                  className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
-                >
-                  {value}
-                  <button
-                    type="button"
-                    onClick={(e) => handleRemove(value, e)}
-                    className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-blue-500 hover:bg-blue-200 hover:text-blue-900 focus:outline-none"
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))
-            )}
-          </div>
-          <span className="text-xs text-slate-400 self-center">▼</span>
-        </div>
+          + Others
+        </button>
       </div>
 
-      {open && (
-        <div className="absolute left-0 right-0 top-full z-35 mt-1 max-h-60 overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 p-3 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-700 animate-slideFade">
-          {options.map((option) => {
-            const checked = selectedValues.includes(option);
-            return (
-              <label
-                key={option}
-                className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => handleToggle(option)}
-                  className="h-5 w-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  style={{ accentColor: "#2563eb" }}
-                />
-                <span className={checked ? "text-blue-600 font-extrabold" : ""}>
-                  {checked ? "✓ " : ""}
-                  {option}
-                </span>
-              </label>
-            );
-          })}
+      {othersOpen && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 animate-slideFade">
+          <input
+            type="text"
+            autoFocus
+            value={otherText}
+            onChange={(e) => setOtherText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addOther();
+              }
+            }}
+            placeholder="Type the subject, e.g. German"
+            maxLength={40}
+            className="h-10 flex-1 min-w-[12rem] rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+          />
+          <button
+            type="button"
+            onClick={addOther}
+            disabled={!otherText.trim()}
+            className="h-10 rounded-xl bg-blue-700 px-4 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-600 dark:hover:bg-blue-500"
+          >
+            Add
+          </button>
         </div>
       )}
 
