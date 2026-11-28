@@ -1892,7 +1892,7 @@ export default function ParentEnquiryForm() {
                 </motion.div>
 
                 {/* Plan Selection UI */}
-                <motion.div variants={itemVariants} className="mt-12">
+                <motion.div id="plan-section" variants={itemVariants} className="mt-12 scroll-mt-24">
                   {form.planType ? (
                     <div className="flex flex-col gap-8">
                       <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 backdrop-blur-md p-6 md:p-8 shadow-xl dark:shadow-none">
@@ -2578,6 +2578,173 @@ export default function ParentEnquiryForm() {
                       {errors.classTiming && (
                         <p className="mt-3 text-xs font-bold text-red-600">{errors.classTiming}</p>
                       )}
+                    </motion.div>
+                  );
+                })()}
+
+                {/* Summary: everything the parent has chosen, in one place, right before they submit */}
+                {form.planType && (() => {
+                  const plural = (n, word) => `${n} ${word}${Number(n) === 1 ? "" : "s"}`;
+                  const isOnline = form.preferredMode.startsWith("Online");
+                  const days = dayOptions
+                    .filter((day) => form.preferredDays.includes(day))
+                    .map((day) => day.slice(0, 3))
+                    .join(", ");
+                  const time = form.startTime && form.endTime
+                    ? `${formatTime12Hr(form.startTime)} – ${formatTime12Hr(form.endTime)}`
+                    : "";
+                  const address = [form.houseDetails, form.address || form.placeLabel, form.pincode]
+                    .map((part) => String(part || "").trim())
+                    .filter(Boolean)
+                    .join(", ");
+                  const planTitle = PLANS.find((p) => p.id === form.planType)?.title || form.planType;
+                  const chip = "rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-bold text-blue-700 dark:border-slate-600 dark:bg-slate-900 dark:text-blue-300";
+                  const pending = "rounded-lg border border-dashed border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-300";
+                  const sectionCls = "border-t border-indigo-200/80 pt-4 dark:border-slate-700";
+                  const heading = "mb-2 text-[11px] font-black uppercase tracking-wider text-slate-400";
+                  const linkCls = "text-xs font-bold text-blue-700 underline underline-offset-2 hover:text-blue-900 dark:text-blue-300 dark:hover:text-white cursor-pointer";
+                  const row = (label, value) => (
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3 text-sm">
+                      <span className="w-28 shrink-0 text-xs font-bold text-slate-400 sm:pt-0.5">{label}</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-100 break-words">{value}</span>
+                    </div>
+                  );
+                  const goTo = (targetStep) => {
+                    setStep(targetStep);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  };
+
+                  return (
+                    <motion.div variants={itemVariants} className="mt-12">
+                      <h4 className="text-2xl font-black text-slate-900 dark:text-white">Summary &amp; Quotation</h4>
+                      <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                        Everything you have chosen, with an approximate fee estimate. Please check it before submitting.
+                      </p>
+
+                      <div className="mt-4 space-y-4 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-5 md:p-6 dark:border-slate-700 dark:bg-slate-800/60">
+                        {/* Parent & address */}
+                        <div>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className={heading}>Parent details</p>
+                            <button type="button" onClick={() => goTo(1)} className={linkCls}>Edit</button>
+                          </div>
+                          <div className="space-y-1.5">
+                            {row("Name", form.parentName || "—")}
+                            {row("Phone", form.phone || "—")}
+                            {form.email && row("Email", form.email)}
+                            {row("Address", address || "—")}
+                          </div>
+                        </div>
+
+                        {/* Students */}
+                        <div className={sectionCls}>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className={heading}>{form.wards.length > 1 ? `Students (${form.wards.length})` : "Student"}</p>
+                            <button type="button" onClick={() => goTo(2)} className={linkCls}>Edit</button>
+                          </div>
+                          <div className="space-y-3">
+                            {form.wards.map((ward, i) => (
+                              <div key={i} className="space-y-1.5">
+                                <p className="text-sm font-black text-slate-800 dark:text-slate-100">
+                                  {ward.studentName || `Student ${i + 1}`}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {ward.classGrade && <span className={chip}>{ward.classGrade}</span>}
+                                  {ward.curriculum && <span className={chip}>{ward.curriculum}</span>}
+                                  {ward.subjectsNeeded?.length > 0 && (
+                                    <span className={chip}>{ward.subjectsNeeded.join(", ")}</span>
+                                  )}
+                                </div>
+                                {ward.specialNeeds?.trim() && (
+                                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                    Tutor wanted: {ward.specialNeeds.trim()}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Tutor preferences */}
+                        <div className={sectionCls}>
+                          <p className={heading}>Tutor preferences</p>
+                          <div className="flex flex-wrap gap-2">
+                            {form.preferredMode
+                              ? <span className={chip}>{isOnline ? "💻 Online live tuition" : "🏠 Home / in-person tuition"}</span>
+                              : <span className={pending}>Mode not chosen yet</span>}
+                            {form.preferredGender
+                              ? <span className={chip}>{form.preferredGender === "Flexible" ? "🤝 Any gender tutor" : `${form.preferredGender} tutor`}</span>
+                              : <span className={pending}>Tutor gender not chosen yet</span>}
+                          </div>
+                        </div>
+
+                        {/* Plan & schedule */}
+                        <div className={sectionCls}>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className={heading}>
+                              Plan &amp; schedule · <span className="text-slate-600 dark:text-slate-300">{planTitle}</span>
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleChangePlan();
+                                document.getElementById("plan-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                              }}
+                              className={linkCls}
+                            >
+                              Change Plan
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <span className={chip}>{plural(form.daysPerWeek, "day")} / week</span>
+                            <span className={chip}>{plural(form.hoursPerDay, "hour")} / class</span>
+                            {days ? <span className={chip}>📅 {days}</span> : <span className={pending}>Days not selected yet</span>}
+                            {time ? <span className={chip}>🕒 {time}</span> : <span className={pending}>Start time not picked yet</span>}
+                          </div>
+                        </div>
+
+                        {/* Fee */}
+                        <div className={sectionCls}>
+                          <p className={heading}>Fee estimate</p>
+                          <div className="space-y-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            {form.wards.length > 1 && form.wards.map((ward, i) => (
+                              <div key={i} className="flex justify-between gap-3">
+                                <span>{ward.studentName || `Student ${i + 1}`}</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-100">{formatFee(form.studentFees?.[i] ?? null)}</span>
+                              </div>
+                            ))}
+                            {form.planType === "foundation" && form.discount > 0 && (
+                              <div className="flex justify-between gap-3 text-emerald-700 dark:text-emerald-400">
+                                <span>Plan discount (18%)</span>
+                                <span className="font-bold">-₹{form.discount.toLocaleString("en-IN")}</span>
+                              </div>
+                            )}
+                            {form.siblingDiscount > 0 && (
+                              <div className="flex justify-between gap-3 text-emerald-700 dark:text-emerald-400">
+                                <span>Sibling concession ({form.siblingConcessionPercent}%)</span>
+                                <span className="font-bold">-₹{form.siblingDiscount.toLocaleString("en-IN")}</span>
+                              </div>
+                            )}
+                            {form.planType === "elite" && feeQuote?.ok && (
+                              <div className="flex justify-between gap-3">
+                                <span>Hourly rate</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-100">
+                                  {formatHourlyRate(feeQuote.students[0].planPrice, form.daysPerWeek, form.hoursPerDay)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-2 flex items-end justify-between gap-3">
+                            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                              Estimated monthly fee{form.wards.length > 1 ? ` (${form.wards.length} students)` : ""}
+                            </p>
+                            <p className="text-2xl font-black text-slate-900 dark:text-white">
+                              {formatFee(form.monthlyFees)}
+                              <span className="ml-1 text-xs font-bold text-slate-500 dark:text-slate-400">/ month</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </motion.div>
                   );
                 })()}
