@@ -23,7 +23,6 @@ import {
   LayoutDashboard,
   Settings,
   Grid,
-  FileText,
   ArrowLeft,
   ArrowRight,
   Laptop,
@@ -704,7 +703,6 @@ export default function ParentEnquiryForm() {
   const submittingRef = useRef(false);
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState({});
-  const [openNotes, setOpenNotes] = useState({});
   const [geoInfo, setGeoInfo] = useState({});
   const [viewingPlanId, setViewingPlanId] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -1039,19 +1037,6 @@ export default function ParentEnquiryForm() {
     setForm((prev) => ({
       ...prev,
       wards: prev.wards.filter((_, i) => i !== index),
-    }));
-
-    setOpenNotes((prev) => {
-      const updated = { ...prev };
-      delete updated[index];
-      return updated;
-    });
-  };
-
-  const toggleNotes = (index) => {
-    setOpenNotes((prev) => ({
-      ...prev,
-      [index]: !prev[index],
     }));
   };
 
@@ -1714,45 +1699,16 @@ export default function ParentEnquiryForm() {
 
 
 
-                          <div className="md:col-span-2 overflow-hidden rounded-[1.8rem] border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 backdrop-blur-sm">
-                            <button
-                              type="button"
-                              onClick={() => toggleNotes(index)}
-                              className="flex w-full items-center justify-between px-5 py-4.5 text-left transition hover:bg-slate-100/30 cursor-pointer"
-                            >
-                              <div className="flex items-center gap-3">
-                                <FileText className="h-5 w-5 text-slate-400" />
-                                <div>
-                                  <p className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                                    What Type of Tutor Do You Want?
-                                    <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-600">
-                                      Optional
-                                    </span>
-                                  </p>
-                                  <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium">
-                                    E.g. Tamil speaking, Malayalam speaking, patience, strict.
-                                  </p>
-                                </div>
-                              </div>
-
-                              <ChevronDown
-                                className={`h-5 w-5 text-slate-400 transition-transform duration-300 ${openNotes[index] ? "rotate-180" : ""}`}
-                              />
-                            </button>
-
-                            {openNotes[index] && (
-                              <div className="animate-slideFade border-t border-slate-200/80 dark:border-slate-700 bg-white/70 dark:bg-slate-900/40 p-5">
-                                <TextArea
-                                  label="What Type of Tutor Do You Want?"
-                                  name="specialNeeds"
-                                  value={ward.specialNeeds}
-                                  onChange={(e) => handleWardChange(index, e)}
-                                  placeholder="Tamil speaking / Malayalam speaking / Patience / Strict"
-                                  icon={FileText}
-                                />
-                              </div>
-                            )}
-                          </div>
+                          <TutorTypePicker
+                            ward={ward}
+                            onChange={(fields) =>
+                              setForm((prev) => {
+                                const updated = [...prev.wards];
+                                updated[index] = { ...updated[index], ...fields };
+                                return { ...prev, wards: updated };
+                              })
+                            }
+                          />
                         </div>
                       </motion.div>
                     ))}
@@ -1892,7 +1848,7 @@ export default function ParentEnquiryForm() {
                 </motion.div>
 
                 {/* Plan Selection UI */}
-                <motion.div variants={itemVariants} className="mt-12">
+                <motion.div id="plan-section" variants={itemVariants} className="mt-12 scroll-mt-24">
                   {form.planType ? (
                     <div className="flex flex-col gap-8">
                       <div className="rounded-3xl border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/80 backdrop-blur-md p-6 md:p-8 shadow-xl dark:shadow-none">
@@ -2098,13 +2054,16 @@ export default function ParentEnquiryForm() {
 
                               {/* Badge and plan icon */}
                               <div className="relative flex items-start justify-between gap-3">
-                                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${look.badge}`}>
+                                <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ${look.badge}`}>
                                   {plan.theme === "gold" && <Star className="h-3 w-3 fill-current" aria-hidden="true" />}
                                   {plan.badge}
                                 </span>
-                                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-md ${look.iconTile}`}>
-                                  <PlanIcon className="h-5 w-5" aria-hidden="true" />
-                                </span>
+                                {/* Elite shows only its badge, no icon */}
+                                {plan.theme !== "black" && (
+                                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-md ${look.iconTile}`}>
+                                    <PlanIcon className="h-5 w-5" aria-hidden="true" />
+                                  </span>
+                                )}
                               </div>
 
                               <h4 className="relative mt-3 text-[22px] font-extrabold leading-tight">{plan.title}</h4>
@@ -2219,7 +2178,7 @@ export default function ParentEnquiryForm() {
                               </button>
                               
                               <div className="mt-2">
-                                <span className={`inline-block rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider border mb-2 ${
+                                <span className={`inline-block rounded-full px-3 py-0.5 text-xs font-bold border mb-2 ${
                                   activePlanData.theme === 'silver' ? 'bg-slate-900/10 text-slate-800 border-slate-400/30' :
                                   activePlanData.theme === 'gold' ? 'bg-black/10 text-slate-900 border-black/20' :
                                   'bg-white/15 text-white border-white/10'
@@ -2582,6 +2541,173 @@ export default function ParentEnquiryForm() {
                   );
                 })()}
 
+                {/* Summary: everything the parent has chosen, in one place, right before they submit */}
+                {form.planType && (() => {
+                  const plural = (n, word) => `${n} ${word}${Number(n) === 1 ? "" : "s"}`;
+                  const isOnline = form.preferredMode.startsWith("Online");
+                  const days = dayOptions
+                    .filter((day) => form.preferredDays.includes(day))
+                    .map((day) => day.slice(0, 3))
+                    .join(", ");
+                  const time = form.startTime && form.endTime
+                    ? `${formatTime12Hr(form.startTime)} – ${formatTime12Hr(form.endTime)}`
+                    : "";
+                  const address = [form.houseDetails, form.address || form.placeLabel, form.pincode]
+                    .map((part) => String(part || "").trim())
+                    .filter(Boolean)
+                    .join(", ");
+                  const planTitle = PLANS.find((p) => p.id === form.planType)?.title || form.planType;
+                  const chip = "rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-bold text-blue-700 dark:border-slate-600 dark:bg-slate-900 dark:text-blue-300";
+                  const pending = "rounded-lg border border-dashed border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-300";
+                  const sectionCls = "border-t border-indigo-200/80 pt-4 dark:border-slate-700";
+                  const heading = "mb-2 text-[11px] font-black uppercase tracking-wider text-slate-400";
+                  const linkCls = "text-xs font-bold text-blue-700 underline underline-offset-2 hover:text-blue-900 dark:text-blue-300 dark:hover:text-white cursor-pointer";
+                  const row = (label, value) => (
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3 text-sm">
+                      <span className="w-28 shrink-0 text-xs font-bold text-slate-400 sm:pt-0.5">{label}</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-100 break-words">{value}</span>
+                    </div>
+                  );
+                  const goTo = (targetStep) => {
+                    setStep(targetStep);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  };
+
+                  return (
+                    <motion.div variants={itemVariants} className="mt-12">
+                      <h4 className="text-2xl font-black text-slate-900 dark:text-white">Summary &amp; Quotation</h4>
+                      <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+                        Everything you have chosen, with an approximate fee estimate. Please check it before submitting.
+                      </p>
+
+                      <div className="mt-4 space-y-4 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-5 md:p-6 dark:border-slate-700 dark:bg-slate-800/60">
+                        {/* Parent & address */}
+                        <div>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className={heading}>Parent details</p>
+                            <button type="button" onClick={() => goTo(1)} className={linkCls}>Edit</button>
+                          </div>
+                          <div className="space-y-1.5">
+                            {row("Name", form.parentName || "—")}
+                            {row("Phone", form.phone || "—")}
+                            {form.email && row("Email", form.email)}
+                            {row("Address", address || "—")}
+                          </div>
+                        </div>
+
+                        {/* Students */}
+                        <div className={sectionCls}>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className={heading}>{form.wards.length > 1 ? `Students (${form.wards.length})` : "Student"}</p>
+                            <button type="button" onClick={() => goTo(2)} className={linkCls}>Edit</button>
+                          </div>
+                          <div className="space-y-3">
+                            {form.wards.map((ward, i) => (
+                              <div key={i} className="space-y-1.5">
+                                <p className="text-sm font-black text-slate-800 dark:text-slate-100">
+                                  {ward.studentName || `Student ${i + 1}`}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {ward.classGrade && <span className={chip}>{ward.classGrade}</span>}
+                                  {ward.curriculum && <span className={chip}>{ward.curriculum}</span>}
+                                  {ward.subjectsNeeded?.length > 0 && (
+                                    <span className={chip}>{ward.subjectsNeeded.join(", ")}</span>
+                                  )}
+                                </div>
+                                {ward.specialNeeds?.trim() && (
+                                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                    Tutor wanted: {ward.specialNeeds.trim()}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Tutor preferences */}
+                        <div className={sectionCls}>
+                          <p className={heading}>Tutor preferences</p>
+                          <div className="flex flex-wrap gap-2">
+                            {form.preferredMode
+                              ? <span className={chip}>{isOnline ? "💻 Online live tuition" : "🏠 Home / in-person tuition"}</span>
+                              : <span className={pending}>Mode not chosen yet</span>}
+                            {form.preferredGender
+                              ? <span className={chip}>{form.preferredGender === "Flexible" ? "🤝 Any gender tutor" : `${form.preferredGender} tutor`}</span>
+                              : <span className={pending}>Tutor gender not chosen yet</span>}
+                          </div>
+                        </div>
+
+                        {/* Plan & schedule */}
+                        <div className={sectionCls}>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className={heading}>
+                              Plan &amp; schedule · <span className="text-slate-600 dark:text-slate-300">{planTitle}</span>
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleChangePlan();
+                                document.getElementById("plan-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                              }}
+                              className={linkCls}
+                            >
+                              Change Plan
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <span className={chip}>{plural(form.daysPerWeek, "day")} / week</span>
+                            <span className={chip}>{plural(form.hoursPerDay, "hour")} / class</span>
+                            {days ? <span className={chip}>📅 {days}</span> : <span className={pending}>Days not selected yet</span>}
+                            {time ? <span className={chip}>🕒 {time}</span> : <span className={pending}>Start time not picked yet</span>}
+                          </div>
+                        </div>
+
+                        {/* Fee */}
+                        <div className={sectionCls}>
+                          <p className={heading}>Fee estimate</p>
+                          <div className="space-y-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            {form.wards.length > 1 && form.wards.map((ward, i) => (
+                              <div key={i} className="flex justify-between gap-3">
+                                <span>{ward.studentName || `Student ${i + 1}`}</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-100">{formatFee(form.studentFees?.[i] ?? null)}</span>
+                              </div>
+                            ))}
+                            {form.planType === "foundation" && form.discount > 0 && (
+                              <div className="flex justify-between gap-3 text-emerald-700 dark:text-emerald-400">
+                                <span>Plan discount (18%)</span>
+                                <span className="font-bold">-₹{form.discount.toLocaleString("en-IN")}</span>
+                              </div>
+                            )}
+                            {form.siblingDiscount > 0 && (
+                              <div className="flex justify-between gap-3 text-emerald-700 dark:text-emerald-400">
+                                <span>Sibling concession ({form.siblingConcessionPercent}%)</span>
+                                <span className="font-bold">-₹{form.siblingDiscount.toLocaleString("en-IN")}</span>
+                              </div>
+                            )}
+                            {form.planType === "elite" && feeQuote?.ok && (
+                              <div className="flex justify-between gap-3">
+                                <span>Hourly rate</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-100">
+                                  {formatHourlyRate(feeQuote.students[0].planPrice, form.daysPerWeek, form.hoursPerDay)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-2 flex items-end justify-between gap-3">
+                            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                              Estimated monthly fee{form.wards.length > 1 ? ` (${form.wards.length} students)` : ""}
+                            </p>
+                            <p className="text-2xl font-black text-slate-900 dark:text-white">
+                              {formatFee(form.monthlyFees)}
+                              <span className="ml-1 text-xs font-bold text-slate-500 dark:text-slate-400">/ month</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })()}
+
                 {/* Final Pricing Consent Declaration Checkbox at the end of Step 3 (Preference) */}
                 <motion.div variants={itemVariants} className="mt-12 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 p-5 md:p-7 shadow-sm dark:shadow-none">
                   <div className="flex items-start gap-3">
@@ -2744,6 +2870,102 @@ function SectionTitle({ eyebrow, title, description }) {
       <p className="mt-2.5 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400 font-medium">
         {description}
       </p>
+    </div>
+  );
+}
+
+const TUTOR_TRAIT_GROUPS = [
+  {
+    label: "Speaks",
+    icon: "🗣️",
+    options: ["Tamil", "Malayalam", "Telugu", "Kannada", "Hindi", "Marathi"],
+    suffix: " speaking",
+  },
+  {
+    label: "Teaching style",
+    icon: "✨",
+    options: ["Patient", "Strict", "Friendly", "Experienced", "Exam focused", "Good with young kids"],
+    suffix: "",
+  },
+];
+
+// "What type of tutor do you want?" as quick-pick chips plus a short note.
+// The picks and the note are joined into ward.specialNeeds ("Tamil speaking, Patient, ..."),
+// the one field the backend stores, so admins see the same text as before.
+function TutorTypePicker({ ward, onChange }) {
+  const traits = Array.isArray(ward.tutorTraits) ? ward.tutorTraits : [];
+  // Drafts from before the chips keep their typed text as the note
+  const note = ward.tutorNote ?? (Array.isArray(ward.tutorTraits) ? "" : ward.specialNeeds || "");
+
+  const save = (nextTraits, nextNote) =>
+    onChange({
+      tutorTraits: nextTraits,
+      tutorNote: nextNote,
+      specialNeeds: [...nextTraits, nextNote.trim()].filter(Boolean).join(", "),
+    });
+
+  const toggle = (trait) =>
+    save(traits.includes(trait) ? traits.filter((t) => t !== trait) : [...traits, trait], note);
+
+  return (
+    <div className="md:col-span-2 rounded-[1.8rem] border border-slate-200 bg-slate-50/60 p-5 md:p-6 dark:border-slate-700 dark:bg-slate-800/40">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm font-black text-slate-800 dark:text-slate-100">What type of tutor do you want?</p>
+        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-bold text-slate-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300">
+          Optional
+        </span>
+      </div>
+      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+        Tap anything that matters to you. We use it to shortlist the right tutor.
+      </p>
+
+      <div className="mt-4 space-y-4">
+        {TUTOR_TRAIT_GROUPS.map((group) => (
+          <div key={group.label}>
+            <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-400">
+              <span aria-hidden="true" className="mr-1">{group.icon}</span>
+              {group.label}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {group.options.map((option) => {
+                const trait = `${option}${group.suffix}`;
+                const on = traits.includes(trait);
+                return (
+                  <button
+                    type="button"
+                    key={trait}
+                    aria-pressed={on}
+                    onClick={() => toggle(trait)}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                      on
+                        ? "border-blue-700 bg-blue-700 text-white shadow-sm dark:border-blue-500 dark:bg-blue-600"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-blue-400 hover:text-blue-700 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-blue-400 dark:hover:text-white"
+                    }`}
+                  >
+                    {on && <Check className="h-3 w-3" strokeWidth={3.5} aria-hidden="true" />}
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        <div>
+          <label className="mb-2 block text-[11px] font-black uppercase tracking-wider text-slate-400">
+            <span aria-hidden="true" className="mr-1">📝</span>
+            Anything else?
+          </label>
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => save(traits, e.target.value)}
+            maxLength={200}
+            placeholder="E.g. can also help with homework, knows the ICSE syllabus well"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 placeholder:font-medium placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+          />
+        </div>
+      </div>
     </div>
   );
 }
